@@ -1,0 +1,70 @@
+export const Colors = {
+  primary: '#4F46E5',      // Indigo
+  primaryLight: '#818CF8',
+  primaryDark: '#3730A3',
+  secondary: '#10B981',    // Emerald
+  danger: '#EF4444',
+  warning: '#F59E0B',
+  success: '#22C55E',
+
+  background: '#F9FAFB',
+  surface: '#FFFFFF',
+  surfaceSecondary: '#F3F4F6',
+  border: '#E5E7EB',
+  borderFocus: '#4F46E5',
+
+  text: '#111827',
+  textSecondary: '#6B7280',
+  textMuted: '#9CA3AF',
+  textInverse: '#FFFFFF',
+
+  // Match score colors
+  matchHigh: '#22C55E',    // 80%+
+  matchMid: '#F59E0B',     // 60-79%
+  matchLow: '#EF4444',     // <60%
+} as const;
+
+export const Typography = {
+  h1: { fontSize: 28, fontWeight: '700' as const, lineHeight: 36 },
+  h2: { fontSize: 22, fontWeight: '700' as const, lineHeight: 30 },
+  h3: { fontSize: 18, fontWeight: '600' as const, lineHeight: 26 },
+  h4: { fontSize: 16, fontWeight: '600' as const, lineHeight: 24 },
+  body: { fontSize: 14, fontWeight: '400' as const, lineHeight: 22 },
+  bodySmall: { fontSize: 12, fontWeight: '400' as const, lineHeight: 18 },
+  label: { fontSize: 14, fontWeight: '500' as const, lineHeight: 20 },
+  caption: { fontSize: 11, fontWeight: '400' as const, lineHeight: 16 },
+} as const;
+
+export const Spacing = {
+  xs: 4,
+  sm: 8,
+  md: 16,
+  lg: 24,
+  xl: 32,
+  xxl: 48,
+} as const;
+
+export const Radius = {
+  sm: 6,
+  md: 12,
+  lg: 16,
+  xl: 24,
+  full: 9999,
+} as const;
+
+export const Shadow = {
+  sm: {
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    elevation: 2,
+  },
+  md: {
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+} as const;

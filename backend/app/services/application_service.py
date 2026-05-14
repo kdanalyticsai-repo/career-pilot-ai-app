@@ -1,0 +1,131 @@
+import uuid
+from datetime import datetime, timezone
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
+from fastapi import HTTPException, status
+
+from app.models.job import Application, Job
+from app.schemas.job import ApplicationCreate, ApplicationUpdate, ApplicationResponse, ApplicationJobInfo
+
+
+class ApplicationService:
+    def __init__(self, db: AsyncSession):
+        self.db = db
+
+    async def create(self, user_id: uuid.UUID, data: ApplicationCreate) -> ApplicationResponse:
+        result = await self.db.execute(select(Job).where(Job.id == data.job_id))
+        job = result.scalar_one_or_none()
+        if not job:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found")
+
+        existing = await self.db.execute(
+            select(Application).where(
+                Application.user_id == user_id,
+                Application.job_id == data.job_id,
+            )
+        )
+        if existing.scalar_one_or_none():
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Already applied to this job")
+
+        now = datetime.now(timezone.utc)
+        timeline_entry = {"status": "applied", "timestamp": now.isoformat(), "note": "Application created"}
+
+        app = Application(
+            user_id=user_id,
+            job_id=data.job_id,
+            resume_id=data.resume_id,
+            status="applied",
+            notes=data.notes,
+            timeline=[timeline_entry],
+            next_action=data.next_action,
+            next_action_date=data.next_action_date,
+        )
+        self.db.add(app)
+        await self.db.commit()
+        await self.db.refresh(app)
+
+        return self._to_response(app, job)
+
+    async def list(self, user_id: uuid.UUID) -> list[ApplicationResponse]:
+        result = await self.db.execute(
+            select(Application).where(Application.user_id == user_id).order_by(Application.applied_at.desc())
+        )
+        apps = result.scalars().all()
+
+        responses = []
+        for app in apps:
+            job_result = await self.db.execute(select(Job).where(Job.id == app.job_id))
+            job = job_result.scalar_one_or_none()
+            responses.append(self._to_response(app, job))
+        return responses
+
+    async def get(self, application_id: uuid.UUID, user_id: uuid.UUID) -> ApplicationResponse:
+        app = await self._get_owned(application_id, user_id)
+        job_result = await self.db.execute(select(Job).where(Job.id == app.job_id))
+        job = job_result.scalar_one_or_none()
+        return self._to_response(app, job)
+
+    async def update(self, application_id: uuid.UUID, user_id: uuid.UUID, data: ApplicationUpdate) -> ApplicationResponse:
+        app = await self._get_owned(application_id, user_id)
+
+        now = datetime.now(timezone.utc)
+        timeline = list(app.timeline or [])
+
+        if data.status and data.status != app.status:
+            timeline.append({"status": data.status, "timestamp": now.isoformat(), "note": f"Status changed to {data.status}"})
+            app.status = data.status
+
+        if data.notes is not None:
+            app.notes = data.notes
+        if data.next_action is not None:
+            app.next_action = data.next_action
+        if data.next_action_date is not None:
+            app.next_action_date = data.next_action_date
+
+        app.timeline = timeline
+        app.updated_at = now
+
+        await self.db.commit()
+        await self.db.refresh(app)
+
+        job_result = await self.db.execute(select(Job).where(Job.id == app.job_id))
+        job = job_result.scalar_one_or_none()
+        return self._to_response(app, job)
+
+    async def delete(self, application_id: uuid.UUID, user_id: uuid.UUID) -> None:
+        app = await self._get_owned(application_id, user_id)
+        await self.db.delete(app)
+        await self.db.commit()
+
+    async def _get_owned(self, application_id: uuid.UUID, user_id: uuid.UUID) -> Application:
+        result = await self.db.execute(
+            select(Application).where(Application.id == application_id, Application.user_id == user_id)
+        )
+        app = result.scalar_one_or_none()
+        if not app:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Application not found")
+        return app
+
+    def _to_response(self, app: Application, job: Job | None) -> ApplicationResponse:
+        job_info = None
+        if job:
+            job_info = ApplicationJobInfo(
+                id=job.id,
+                title=job.title,
+                company=job.company,
+                location=job.location,
+                job_type=job.job_type,
+            )
+        return ApplicationResponse(
+            id=app.id,
+            job_id=app.job_id,
+            resume_id=app.resume_id,
+            status=app.status,
+            notes=app.notes,
+            timeline=app.timeline or [],
+            next_action=app.next_action,
+            next_action_date=app.next_action_date,
+            applied_at=app.applied_at,
+            updated_at=app.updated_at,
+            job=job_info,
+        )

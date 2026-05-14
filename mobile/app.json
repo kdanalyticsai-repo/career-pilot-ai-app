@@ -1,0 +1,49 @@
+{
+  "expo": {
+    "name": "CareerPilot",
+    "slug": "careerpilot",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#FFFFFF"
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.careerpilot.app"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#4F46E5"
+      },
+      "package": "com.careerpilot.app",
+      "permissions": [
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE"
+      ]
+    },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      "expo-document-picker"
+    ],
+    "scheme": "careerpilot",
+    "runtimeVersion": {
+      "policy": "sdkVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/4a2b0dcb-0fbf-4361-9369-92c3d7724430"
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "4a2b0dcb-0fbf-4361-9369-92c3d7724430"
+      }
+    },
+    "owner": "kdanalyticsai"
+  }
+}
