@@ -16,7 +16,7 @@ class GUID(TypeDecorator):
 
     def load_dialect_impl(self, dialect):
         if dialect.name == "postgresql":
-            return dialect.type_descriptor(PG_UUID())
+            return dialect.type_descriptor(PG_UUID(as_uuid=False))
         return dialect.type_descriptor(CHAR(36))
 
     def process_bind_param(self, value, dialect):
