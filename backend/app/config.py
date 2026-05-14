@@ -6,13 +6,13 @@ import os
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
-    APP_NAME: str = "CareerPilot"
+    APP_NAME: str = "CVPilot"
     APP_ENV: str = "development"
     SECRET_KEY: str = "dev-secret-key-change-in-production-min-32-chars!!"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 15
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
 
-    DATABASE_URL: str = "sqlite+aiosqlite:///./careerpilot.db"
+    DATABASE_URL: str = "sqlite+aiosqlite:///./cvpilot.db"
     DATABASE_SYNC_URL: str = ""
 
     REDIS_URL: str = "redis://localhost:6379/0"
@@ -20,7 +20,7 @@ class Settings(BaseSettings):
     AWS_ACCESS_KEY_ID: str = ""
     AWS_SECRET_ACCESS_KEY: str = ""
     AWS_REGION: str = "ap-south-1"
-    S3_BUCKET_NAME: str = "careerpilot-resumes"
+    S3_BUCKET_NAME: str = "cvpilot-resumes"
     S3_PRESIGNED_URL_EXPIRY: int = 300
     LOCAL_STORAGE_PATH: str = "./uploads"
 
@@ -30,7 +30,7 @@ class Settings(BaseSettings):
     GOOGLE_CLIENT_SECRET: str = ""
 
     PINECONE_API_KEY: str = ""
-    PINECONE_INDEX: str = "careerpilot-jobs"
+    PINECONE_INDEX: str = "cvpilot-jobs"
 
     SENTRY_DSN: str = ""
     ALLOWED_ORIGINS: str = "http://localhost:3000,exp://localhost:8081,http://10.0.2.2:8000"

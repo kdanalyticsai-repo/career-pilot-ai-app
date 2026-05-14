@@ -1,7 +1,7 @@
 from app.ai.claude_client import get_client
 from app.config import settings
 
-CAREER_COACH_SYSTEM = """You are CareerPilot's AI career coach — an expert career advisor with deep knowledge
+CAREER_COACH_SYSTEM = """You are CVPilot's AI career coach — an expert career advisor with deep knowledge
 of the Indian tech job market, resume writing, interview preparation, salary negotiation, and career growth.
 
 You help users:
@@ -24,7 +24,7 @@ def chat_with_coach(messages: list[dict], user_context: str | None = None) -> st
             return "The most common failure in tech interviews isn't the hard problems — it's communicating your thought process on easy ones. Practice thinking out loud. For system design, always clarify scope before designing. For behaviorals, prepare 5 strong STAR stories you can adapt to any question."
         if "resume" in last_msg.lower():
             return "The single highest-impact resume fix is quantifying your bullets. 'Improved API performance' becomes 'Reduced p95 API latency by 40% (250ms → 150ms) serving 500K daily requests.' Every bullet should answer: how much, how many, or how fast."
-        return "I'm your CareerPilot AI coach! I can help you with resume improvements, interview prep, salary negotiation, job search strategy, and career planning. What would you like to work on today?"
+        return "I'm your CVPilot AI coach! I can help you with resume improvements, interview prep, salary negotiation, job search strategy, and career planning. What would you like to work on today?"
 
     system = CAREER_COACH_SYSTEM
     if user_context:

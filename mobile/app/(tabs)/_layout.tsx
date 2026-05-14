@@ -27,7 +27,7 @@ export default function TabsLayout() {
         options={{
           title: 'Home',
           tabBarIcon: ({ color }) => <TabIcon emoji="🏠" color={color} />,
-          headerTitle: 'CareerPilot',
+          headerTitle: 'CVPilot',
         }}
       />
       <Tabs.Screen

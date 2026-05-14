@@ -1,4 +1,4 @@
-# CareerPilot — restart cloudflared tunnel and push OTA update
+# CVPilot — restart cloudflared tunnel and push OTA update
 # Run this whenever the tunnel dies. No EAS build needed.
 
 Write-Host "Starting cloudflared tunnel..." -ForegroundColor Cyan

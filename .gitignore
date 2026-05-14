@@ -45,3 +45,13 @@ yarn-debug.log*
 # AWS / secrets
 *.pem
 *.key
+
+# SQLite databases
+*.db
+*.sqlite3
+
+# Uploads (local file storage)
+backend/uploads/
+
+# ngrok
+ngrok_*.log

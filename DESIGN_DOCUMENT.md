@@ -1,4 +1,4 @@
-# CareerPilot — AI Resume + Job Match Mobile App
+# CVPilot — AI Resume + Job Match Mobile App
 ## End-to-End Design & Implementation Document
 **Target Platform:** Android (first), iOS (Phase 5)
 **Last Updated:** 2026-05-13
@@ -28,7 +28,7 @@
 Job seekers struggle to tailor their resume for every job, don't know which jobs they're actually qualified for, and have no feedback loop on why they're being rejected. Recruiters get flooded with irrelevant applications.
 
 ### 1.2 Solution
-CareerPilot is an AI-powered mobile app that:
+CVPilot is an AI-powered mobile app that:
 - Parses and structurally understands the user's resume
 - Matches jobs from multiple sources against the user's profile
 - Rewrites resume sections to maximize ATS (Applicant Tracking System) match score
@@ -716,7 +716,7 @@ Two-stage matching for accuracy + speed:
 from pinecone import Pinecone
 
 pc = Pinecone(api_key=settings.PINECONE_API_KEY)
-index = pc.Index("careerpilot-jobs")
+index = pc.Index("cvpilot-jobs")
 
 async def find_candidate_jobs(resume_embedding: list[float], top_k: int = 100):
     results = index.query(
@@ -1098,7 +1098,7 @@ services:
     build: ./backend
     ports: ["8000:8000"]
     environment:
-      DATABASE_URL: postgresql+asyncpg://postgres:postgres@db:5432/careerpilot
+      DATABASE_URL: postgresql+asyncpg://postgres:postgres@db:5432/cvpilot
       REDIS_URL: redis://redis:6379
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
     depends_on: [db, redis]
@@ -1108,14 +1108,14 @@ services:
     build: ./backend
     command: celery -A app.workers.celery_app worker --loglevel=info
     environment:
-      DATABASE_URL: postgresql+asyncpg://postgres:postgres@db:5432/careerpilot
+      DATABASE_URL: postgresql+asyncpg://postgres:postgres@db:5432/cvpilot
       REDIS_URL: redis://redis:6379
     depends_on: [db, redis]
 
   db:
     image: postgres:16
     environment:
-      POSTGRES_DB: careerpilot
+      POSTGRES_DB: cvpilot
       POSTGRES_PASSWORD: postgres
     ports: ["5432:5432"]
     volumes: ["postgres_data:/var/lib/postgresql/data"]
@@ -1294,8 +1294,8 @@ Technical Metrics:
 import { initConnection, getSubscriptions, requestSubscription } from 'expo-iap';
 
 const PRODUCT_IDS = {
-  pro_monthly: 'careerpilot_pro_monthly',
-  pro_yearly: 'careerpilot_pro_yearly',
+  pro_monthly: 'cvpilot_pro_monthly',
+  pro_yearly: 'cvpilot_pro_yearly',
 };
 ```
 
@@ -1439,7 +1439,7 @@ const PRODUCT_IDS = {
 - [ ] Security audit: OWASP checklist
 
 #### Mobile Tasks
-- [ ] In-app purchase: Pro subscription flow (expo-iap)
+- [ ] In-app purchase: Free and Pro subscription flow (expo-iap)
 - [ ] Paywall screens with feature comparison
 - [ ] Push notification permission + display
 - [ ] Home dashboard: analytics widgets (funnel, weekly activity)
@@ -1487,7 +1487,7 @@ const PRODUCT_IDS = {
 
 ```bash
 # Project structure
-mkdir careerpilot && cd careerpilot
+mkdir cvpilot && cd cvpilot
 mkdir backend mobile
 
 # Backend

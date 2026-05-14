@@ -43,7 +43,7 @@ export default function RegisterScreen() {
       <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
           <View style={styles.header}>
-            <Text style={styles.logo}>CareerPilot</Text>
+            <Text style={styles.logo}>CVPilot</Text>
           </View>
 
           <View style={styles.form}>

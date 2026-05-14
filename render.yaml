@@ -1,0 +1,35 @@
+services:
+  - type: web
+    name: cvpilot-backend
+    env: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: APP_NAME
+        value: CVPilot
+      - key: APP_ENV
+        value: development
+      - key: DATABASE_URL
+        fromDatabase:
+          name: cvpilot-db
+          property: connectionString
+      - key: REDIS_URL
+        value: redis://localhost:6379/0
+      - key: SECRET_KEY
+        generateValue: true
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: ALLOWED_ORIGINS
+        value: "*"
+      - key: LOCAL_STORAGE_PATH
+        value: ./uploads
+      - key: AWS_ACCESS_KEY_ID
+        value: ""
+      - key: AWS_SECRET_ACCESS_KEY
+        value: ""
+
+databases:
+  - name: cvpilot-db
+    plan: free
