@@ -30,7 +30,7 @@ export default function JobDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const queryClient = useQueryClient();
 
-  const { data: job, isLoading } = useQuery({
+  const { data: job, isLoading, isError, refetch } = useQuery({
     queryKey: ['job', id],
     queryFn: () => api.get(`/jobs/${id}`).then((r) => r.data),
   });
@@ -54,7 +54,16 @@ export default function JobDetailScreen() {
   if (isLoading) {
     return <View style={styles.center}><ActivityIndicator size="large" color={Colors.primary} /></View>;
   }
-  if (!job) return null;
+  if (isError || !job) {
+    return (
+      <View style={styles.center}>
+        <Text style={{ color: Colors.textSecondary, marginBottom: 12 }}>Failed to load job details.</Text>
+        <TouchableOpacity onPress={() => refetch()}>
+          <Text style={{ color: Colors.primary, fontWeight: '600' }}>Tap to retry</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
 
   const matchDetails = job.match_details ?? {};
   const matchedSkills: string[] = matchDetails.matched_skills ?? [];
@@ -63,7 +72,7 @@ export default function JobDetailScreen() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['bottom']}>
-      <ScrollView contentContainerStyle={styles.container}>
+      <ScrollView contentContainerStyle={styles.container} style={styles.scroll}>
 
         {/* Hero card */}
         <View style={[styles.heroCard, Shadow.md]}>
@@ -208,8 +217,9 @@ function formatSalary(min: number | null, max: number | null, currency: string) 
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: Colors.background },
+  scroll: { flex: 1 },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  container: { padding: Spacing.md, gap: Spacing.md, paddingBottom: 100 },
+  container: { padding: Spacing.md, gap: Spacing.md, paddingBottom: Spacing.md },
 
   heroCard: { backgroundColor: Colors.surface, borderRadius: Radius.lg, padding: Spacing.lg },
   heroTop: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: Spacing.md },
@@ -251,7 +261,6 @@ const styles = StyleSheet.create({
   aiBtnLabel: { ...Typography.caption, color: Colors.primary, fontWeight: '700', textAlign: 'center' },
 
   footer: {
-    position: 'absolute', bottom: 0, left: 0, right: 0,
     backgroundColor: Colors.surface, borderTopWidth: 1, borderTopColor: Colors.border,
     flexDirection: 'row', padding: Spacing.md, gap: Spacing.sm, alignItems: 'center',
   },
@@ -262,7 +271,7 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: Colors.border,
   },
   externalBtnText: { ...Typography.label, color: Colors.textSecondary },
-  applyBtn: { flex: 1, backgroundColor: Colors.primary, borderRadius: Radius.md, padding: Spacing.md, alignItems: 'center' },
+  applyBtn: { flex: 1, backgroundColor: Colors.primary, borderRadius: Radius.md, paddingVertical: 10, paddingHorizontal: Spacing.md, alignItems: 'center' },
   applyBtnDisabled: { opacity: 0.6 },
   applyBtnText: { ...Typography.label, color: Colors.textInverse, fontWeight: '700' },
 });

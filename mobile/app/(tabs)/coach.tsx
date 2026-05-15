@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TextInput, TouchableOpacity,
-  ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView,
+  ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -42,6 +42,10 @@ export default function CoachTab() {
       setMessages(data.messages);
       queryClient.invalidateQueries({ queryKey: ['chat-sessions'] });
       setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
+    },
+    onError: () => {
+      setMessages((prev) => prev.filter((m) => !m.id.startsWith('temp-')));
+      Alert.alert('Error', 'Could not get a response. Please try again.');
     },
   });
 
@@ -103,7 +107,7 @@ export default function CoachTab() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['bottom']}>
-      <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
         {/* Header */}
         <View style={styles.chatHeader}>
           <View>

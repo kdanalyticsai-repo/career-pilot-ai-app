@@ -24,6 +24,11 @@ async def _run_migrations(conn):
         return
     migrations = [
         "ALTER TABLE users ADD COLUMN IF NOT EXISTS phone VARCHAR(20)",
+        "ALTER TABLE resumes ADD COLUMN IF NOT EXISTS prev_ats_score INTEGER",
+        "ALTER TABLE resumes ADD COLUMN IF NOT EXISTS completeness_score INTEGER",
+        "ALTER TABLE resumes ADD COLUMN IF NOT EXISTS embedding_id VARCHAR(255)",
+        "ALTER TABLE resumes ADD COLUMN IF NOT EXISTS ats_details JSONB",
+        "ALTER TABLE resumes ADD COLUMN IF NOT EXISTS version INTEGER DEFAULT 1",
     ]
     for stmt in migrations:
         await conn.execute(text(stmt))

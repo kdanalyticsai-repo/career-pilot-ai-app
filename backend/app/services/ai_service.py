@@ -210,6 +210,8 @@ class AIService:
 
         await self.db.commit()
         await self.db.refresh(session)
+        await self.db.refresh(user_msg)
+        await self.db.refresh(assistant_msg)
 
         # Return fresh message list
         all_msgs = existing_msgs + [user_msg, assistant_msg]

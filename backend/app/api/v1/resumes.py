@@ -93,9 +93,11 @@ async def local_upload(
     file_bytes = await request.body()
     service = ResumeService(db)
     resume = await service.save_local_file(resume_id, current_user.id, file_bytes)
-    # Trigger processing AFTER file is saved (not before)
     from app.workers.resume_tasks import process_resume_task
-    process_resume_task.delay(str(resume_id), resume.s3_key)
+    try:
+        process_resume_task.delay(str(resume_id), resume.s3_key)
+    except Exception:
+        pass  # file is saved; task will be retried by the worker
 
 
 @router.get("/{resume_id}/export-pdf")
