@@ -16,12 +16,13 @@ router = APIRouter(prefix="/resumes", tags=["resumes"])
 
 @router.post("/upload", response_model=ResumeUploadResponse, status_code=http_status.HTTP_201_CREATED)
 async def upload_resume(
+    request: Request,
     data: ResumeUploadRequest,
     current_user: User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_db),
 ):
     service = ResumeService(db)
-    resume, upload_url, task_id = await service.create_upload_url(current_user.id, data)
+    resume, upload_url, task_id = await service.create_upload_url(current_user.id, data, base_url=str(request.base_url))
     return ResumeUploadResponse(
         resume_id=resume.id,
         upload_url=upload_url,

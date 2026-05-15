@@ -88,8 +88,8 @@ class Settings(BaseSettings):
 
     @property
     def use_celery_eager(self) -> bool:
-        # Run tasks synchronously (no Redis broker needed) in local dev
-        return self.APP_ENV == "development" and "localhost" in self.REDIS_URL
+        # Run tasks synchronously whenever Redis is not a real external broker
+        return "localhost" in self.REDIS_URL or "127.0.0.1" in self.REDIS_URL
 
     @property
     def cors_origins(self) -> list[str]:

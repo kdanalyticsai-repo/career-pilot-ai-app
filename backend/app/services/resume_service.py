@@ -32,7 +32,7 @@ class ResumeService:
     def __init__(self, db: AsyncSession):
         self.db = db
 
-    async def create_upload_url(self, user_id: uuid.UUID, data: ResumeUploadRequest) -> tuple[Resume, str, str]:
+    async def create_upload_url(self, user_id: uuid.UUID, data: ResumeUploadRequest, base_url: str = "http://localhost:8000") -> tuple[Resume, str, str]:
         file_key = f"resumes/{user_id}/{uuid.uuid4()}/{data.filename}"
 
         resume = Resume(user_id=user_id, name=data.name, s3_key=file_key, status="processing")
@@ -41,8 +41,7 @@ class ResumeService:
         await self.db.refresh(resume)
 
         if settings.use_local_storage:
-            # Return a local upload endpoint URL instead of a pre-signed S3 URL
-            upload_url = f"http://localhost:8000/api/v1/resumes/local-upload/{resume.id}"
+            upload_url = f"{base_url.rstrip('/')}api/v1/resumes/local-upload/{resume.id}"
         else:
             upload_url = _s3_client().generate_presigned_url(
                 "put_object",
