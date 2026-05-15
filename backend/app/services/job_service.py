@@ -58,12 +58,12 @@ class JobService:
         result = await self.db.execute(
             select(Resume).where(Resume.user_id == user_id, Resume.is_primary == True)
         )
-        resume = result.scalar_one_or_none()
+        resume = result.scalars().first()
         if not resume:
             result = await self.db.execute(
                 select(Resume).where(Resume.user_id == user_id).order_by(Resume.created_at.desc())
             )
-            resume = result.scalar_one_or_none()
+            resume = result.scalars().first()
         return resume
 
     async def _get_saved_job_ids(self, user_id: uuid.UUID) -> set[str]:

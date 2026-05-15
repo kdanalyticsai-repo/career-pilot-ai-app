@@ -1,9 +1,7 @@
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, Request
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
 from sqlalchemy import text
-import traceback
 try:
     import sentry_sdk
     _has_sentry = True
@@ -70,11 +68,6 @@ app.include_router(applications.router, prefix="/api/v1")
 app.include_router(ai.router, prefix="/api/v1")
 app.include_router(analytics.router, prefix="/api/v1")
 app.include_router(notifications.router, prefix="/api/v1")
-
-
-@app.exception_handler(Exception)
-async def _debug_500(request: Request, exc: Exception):
-    return JSONResponse(status_code=500, content={"detail": f"{type(exc).__name__}: {exc}", "tb": traceback.format_exc()[-2000:]})
 
 
 @app.get("/health")
