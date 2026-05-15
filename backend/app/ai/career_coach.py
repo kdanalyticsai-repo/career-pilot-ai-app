@@ -32,13 +32,12 @@ def chat_with_coach(messages: list[dict], user_context: str | None = None) -> st
 
     try:
         client = get_client()
-        message = client.messages.create(
-            model="claude-sonnet-4-6",
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
             max_tokens=800,
-            system=system,
-            messages=messages,
+            messages=[{"role": "system", "content": system}] + messages,
         )
-        return message.content[0].text
+        return response.choices[0].message.content
     except Exception:
         # API unavailable or out of credits — return a helpful mock reply
         last_msg = messages[-1]["content"] if messages else ""

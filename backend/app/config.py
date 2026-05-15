@@ -24,7 +24,8 @@ class Settings(BaseSettings):
     S3_PRESIGNED_URL_EXPIRY: int = 300
     LOCAL_STORAGE_PATH: str = "./uploads"
 
-    ANTHROPIC_API_KEY: str = "sk-ant-placeholder"
+    OPENAI_API_KEY: str = ""
+    ANTHROPIC_API_KEY: str = "sk-ant-placeholder"  # legacy, unused
 
     GOOGLE_CLIENT_ID: str = ""
     GOOGLE_CLIENT_SECRET: str = ""
@@ -71,8 +72,12 @@ class Settings(BaseSettings):
         return not (self.AWS_ACCESS_KEY_ID and self.AWS_SECRET_ACCESS_KEY)
 
     @property
+    def has_openai_key(self) -> bool:
+        return bool(self.OPENAI_API_KEY)
+
+    @property
     def has_anthropic_key(self) -> bool:
-        return bool(self.ANTHROPIC_API_KEY) and not self.ANTHROPIC_API_KEY.startswith("sk-ant-placeholder")
+        return self.has_openai_key
 
     @property
     def has_adzuna_key(self) -> bool:

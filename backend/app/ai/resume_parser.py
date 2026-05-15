@@ -76,17 +76,15 @@ def extract_text_from_pdf_bytes(pdf_bytes: bytes) -> str:
 
 def parse_resume(raw_text: str) -> dict:
     client = get_client()
-    message = client.messages.create(
-        model="claude-sonnet-4-6",
+    response = client.chat.completions.create(
+        model="gpt-4o-mini",
         max_tokens=4096,
-        system=PARSE_SYSTEM_PROMPT,
-        messages=[{
-            "role": "user",
-            "content": PARSE_USER_PROMPT.format(resume_text=raw_text[:15000]),
-        }],
+        messages=[
+            {"role": "system", "content": PARSE_SYSTEM_PROMPT},
+            {"role": "user", "content": PARSE_USER_PROMPT.format(resume_text=raw_text[:15000])},
+        ],
     )
-    text = message.content[0].text.strip()
-    # Strip markdown fences if model adds them anyway
+    text = response.choices[0].message.content.strip()
     if text.startswith("```"):
         text = text.split("```")[1]
         if text.startswith("json"):

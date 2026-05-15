@@ -59,22 +59,21 @@ def tailor_resume(resume_data: dict, job_title: str, job_company: str, job_skill
         return mock
 
     client = get_client()
-    message = client.messages.create(
-        model="claude-sonnet-4-6",
+    response = client.chat.completions.create(
+        model="gpt-4o-mini",
         max_tokens=4096,
-        system=TAILOR_SYSTEM,
-        messages=[{
-            "role": "user",
-            "content": TAILOR_PROMPT.format(
+        messages=[
+            {"role": "system", "content": TAILOR_SYSTEM},
+            {"role": "user", "content": TAILOR_PROMPT.format(
                 job_title=job_title,
                 job_company=job_company,
                 job_skills=", ".join(job_skills[:15]),
                 job_description=job_description[:600],
                 resume_json=json.dumps(resume_data, indent=2)[:3000],
-            ),
-        }],
+            )},
+        ],
     )
-    text = message.content[0].text.strip()
+    text = response.choices[0].message.content.strip()
     if text.startswith("```"):
         text = text.split("```")[1]
         if text.startswith("json"):

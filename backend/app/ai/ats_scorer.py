@@ -35,16 +35,15 @@ Resume (structured):
 
 def score_resume_ats(structured_resume: dict) -> dict:
     client = get_client()
-    message = client.messages.create(
-        model="claude-sonnet-4-6",
+    response = client.chat.completions.create(
+        model="gpt-4o-mini",
         max_tokens=2048,
-        system=ATS_SYSTEM_PROMPT,
-        messages=[{
-            "role": "user",
-            "content": ATS_PROMPT.format(resume_json=json.dumps(structured_resume, indent=2)),
-        }],
+        messages=[
+            {"role": "system", "content": ATS_SYSTEM_PROMPT},
+            {"role": "user", "content": ATS_PROMPT.format(resume_json=json.dumps(structured_resume, indent=2))},
+        ],
     )
-    text = message.content[0].text.strip()
+    text = response.choices[0].message.content.strip()
     if text.startswith("```"):
         text = text.split("```")[1]
         if text.startswith("json"):

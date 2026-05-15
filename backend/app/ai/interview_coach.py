@@ -73,13 +73,12 @@ def generate_interview_prep(job_title: str, job_company: str, job_skills: list[s
         return MOCK_PREP
 
     client = get_client()
-    message = client.messages.create(
-        model="claude-sonnet-4-6",
+    response = client.chat.completions.create(
+        model="gpt-4o-mini",
         max_tokens=3000,
-        system=INTERVIEW_SYSTEM,
-        messages=[{
-            "role": "user",
-            "content": INTERVIEW_PROMPT.format(
+        messages=[
+            {"role": "system", "content": INTERVIEW_SYSTEM},
+            {"role": "user", "content": INTERVIEW_PROMPT.format(
                 job_title=job_title,
                 job_company=job_company,
                 job_skills=", ".join(job_skills[:15]),
@@ -87,10 +86,10 @@ def generate_interview_prep(job_title: str, job_company: str, job_skills: list[s
                 job_description=job_description[:500],
                 candidate_skills=", ".join(candidate_skills[:20]),
                 candidate_titles=", ".join(candidate_titles[:5]),
-            ),
-        }],
+            )},
+        ],
     )
-    text = message.content[0].text.strip()
+    text = response.choices[0].message.content.strip()
     if text.startswith("```"):
         text = text.split("```")[1]
         if text.startswith("json"):

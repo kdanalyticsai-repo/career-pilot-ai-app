@@ -68,13 +68,12 @@ def generate_cover_letter(job_title: str, job_company: str, job_description: str
         exp_summary.append(f"{title} at {company}: " + "; ".join(bullets))
 
     client = get_client()
-    message = client.messages.create(
-        model="claude-sonnet-4-6",
+    response = client.chat.completions.create(
+        model="gpt-4o-mini",
         max_tokens=1500,
-        system=COVER_LETTER_SYSTEM,
-        messages=[{
-            "role": "user",
-            "content": COVER_LETTER_PROMPT.format(
+        messages=[
+            {"role": "system", "content": COVER_LETTER_SYSTEM},
+            {"role": "user", "content": COVER_LETTER_PROMPT.format(
                 job_title=job_title,
                 job_company=job_company,
                 job_description_short=job_description[:300],
@@ -83,10 +82,10 @@ def generate_cover_letter(job_title: str, job_company: str, job_description: str
                 candidate_skills=", ".join(candidate_skills[:15]),
                 recent_experience="\n".join(exp_summary) or "Not provided",
                 candidate_summary=candidate_summary[:300] or "Not provided",
-            ),
-        }],
+            )},
+        ],
     )
-    text = message.content[0].text.strip()
+    text = response.choices[0].message.content.strip()
     if text.startswith("```"):
         text = text.split("```")[1]
         if text.startswith("json"):

@@ -1,11 +1,11 @@
-import anthropic
+from openai import OpenAI
 from app.config import settings
 
-_client: anthropic.Anthropic | None = None
+_client: OpenAI | None = None
 
 
-def get_client() -> anthropic.Anthropic:
+def get_client() -> OpenAI:
     global _client
     if _client is None:
-        _client = anthropic.Anthropic(api_key=settings.ANTHROPIC_API_KEY)
+        _client = OpenAI(api_key=settings.OPENAI_API_KEY)
     return _client
