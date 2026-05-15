@@ -1,1 +1,1 @@
-"# career-pilot-ai-app" 
+# CVPilot — AI-Powered Career Coach
