@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -5,11 +6,24 @@ import { useAuthStore } from '@/stores/authStore';
 import { useResumeStore } from '@/stores/resumeStore';
 import { useResumes } from '@/hooks/useResumes';
 import { Colors, Typography, Spacing, Radius, Shadow } from '@/constants/theme';
+import { apiClient } from '@/services/api';
+
+interface AnalyticsSummary {
+  total: number;
+  by_status: Record<string, number>;
+}
 
 export default function HomeScreen() {
   const { user } = useAuthStore();
   const { getPrimaryResume } = useResumeStore();
+  const [appStats, setAppStats] = useState<AnalyticsSummary | null>(null);
   useResumes();
+
+  useEffect(() => {
+    apiClient.get('/analytics/dashboard')
+      .then(r => setAppStats(r.data.applications))
+      .catch(() => {});
+  }, []);
 
   const primaryResume = getPrimaryResume();
   const firstName = user?.name?.split(' ')[0] ?? 'there';
@@ -88,9 +102,9 @@ export default function HomeScreen() {
           </View>
           <View style={styles.funnelRow}>
             {[
-              { label: 'Applied', count: 0, color: Colors.primary },
-              { label: 'Interview', count: 0, color: Colors.warning },
-              { label: 'Offer', count: 0, color: Colors.success },
+              { label: 'Applied', count: appStats?.by_status.applied ?? 0, color: Colors.primary },
+              { label: 'Interview', count: appStats?.by_status.interview ?? 0, color: Colors.warning },
+              { label: 'Offer', count: appStats?.by_status.offer ?? 0, color: Colors.success },
             ].map(({ label, count, color }) => (
               <View key={label} style={styles.funnelItem}>
                 <Text style={[styles.funnelCount, { color }]}>{count}</Text>

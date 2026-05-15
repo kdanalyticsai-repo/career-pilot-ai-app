@@ -32,6 +32,19 @@ class Settings(BaseSettings):
     PINECONE_API_KEY: str = ""
     PINECONE_INDEX: str = "cvpilot-jobs"
 
+    # Adzuna job data API (developer.adzuna.com - free tier)
+    ADZUNA_APP_ID: str = ""
+    ADZUNA_API_KEY: str = ""
+    ADZUNA_COUNTRY: str = "in"  # "in" for India, "gb" for UK, "us" for US
+
+    # SendGrid email service
+    SENDGRID_API_KEY: str = ""
+    SENDGRID_FROM_EMAIL: str = "noreply@cvpilot.app"
+    SENDGRID_FROM_NAME: str = "CVPilot"
+
+    # Expo push notifications
+    EXPO_ACCESS_TOKEN: str = ""
+
     SENTRY_DSN: str = ""
     ALLOWED_ORIGINS: str = "http://localhost:3000,exp://localhost:8081,http://10.0.2.2:8000"
 
@@ -60,6 +73,14 @@ class Settings(BaseSettings):
     @property
     def has_anthropic_key(self) -> bool:
         return bool(self.ANTHROPIC_API_KEY) and not self.ANTHROPIC_API_KEY.startswith("sk-ant-placeholder")
+
+    @property
+    def has_adzuna_key(self) -> bool:
+        return bool(self.ADZUNA_APP_ID) and bool(self.ADZUNA_API_KEY)
+
+    @property
+    def has_sendgrid_key(self) -> bool:
+        return bool(self.SENDGRID_API_KEY)
 
     @property
     def use_sqlite(self) -> bool:

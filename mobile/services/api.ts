@@ -61,3 +61,6 @@ api.interceptors.response.use(
     }
   }
 );
+
+// Alias for Phase 5 screens
+export const apiClient = api;

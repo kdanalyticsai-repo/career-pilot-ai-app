@@ -78,6 +78,11 @@ export default function JobsTab() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['jobs'] }),
   });
 
+  const { mutate: syncAdzuna } = useMutation({
+    mutationFn: () => api.post('/jobs/sync-adzuna'),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['jobs'] }),
+  });
+
   const { mutate: computeMatches } = useMutation({
     mutationFn: () => api.post('/jobs/compute-matches'),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['jobs'] }),
@@ -175,12 +180,17 @@ export default function JobsTab() {
         {jobs.length === 0 && !isLoading && (
           <View style={styles.seedRow}>
             <TouchableOpacity style={styles.seedBtn} onPress={() => { seedJobs(); }}>
-              <Text style={styles.seedBtnText}>Load Jobs</Text>
+              <Text style={styles.seedBtnText}>Load Sample Jobs</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={[styles.seedBtn, { backgroundColor: Colors.secondary + '15' }]} onPress={() => computeMatches()}>
-              <Text style={[styles.seedBtnText, { color: Colors.secondary }]}>Compute Matches</Text>
+            <TouchableOpacity style={[styles.seedBtn, { backgroundColor: '#7C3AED12' }]} onPress={() => syncAdzuna()}>
+              <Text style={[styles.seedBtnText, { color: '#7C3AED' }]}>Sync Live Jobs</Text>
             </TouchableOpacity>
           </View>
+        )}
+        {jobs.length > 0 && (
+          <TouchableOpacity style={styles.matchRow} onPress={() => computeMatches()}>
+            <Text style={styles.matchRowText}>Recompute Matches</Text>
+          </TouchableOpacity>
         )}
       </View>
 
@@ -287,6 +297,8 @@ const styles = StyleSheet.create({
   seedRow: { flexDirection: 'row', gap: Spacing.sm, marginTop: Spacing.sm },
   seedBtn: { flex: 1, backgroundColor: Colors.primary + '12', borderRadius: Radius.md, padding: Spacing.sm, alignItems: 'center' },
   seedBtnText: { ...Typography.label, color: Colors.primary, fontWeight: '600' },
+  matchRow: { marginTop: Spacing.sm, alignItems: 'flex-end' },
+  matchRowText: { ...Typography.bodySmall, color: Colors.primary },
 
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   list: { padding: Spacing.md, gap: Spacing.sm, paddingBottom: Spacing.xxl },

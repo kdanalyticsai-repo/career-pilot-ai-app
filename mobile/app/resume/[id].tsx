@@ -1,15 +1,22 @@
-import { View, Text, StyleSheet, ScrollView, ActivityIndicator, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, ActivityIndicator, TouchableOpacity, Alert, Linking } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/services/api';
 import { Colors, Typography, Spacing, Radius, Shadow } from '@/constants/theme';
+import { API_URL } from '@/constants/config';
 import { ATSScoreRing } from '@/components/resume/ATSScoreRing';
 import { ScoreBreakdown } from '@/components/resume/ScoreBreakdown';
 import { QuickWins } from '@/components/resume/QuickWins';
 
 export default function ResumeDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
+
+  const handleExportPDF = () => {
+    const baseUrl = API_URL.replace('/api/v1', '');
+    const url = `${baseUrl}/api/v1/resumes/${id}/export-pdf`;
+    Linking.openURL(url).catch(() => Alert.alert('Error', 'Could not open download link.'));
+  };
 
   const { data: resume, isLoading } = useQuery({
     queryKey: ['resume', id],
@@ -105,6 +112,13 @@ export default function ResumeDetailScreen() {
             </View>
           </View>
         </View>
+
+        {/* Export PDF */}
+        {isReady && (
+          <TouchableOpacity style={styles.exportBtn} onPress={handleExportPDF}>
+            <Text style={styles.exportBtnText}>⬇ Export PDF</Text>
+          </TouchableOpacity>
+        )}
 
         {/* Score Breakdown */}
         {isReady && Object.keys(breakdown).length > 0 && (
@@ -351,4 +365,11 @@ const styles = StyleSheet.create({
     borderRadius: Radius.full,
   },
   deltaText: { ...Typography.label, fontWeight: '700' },
+  exportBtn: {
+    flexDirection: 'row', justifyContent: 'center', alignItems: 'center',
+    borderWidth: 1, borderColor: Colors.primary, borderRadius: Radius.md,
+    padding: Spacing.sm, marginBottom: Spacing.md,
+    backgroundColor: Colors.primary + '10',
+  },
+  exportBtnText: { ...Typography.label, color: Colors.primary, fontWeight: '600' },
 });

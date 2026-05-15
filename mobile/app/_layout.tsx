@@ -8,6 +8,7 @@ import { PaperProvider } from 'react-native-paper';
 import { StyleSheet } from 'react-native';
 
 import { useAuthStore } from '@/stores/authStore';
+import { registerForPushNotifications } from '@/services/pushNotifications';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -31,6 +32,8 @@ export default function RootLayout() {
       router.replace('/(auth)/onboarding/step1-profile');
     } else {
       router.replace('/(tabs)');
+      // Register push token after authentication
+      registerForPushNotifications().catch(() => {});
     }
   }, [hydrated, isAuthenticated, user?.onboarded]);
 
@@ -51,6 +54,8 @@ export default function RootLayout() {
               <Stack.Screen name="jobs/[id]/interview-prep" options={{ headerShown: true, title: 'Interview Prep' }} />
               <Stack.Screen name="jobs/[id]/cover-letter" options={{ headerShown: true, title: 'Cover Letter' }} />
               <Stack.Screen name="applications/[id]" options={{ headerShown: true, title: 'Application' }} />
+              <Stack.Screen name="profile/edit" options={{ headerShown: true, title: 'Edit Profile' }} />
+              <Stack.Screen name="profile/notifications" options={{ headerShown: true, title: 'Notifications' }} />
             </Stack>
           </PaperProvider>
         </QueryClientProvider>

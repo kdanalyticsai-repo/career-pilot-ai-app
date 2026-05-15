@@ -79,3 +79,13 @@ async def seed_jobs(
 ):
     count = await JobService(db).seed_jobs()
     return {"seeded": count}
+
+
+@router.post("/sync-adzuna", response_model=dict)
+async def sync_from_adzuna(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    from app.services.adzuna_service import AdzunaService
+    count = await AdzunaService().sync_jobs_to_db(db)
+    return {"synced": count}

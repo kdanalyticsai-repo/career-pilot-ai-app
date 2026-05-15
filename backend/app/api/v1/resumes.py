@@ -1,5 +1,5 @@
 import uuid
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, Request, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.dependencies import get_db, get_current_active_user
@@ -92,6 +92,33 @@ async def local_upload(
     file_bytes = await request.body()
     service = ResumeService(db)
     await service.save_local_file(resume_id, current_user.id, file_bytes)
+
+
+@router.get("/{resume_id}/export-pdf")
+async def export_resume_pdf(
+    resume_id: uuid.UUID,
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    from fastapi.responses import Response
+    from app.services.pdf_service import generate_resume_pdf
+    resume = await ResumeService(db).get_resume(resume_id, current_user.id)
+    # get_resume returns ResumeResponse schema; we need the ORM object
+    from sqlalchemy import select as sa_select
+    from app.models.resume import Resume as ResumeModel
+    result = await db.execute(sa_select(ResumeModel).where(ResumeModel.id == resume_id))
+    resume_obj = result.scalar_one_or_none()
+    if not resume_obj:
+        raise HTTPException(status_code=404, detail="Resume not found")
+
+    file_bytes, content_type = generate_resume_pdf(resume_obj)
+    ext = "pdf" if "pdf" in content_type else "txt"
+    safe_name = "".join(c if c.isalnum() or c in "-_" else "_" for c in resume_obj.name)
+    return Response(
+        content=file_bytes,
+        media_type=content_type,
+        headers={"Content-Disposition": f'attachment; filename="{safe_name}.{ext}"'},
+    )
 
 
 @router.patch("/{resume_id}/sections/{section_type}", response_model=ResumeResponse)
