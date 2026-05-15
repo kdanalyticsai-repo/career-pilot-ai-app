@@ -9,7 +9,7 @@ class Settings(BaseSettings):
     APP_NAME: str = "CVPilot"
     APP_ENV: str = "development"
     SECRET_KEY: str = "dev-secret-key-change-in-production-min-32-chars!!"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 15
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
 
     DATABASE_URL: str = "sqlite+aiosqlite:///./cvpilot.db"

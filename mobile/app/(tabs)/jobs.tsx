@@ -67,10 +67,11 @@ export default function JobsTab() {
   if (remoteType) params.set('remote_type', remoteType);
   if (savedOnly) params.set('saved_only', 'true');
 
-  const { data, isLoading, isRefetching, refetch } = useQuery({
+  const { data, isLoading, isRefetching, refetch, isError } = useQuery({
     queryKey: ['jobs', params.toString()],
     queryFn: () => api.get(`/jobs?${params.toString()}`).then((r) => r.data),
     staleTime: 60_000,
+    retry: 2,
   });
 
   const { mutate: seedJobs } = useMutation({
@@ -197,6 +198,14 @@ export default function JobsTab() {
       {isLoading ? (
         <View style={styles.center}>
           <ActivityIndicator size="large" color={Colors.primary} />
+        </View>
+      ) : isError ? (
+        <View style={styles.center}>
+          <Text style={styles.emptyTitle}>Could not load jobs</Text>
+          <Text style={styles.emptySubtitle}>Check your connection and try again</Text>
+          <TouchableOpacity onPress={() => refetch()} style={{ marginTop: 12 }}>
+            <Text style={{ color: Colors.primary, fontWeight: '600' }}>Retry</Text>
+          </TouchableOpacity>
         </View>
       ) : (
         <FlatList
