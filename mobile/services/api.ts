@@ -4,7 +4,7 @@ import { storage } from './storage';
 
 export const api = axios.create({
   baseURL: API_URL,
-  timeout: 30_000,
+  timeout: 90_000, // 90s to survive Render free-tier cold starts (~60s wake-up)
   headers: { 'Content-Type': 'application/json' },
 });
 
@@ -23,6 +23,12 @@ api.interceptors.response.use(
   (res) => res,
   async (error: AxiosError) => {
     const original = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
+
+    // Retry once on network error (covers Render cold-start timeout)
+    if (!error.response && !original._retry) {
+      original._retry = true;
+      return api(original);
+    }
 
     if (error.response?.status !== 401 || original._retry) {
       return Promise.reject(error);
