@@ -41,7 +41,7 @@ class ResumeService:
         await self.db.refresh(resume)
 
         if settings.use_local_storage:
-            upload_url = f"{base_url.rstrip('/')}api/v1/resumes/local-upload/{resume.id}"
+            upload_url = f"{base_url.rstrip('/')}/api/v1/resumes/local-upload/{resume.id}"
         else:
             upload_url = _s3_client().generate_presigned_url(
                 "put_object",
@@ -53,17 +53,15 @@ class ResumeService:
                 ExpiresIn=settings.S3_PRESIGNED_URL_EXPIRY,
             )
 
-        from app.workers.resume_tasks import process_resume_task
-        task = process_resume_task.delay(str(resume.id), file_key)
+        return resume, upload_url, str(resume.id)
 
-        return resume, upload_url, task.id
-
-    async def save_local_file(self, resume_id: uuid.UUID, user_id: uuid.UUID, file_bytes: bytes) -> None:
+    async def save_local_file(self, resume_id: uuid.UUID, user_id: uuid.UUID, file_bytes: bytes) -> Resume:
         resume = await self.get_resume(resume_id, user_id)
         local_path = os.path.join(settings.LOCAL_STORAGE_PATH, resume.s3_key)
         _ensure_local_dir(os.path.dirname(local_path))
         with open(local_path, "wb") as f:
             f.write(file_bytes)
+        return resume
 
     async def get_resume(self, resume_id: uuid.UUID, user_id: uuid.UUID) -> Resume:
         result = await self.db.execute(

@@ -92,7 +92,10 @@ async def local_upload(
     """Local-disk upload endpoint used when AWS S3 is not configured."""
     file_bytes = await request.body()
     service = ResumeService(db)
-    await service.save_local_file(resume_id, current_user.id, file_bytes)
+    resume = await service.save_local_file(resume_id, current_user.id, file_bytes)
+    # Trigger processing AFTER file is saved (not before)
+    from app.workers.resume_tasks import process_resume_task
+    process_resume_task.delay(str(resume_id), resume.s3_key)
 
 
 @router.get("/{resume_id}/export-pdf")
