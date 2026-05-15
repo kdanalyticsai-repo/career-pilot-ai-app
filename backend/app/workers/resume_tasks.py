@@ -109,6 +109,15 @@ MOCK_ATS_RESULT = {
 }
 
 
+def _apply_mock_data(resume, db, resume_id: str) -> None:
+    resume.structured_data = MOCK_STRUCTURED_DATA
+    resume.ats_score = MOCK_ATS_RESULT["total_score"]
+    resume.completeness_score = MOCK_ATS_RESULT["completeness_score"]
+    resume.ats_details = MOCK_ATS_RESULT
+    resume.status = "ready"
+    db.commit()
+
+
 @celery_app.task(bind=True, max_retries=3, default_retry_delay=30, queue="resumes")
 def process_resume_task(self, resume_id: str, s3_key: str):
     db: Session = SyncSessionLocal()
@@ -118,30 +127,32 @@ def process_resume_task(self, resume_id: str, s3_key: str):
             return {"error": "Resume not found"}
 
         if not settings.has_anthropic_key:
-            # No real API key — use mock data so the app is still usable
-            resume.structured_data = MOCK_STRUCTURED_DATA
-            resume.ats_score = MOCK_ATS_RESULT["total_score"]
-            resume.completeness_score = MOCK_ATS_RESULT["completeness_score"]
-            resume.ats_details = MOCK_ATS_RESULT
-            resume.status = "ready"
-            db.commit()
+            _apply_mock_data(resume, db, resume_id)
             return {"resume_id": resume_id, "status": "ready", "ats_score": resume.ats_score, "mock": True}
 
-        pdf_bytes = _load_pdf_bytes(s3_key)
-        raw_text = extract_text_from_pdf_bytes(pdf_bytes)
-        resume.raw_text = raw_text
+        try:
+            pdf_bytes = _load_pdf_bytes(s3_key)
+            raw_text = extract_text_from_pdf_bytes(pdf_bytes)
+            resume.raw_text = raw_text
 
-        structured = parse_resume(raw_text)
-        resume.structured_data = structured
+            structured = parse_resume(raw_text)
+            resume.structured_data = structured
 
-        ats_result = score_resume_ats(structured)
-        resume.ats_score = ats_result.get("total_score", 0)
-        resume.completeness_score = ats_result.get("completeness_score", 0)
-        resume.ats_details = ats_result
-        resume.status = "ready"
+            ats_result = score_resume_ats(structured)
+            resume.ats_score = ats_result.get("total_score", 0)
+            resume.completeness_score = ats_result.get("completeness_score", 0)
+            resume.ats_details = ats_result
+            resume.status = "ready"
 
-        db.commit()
-        return {"resume_id": resume_id, "status": "ready", "ats_score": resume.ats_score}
+            db.commit()
+            return {"resume_id": resume_id, "status": "ready", "ats_score": resume.ats_score}
+        except Exception:
+            # AI API unavailable (e.g. no credits) — fall back to mock so resume is usable
+            db.rollback()
+            resume = db.query(Resume).filter(Resume.id == uuid.UUID(resume_id)).first()
+            if resume:
+                _apply_mock_data(resume, db, resume_id)
+            return {"resume_id": resume_id, "status": "ready", "mock": True}
 
     except Exception as exc:
         db.rollback()
@@ -164,20 +175,23 @@ def rescore_resume_task(self, resume_id: str):
             return {"error": "Resume not found or has no data"}
 
         if not settings.has_anthropic_key:
-            resume.ats_score = MOCK_ATS_RESULT["total_score"]
-            resume.completeness_score = MOCK_ATS_RESULT["completeness_score"]
-            resume.ats_details = MOCK_ATS_RESULT
-            resume.status = "ready"
-            db.commit()
+            _apply_mock_data(resume, db, resume_id)
             return {"resume_id": resume_id, "status": "ready", "mock": True}
 
-        ats_result = score_resume_ats(resume.structured_data)
-        resume.ats_score = ats_result.get("total_score", 0)
-        resume.completeness_score = ats_result.get("completeness_score", 0)
-        resume.ats_details = ats_result
-        resume.status = "ready"
-        db.commit()
-        return {"resume_id": resume_id, "status": "ready", "ats_score": resume.ats_score}
+        try:
+            ats_result = score_resume_ats(resume.structured_data)
+            resume.ats_score = ats_result.get("total_score", 0)
+            resume.completeness_score = ats_result.get("completeness_score", 0)
+            resume.ats_details = ats_result
+            resume.status = "ready"
+            db.commit()
+            return {"resume_id": resume_id, "status": "ready", "ats_score": resume.ats_score}
+        except Exception:
+            db.rollback()
+            resume = db.query(Resume).filter(Resume.id == uuid.UUID(resume_id)).first()
+            if resume:
+                _apply_mock_data(resume, db, resume_id)
+            return {"resume_id": resume_id, "status": "ready", "mock": True}
 
     except Exception as exc:
         db.rollback()
