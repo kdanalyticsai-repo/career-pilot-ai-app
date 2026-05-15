@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "CVPilot",
-    "slug": "careerpilot",
+    "slug": "cvpilot",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -13,14 +13,14 @@
     },
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.careerpilot.app"
+      "bundleIdentifier": "com.cvpilot.app"
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#4F46E5"
       },
-      "package": "com.careerpilot.app",
+      "package": "com.cvpilot.app",
       "permissions": [
         "android.permission.READ_EXTERNAL_STORAGE",
         "android.permission.WRITE_EXTERNAL_STORAGE"
@@ -29,9 +29,10 @@
     "plugins": [
       "expo-router",
       "expo-secure-store",
-      "expo-document-picker"
+      "expo-document-picker",
+      "expo-notifications"
     ],
-    "scheme": "careerpilot",
+    "scheme": "cvpilot",
     "runtimeVersion": {
       "policy": "sdkVersion"
     },
