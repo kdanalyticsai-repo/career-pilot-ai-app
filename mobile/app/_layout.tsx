@@ -6,6 +6,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { PaperProvider } from 'react-native-paper';
 import { StyleSheet } from 'react-native';
+import * as Updates from 'expo-updates';
 
 import { useAuthStore } from '@/stores/authStore';
 import { registerForPushNotifications } from '@/services/pushNotifications';
@@ -21,6 +22,17 @@ export default function RootLayout() {
 
   useEffect(() => {
     hydrate();
+    if (!__DEV__) {
+      Updates.checkForUpdateAsync()
+        .then(({ isAvailable }) => {
+          if (isAvailable) {
+            Updates.fetchUpdateAsync()
+              .then(() => Updates.reloadAsync())
+              .catch(() => {});
+          }
+        })
+        .catch(() => {});
+    }
   }, []);
 
   useEffect(() => {

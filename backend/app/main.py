@@ -1,6 +1,7 @@
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import text
 try:
     import sentry_sdk
     _has_sentry = True
@@ -15,11 +16,23 @@ import app.models.ai_features  # noqa: F401
 import app.models.notification  # noqa: F401
 
 
+async def _run_migrations(conn):
+    """Idempotent column additions for tables that existed before Phase 5."""
+    if settings.use_sqlite:
+        return
+    migrations = [
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS phone VARCHAR(20)",
+    ]
+    for stmt in migrations:
+        await conn.execute(text(stmt))
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Auto-create all tables on startup (works for SQLite dev + PostgreSQL)
     async with async_engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+        await _run_migrations(conn)
 
     if settings.SENTRY_DSN and _has_sentry:
         sentry_sdk.init(dsn=settings.SENTRY_DSN, traces_sample_rate=0.1)
