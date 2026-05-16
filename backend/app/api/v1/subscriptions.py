@@ -188,12 +188,13 @@ async def get_payment_url(
     if current_user.subscription == "pro":
         raise HTTPException(400, "Already on Pro plan")
 
-    order_id = await _create_razorpay_order(100, current_user.id)
+    uid = str(current_user.id)
+    order_id = await _create_razorpay_order(100, uid)
 
     params = urllib.parse.urlencode({
         "order_id": order_id,
         "key": settings.RAZORPAY_KEY_ID,
-        "uid": current_user.id,
+        "uid": uid,
         "email": current_user.email or "",
         "name": current_user.name or "",
         "amount": 100,
