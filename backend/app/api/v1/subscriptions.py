@@ -181,17 +181,24 @@ async def get_my_usage(
 
 
 @router.get("/payment-url")
-async def get_payment_url(current_user: User = Depends(get_current_user)):
-    """Return the hosted payment page URL pre-filled with the user's identity."""
+async def get_payment_url(
+    current_user: User = Depends(get_current_user),
+):
+    """Create a Razorpay order server-side, return URL to kdaanalytics.com checkout page."""
     if current_user.subscription == "pro":
         raise HTTPException(400, "Already on Pro plan")
 
+    order_id = await _create_razorpay_order(100, current_user.id)
+
     params = urllib.parse.urlencode({
+        "order_id": order_id,
+        "key": settings.RAZORPAY_KEY_ID,
         "uid": current_user.id,
         "email": current_user.email or "",
         "name": current_user.name or "",
+        "amount": 100,
     })
-    return {"url": f"{BACKEND_URL}/api/v1/subscriptions/pay?{params}"}
+    return {"url": f"https://kdaanalytics.com/cvpilot/subscribe?{params}"}
 
 
 @router.post("/razorpay-webhook")
