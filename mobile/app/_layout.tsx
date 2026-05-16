@@ -68,6 +68,8 @@ export default function RootLayout() {
               <Stack.Screen name="applications/[id]" options={{ headerShown: true, title: 'Application' }} />
               <Stack.Screen name="profile/edit" options={{ headerShown: true, title: 'Edit Profile' }} />
               <Stack.Screen name="profile/notifications" options={{ headerShown: true, title: 'Notifications' }} />
+              <Stack.Screen name="profile/settings" options={{ headerShown: true, title: 'Settings' }} />
+              <Stack.Screen name="paywall" options={{ headerShown: false, presentation: 'modal' }} />
             </Stack>
           </PaperProvider>
         </QueryClientProvider>

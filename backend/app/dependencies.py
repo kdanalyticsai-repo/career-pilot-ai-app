@@ -47,3 +47,40 @@ async def get_current_user(
 
 async def get_current_active_user(user: User = Depends(get_current_user)) -> User:
     return user
+
+
+async def require_pro(user: User = Depends(get_current_user)) -> User:
+    """Dependency that blocks access unless the user is on the Pro plan."""
+    if user.subscription != "pro":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={"code": "upgrade_required", "message": "This feature requires a Pro subscription"},
+        )
+    return user
+
+
+def require_feature(feature: str):
+    """
+    Returns a FastAPI dependency that checks plan access + monthly usage limit
+    for the given feature, then increments the counter on success.
+    """
+    async def _dep(
+        current_user: User = Depends(get_current_user),
+        db: AsyncSession = Depends(get_db),
+    ) -> User:
+        from app.services.subscription_service import check_usage_limit, increment_usage
+        allowed, reason = await check_usage_limit(db, current_user, feature)
+        if not allowed:
+            if reason == "upgrade_required":
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail={"code": "upgrade_required", "message": "This feature requires a Pro subscription"},
+                )
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail={"code": "monthly_limit_reached", "message": f"Monthly limit reached for {feature}"},
+            )
+        await increment_usage(db, current_user.id, feature)
+        return current_user
+
+    return _dep

@@ -5,7 +5,9 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { router } from 'expo-router';
 import { api } from '@/services/api';
+import { useAuthStore } from '@/stores/authStore';
 import { Colors, Typography, Spacing, Radius, Shadow } from '@/constants/theme';
 
 type Message = { id: string; role: 'user' | 'assistant'; content: string; created_at: string };
@@ -19,13 +21,58 @@ const STARTER_PROMPTS = [
   { emoji: '⚡', text: 'What skills should I add to get more matches?' },
 ];
 
+function PaywallGate() {
+  return (
+    <SafeAreaView style={styles.safe} edges={['bottom']}>
+      <View style={styles.paywallWrap}>
+        <View style={styles.paywallIconWrap}>
+          <Text style={styles.paywallIcon}>✦</Text>
+        </View>
+        <Text style={styles.paywallTitle}>AI Career Coach</Text>
+        <Text style={styles.paywallSub}>
+          Unlimited career coaching, interview prep tips, salary guidance, and more — exclusively for Pro members.
+        </Text>
+
+        <View style={styles.paywallFeatures}>
+          {[
+            'Unlimited AI chat sessions',
+            'Personalized career advice',
+            'Interview & negotiation coaching',
+            'Resume improvement suggestions',
+          ].map((f) => (
+            <View key={f} style={styles.paywallFeatureRow}>
+              <Text style={styles.paywallFeatureCheck}>✓</Text>
+              <Text style={styles.paywallFeatureText}>{f}</Text>
+            </View>
+          ))}
+        </View>
+
+        <TouchableOpacity
+          style={styles.paywallBtn}
+          onPress={() => router.push('/paywall')}
+          activeOpacity={0.85}
+        >
+          <Text style={styles.paywallBtnText}>Upgrade to Pro — ₹199/month</Text>
+        </TouchableOpacity>
+
+        <Text style={styles.paywallNote}>Cancel anytime · Instant access</Text>
+      </View>
+    </SafeAreaView>
+  );
+}
+
 export default function CoachTab() {
+  const { user } = useAuthStore();
   const [input, setInput] = useState('');
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [showHistory, setShowHistory] = useState(false);
   const flatListRef = useRef<FlatList>(null);
   const queryClient = useQueryClient();
+
+  if (user?.subscription !== 'pro') {
+    return <PaywallGate />;
+  }
 
   const { data: sessions } = useQuery({
     queryKey: ['chat-sessions'],
@@ -238,6 +285,33 @@ export default function CoachTab() {
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: Colors.background },
   flex: { flex: 1 },
+
+  paywallWrap: {
+    flex: 1, alignItems: 'center', justifyContent: 'center',
+    padding: Spacing.xl,
+  },
+  paywallIconWrap: {
+    width: 80, height: 80, borderRadius: 40,
+    backgroundColor: Colors.primary, alignItems: 'center', justifyContent: 'center',
+    marginBottom: Spacing.lg, ...Shadow.md,
+  },
+  paywallIcon: { fontSize: 36, color: Colors.textInverse },
+  paywallTitle: { ...Typography.h2, color: Colors.text, textAlign: 'center', marginBottom: Spacing.sm },
+  paywallSub: {
+    ...Typography.body, color: Colors.textSecondary, textAlign: 'center',
+    lineHeight: 22, marginBottom: Spacing.xl,
+  },
+  paywallFeatures: { alignSelf: 'stretch', marginBottom: Spacing.xl },
+  paywallFeatureRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, marginBottom: Spacing.sm },
+  paywallFeatureCheck: { fontSize: 16, color: Colors.tertiary, fontWeight: '700', width: 20 },
+  paywallFeatureText: { ...Typography.label, color: Colors.text },
+  paywallBtn: {
+    backgroundColor: Colors.primary, borderRadius: Radius.lg,
+    paddingVertical: Spacing.md, paddingHorizontal: Spacing.xl,
+    alignSelf: 'stretch', alignItems: 'center', ...Shadow.md,
+  },
+  paywallBtnText: { ...Typography.label, color: Colors.textInverse, fontSize: 15 },
+  paywallNote: { ...Typography.caption, color: Colors.textMuted, marginTop: Spacing.sm },
 
   chatHeader: {
     flexDirection: 'row', alignItems: 'center',

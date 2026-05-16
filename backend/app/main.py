@@ -10,10 +10,11 @@ except ImportError:
 
 from app.config import settings
 from app.database import async_engine, Base
-from app.api.v1 import auth, users, resumes, jobs, applications, ai, analytics, notifications
+from app.api.v1 import auth, users, resumes, jobs, applications, ai, analytics, notifications, subscriptions
 import app.models.job  # noqa: F401
 import app.models.ai_features  # noqa: F401
 import app.models.notification  # noqa: F401
+import app.models.subscription  # noqa: F401
 
 
 async def _run_migrations(conn):
@@ -27,6 +28,19 @@ async def _run_migrations(conn):
         "ALTER TABLE resumes ADD COLUMN IF NOT EXISTS embedding_id VARCHAR(255)",
         "ALTER TABLE resumes ADD COLUMN IF NOT EXISTS ats_details JSONB",
         "ALTER TABLE resumes ADD COLUMN IF NOT EXISTS version INTEGER DEFAULT 1",
+        # Phase 5
+        """
+        CREATE TABLE IF NOT EXISTS usage_records (
+            id CHAR(36) PRIMARY KEY,
+            user_id CHAR(36) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            feature VARCHAR(50) NOT NULL,
+            year_month VARCHAR(7) NOT NULL,
+            count INTEGER NOT NULL DEFAULT 0,
+            updated_at TIMESTAMPTZ DEFAULT NOW(),
+            CONSTRAINT uq_user_feature_month UNIQUE (user_id, feature, year_month)
+        )
+        """,
+        "CREATE INDEX IF NOT EXISTS idx_usage_records_user ON usage_records(user_id)",
     ]
     for stmt in migrations:
         await conn.execute(text(stmt))
@@ -68,6 +82,7 @@ app.include_router(applications.router, prefix="/api/v1")
 app.include_router(ai.router, prefix="/api/v1")
 app.include_router(analytics.router, prefix="/api/v1")
 app.include_router(notifications.router, prefix="/api/v1")
+app.include_router(subscriptions.router, prefix="/api/v1")
 
 
 @app.get("/health")
