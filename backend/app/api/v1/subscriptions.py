@@ -100,7 +100,7 @@ def _payment_html(uid: str, email: str, name: str, key_id: str) -> str:
       modal: {{
         ondismiss: function() {{
           btn.disabled = false;
-          btn.textContent = 'Pay ₹199 — UPI / Card / Net Banking';
+          btn.textContent = 'Pay ₹1 — UPI / Card / Net Banking';
         }}
       }}
     }};
