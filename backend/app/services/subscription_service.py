@@ -16,7 +16,7 @@ PLANS = {
         "features": {
             "resume_uploads": 1,
             "job_matches_per_day": 20,
-            "ai_chat": False,
+            "ai_chat_per_month": 5,
             "interview_prep_per_month": 1,
             "cover_letter_per_month": 1,
             "tailor_per_month": 1,
@@ -24,7 +24,8 @@ PLANS = {
         },
         "highlights": [
             "1 resume upload",
-            "20 job matches per day",
+            "Top 20 job matches / day",
+            "5 AI Coach chats / month",
             "1 interview prep / month",
             "1 cover letter / month",
             "1 resume tailoring / month",
@@ -47,7 +48,7 @@ PLANS = {
         "highlights": [
             "Up to 5 resumes",
             "Unlimited job matches",
-            "AI Career Coach chat (unlimited)",
+            "Unlimited AI Coach chats",
             "Unlimited interview prep",
             "Unlimited cover letters",
             "10 resume tailorings / month",
@@ -58,7 +59,7 @@ PLANS = {
 
 # Monthly free-tier limits per feature (None = blocked entirely)
 FREE_LIMITS: dict[str, int | None] = {
-    "chat": None,            # Blocked on free plan
+    "chat": 5,               # 5 messages/month on free plan
     "interview_prep": 1,
     "cover_letter": 1,
     "tailor": 1,

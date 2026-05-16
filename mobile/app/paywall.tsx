@@ -12,15 +12,15 @@ import { Colors, Typography, Spacing, Radius, Shadow } from '@/constants/theme';
 
 const FREE_FEATURES = [
   { label: '1 resume upload', included: true },
-  { label: '20 job matches per day', included: true },
+  { label: 'Top 20 job matches / day', included: true },
   { label: 'Basic ATS score', included: true },
+  { label: '5 AI Coach chats / month', included: true },
   { label: '1 interview prep / month', included: true },
   { label: '1 cover letter / month', included: true },
   { label: '1 resume tailoring / month', included: true },
   { label: 'Track up to 10 applications', included: true },
-  { label: 'AI Career Coach chat', included: false },
   { label: 'Unlimited job matches', included: false },
-  { label: 'Unlimited interview prep', included: false },
+  { label: 'Unlimited AI coaching', included: false },
 ];
 
 const PRO_FEATURES = [

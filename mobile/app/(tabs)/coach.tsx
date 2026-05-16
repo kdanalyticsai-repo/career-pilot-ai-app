@@ -10,6 +10,8 @@ import { api } from '@/services/api';
 import { useAuthStore } from '@/stores/authStore';
 import { Colors, Typography, Spacing, Radius, Shadow } from '@/constants/theme';
 
+const FREE_CHAT_LIMIT = 5;
+
 type Message = { id: string; role: 'user' | 'assistant'; content: string; created_at: string };
 type Session = { id: string; title: string; created_at: string; updated_at: string };
 
@@ -21,48 +23,9 @@ const STARTER_PROMPTS = [
   { emoji: '⚡', text: 'What skills should I add to get more matches?' },
 ];
 
-function PaywallGate() {
-  return (
-    <SafeAreaView style={styles.safe} edges={['bottom']}>
-      <View style={styles.paywallWrap}>
-        <View style={styles.paywallIconWrap}>
-          <Text style={styles.paywallIcon}>✦</Text>
-        </View>
-        <Text style={styles.paywallTitle}>AI Career Coach</Text>
-        <Text style={styles.paywallSub}>
-          Unlimited career coaching, interview prep tips, salary guidance, and more — exclusively for Pro members.
-        </Text>
-
-        <View style={styles.paywallFeatures}>
-          {[
-            'Unlimited AI chat sessions',
-            'Personalized career advice',
-            'Interview & negotiation coaching',
-            'Resume improvement suggestions',
-          ].map((f) => (
-            <View key={f} style={styles.paywallFeatureRow}>
-              <Text style={styles.paywallFeatureCheck}>✓</Text>
-              <Text style={styles.paywallFeatureText}>{f}</Text>
-            </View>
-          ))}
-        </View>
-
-        <TouchableOpacity
-          style={styles.paywallBtn}
-          onPress={() => router.push('/paywall')}
-          activeOpacity={0.85}
-        >
-          <Text style={styles.paywallBtnText}>Upgrade to Pro — ₹199/month</Text>
-        </TouchableOpacity>
-
-        <Text style={styles.paywallNote}>Cancel anytime · Instant access</Text>
-      </View>
-    </SafeAreaView>
-  );
-}
-
 export default function CoachTab() {
   const { user } = useAuthStore();
+  const isPro = user?.subscription === 'pro';
   const [input, setInput] = useState('');
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -70,9 +33,16 @@ export default function CoachTab() {
   const flatListRef = useRef<FlatList>(null);
   const queryClient = useQueryClient();
 
-  if (user?.subscription !== 'pro') {
-    return <PaywallGate />;
-  }
+  const { data: usageData } = useQuery({
+    queryKey: ['my-usage'],
+    queryFn: () => api.get('/subscriptions/my-usage').then((r) => r.data),
+    enabled: !isPro,
+    staleTime: 30_000,
+  });
+
+  const chatsUsed: number = usageData?.usage?.chat?.used ?? 0;
+  const chatsRemaining = Math.max(0, FREE_CHAT_LIMIT - chatsUsed);
+  const limitReached = !isPro && chatsRemaining === 0;
 
   const { data: sessions } = useQuery({
     queryKey: ['chat-sessions'],
@@ -88,11 +58,25 @@ export default function CoachTab() {
       setSessionId(data.session_id);
       setMessages(data.messages);
       queryClient.invalidateQueries({ queryKey: ['chat-sessions'] });
+      queryClient.invalidateQueries({ queryKey: ['my-usage'] });
       setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
     },
-    onError: () => {
+    onError: (err: any) => {
       setMessages((prev) => prev.filter((m) => !m.id.startsWith('temp-')));
-      Alert.alert('Error', 'Could not get a response. Please try again.');
+      const code = err?.response?.data?.detail?.code;
+      if (code === 'monthly_limit_reached') {
+        queryClient.invalidateQueries({ queryKey: ['my-usage'] });
+        Alert.alert(
+          'Monthly Limit Reached',
+          `Free plan includes ${FREE_CHAT_LIMIT} AI chats per month. Upgrade to Pro for unlimited coaching.`,
+          [
+            { text: 'Maybe Later', style: 'cancel' },
+            { text: 'Upgrade to Pro', onPress: () => router.push('/paywall') },
+          ],
+        );
+      } else {
+        Alert.alert('Error', 'Could not get a response. Please try again.');
+      }
     },
   });
 
@@ -198,6 +182,21 @@ export default function CoachTab() {
           </View>
         </View>
 
+        {/* Free plan usage banner */}
+        {!isPro && (
+          <TouchableOpacity
+            style={[styles.usageBanner, limitReached && styles.usageBannerLimit]}
+            onPress={() => router.push('/paywall')}
+            activeOpacity={0.8}
+          >
+            <Text style={[styles.usageBannerText, limitReached && { color: Colors.danger }]}>
+              {limitReached
+                ? `Monthly limit reached (${FREE_CHAT_LIMIT}/${FREE_CHAT_LIMIT} chats used) · Tap to upgrade`
+                : `${chatsRemaining} free chat${chatsRemaining !== 1 ? 's' : ''} remaining this month · Upgrade for unlimited`}
+            </Text>
+          </TouchableOpacity>
+        )}
+
         {/* Messages or Starter */}
         {messages.length === 0 ? (
           <ScrollView contentContainerStyle={styles.starterContainer} showsVerticalScrollIndicator={false}>
@@ -270,9 +269,9 @@ export default function CoachTab() {
             onSubmitEditing={handleSend}
           />
           <TouchableOpacity
-            style={[styles.sendBtn, (!input.trim() || isPending) && styles.sendBtnDisabled]}
+            style={[styles.sendBtn, (!input.trim() || isPending || limitReached) && styles.sendBtnDisabled]}
             onPress={handleSend}
-            disabled={!input.trim() || isPending}
+            disabled={!input.trim() || isPending || limitReached}
           >
             <Text style={styles.sendBtnText}>↑</Text>
           </TouchableOpacity>
@@ -286,32 +285,20 @@ const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: Colors.background },
   flex: { flex: 1 },
 
-  paywallWrap: {
-    flex: 1, alignItems: 'center', justifyContent: 'center',
-    padding: Spacing.xl,
+  usageBanner: {
+    backgroundColor: Colors.primaryLight + '60',
+    borderBottomWidth: 1, borderBottomColor: Colors.primary + '20',
+    paddingVertical: 8, paddingHorizontal: Spacing.md,
+    alignItems: 'center',
   },
-  paywallIconWrap: {
-    width: 80, height: 80, borderRadius: 40,
-    backgroundColor: Colors.primary, alignItems: 'center', justifyContent: 'center',
-    marginBottom: Spacing.lg, ...Shadow.md,
+  usageBannerLimit: {
+    backgroundColor: Colors.danger + '12',
+    borderBottomColor: Colors.danger + '30',
   },
-  paywallIcon: { fontSize: 36, color: Colors.textInverse },
-  paywallTitle: { ...Typography.h2, color: Colors.text, textAlign: 'center', marginBottom: Spacing.sm },
-  paywallSub: {
-    ...Typography.body, color: Colors.textSecondary, textAlign: 'center',
-    lineHeight: 22, marginBottom: Spacing.xl,
+  usageBannerText: {
+    ...Typography.caption, color: Colors.primary,
+    fontWeight: '600', textAlign: 'center',
   },
-  paywallFeatures: { alignSelf: 'stretch', marginBottom: Spacing.xl },
-  paywallFeatureRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, marginBottom: Spacing.sm },
-  paywallFeatureCheck: { fontSize: 16, color: Colors.tertiary, fontWeight: '700', width: 20 },
-  paywallFeatureText: { ...Typography.label, color: Colors.text },
-  paywallBtn: {
-    backgroundColor: Colors.primary, borderRadius: Radius.lg,
-    paddingVertical: Spacing.md, paddingHorizontal: Spacing.xl,
-    alignSelf: 'stretch', alignItems: 'center', ...Shadow.md,
-  },
-  paywallBtnText: { ...Typography.label, color: Colors.textInverse, fontSize: 15 },
-  paywallNote: { ...Typography.caption, color: Colors.textMuted, marginTop: Spacing.sm },
 
   chatHeader: {
     flexDirection: 'row', alignItems: 'center',

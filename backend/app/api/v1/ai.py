@@ -5,7 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.ai_features import ChatMessage
 
-from app.dependencies import get_db, get_current_user, require_pro, require_feature
+from app.dependencies import get_db, get_current_user, require_feature
 from app.models.user import User
 from app.schemas.ai_features import (
     TailorRequest, TailoredResumeResponse,
@@ -49,7 +49,7 @@ async def cover_letter(
 @router.post("/chat", response_model=ChatResponse)
 async def chat(
     data: ChatRequest,
-    current_user: User = Depends(require_pro),
+    current_user: User = Depends(require_feature("chat")),
     db: AsyncSession = Depends(get_db),
 ):
     return await AIService(db).chat(current_user.id, data.message, data.session_id)
@@ -57,7 +57,7 @@ async def chat(
 
 @router.get("/chat/sessions", response_model=list[ChatSessionOut])
 async def list_sessions(
-    current_user: User = Depends(require_pro),
+    current_user: User = Depends(require_feature("chat")),
     db: AsyncSession = Depends(get_db),
 ):
     sessions = await AIService(db).list_sessions(current_user.id)
@@ -69,7 +69,7 @@ async def list_sessions(
 @router.get("/chat/sessions/{session_id}", response_model=ChatSessionOut)
 async def get_session(
     session_id: uuid.UUID,
-    current_user: User = Depends(require_pro),
+    current_user: User = Depends(require_feature("chat")),
     db: AsyncSession = Depends(get_db),
 ):
     svc = AIService(db)
@@ -90,7 +90,7 @@ async def get_session(
 @router.delete("/chat/sessions/{session_id}", status_code=204)
 async def delete_session(
     session_id: uuid.UUID,
-    current_user: User = Depends(require_pro),
+    current_user: User = Depends(require_feature("chat")),
     db: AsyncSession = Depends(get_db),
 ):
     await AIService(db).delete_session(session_id, current_user.id)

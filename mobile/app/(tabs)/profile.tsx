@@ -96,6 +96,13 @@ export default function ProfileTab() {
           <View style={[styles.menuCard, Shadow.sm, { padding: Spacing.lg }]}>
             <Text style={styles.sectionLabel}>This Month's Usage</Text>
 
+            {usage.chat && (
+              <UsageBar
+                label="AI Coach Chats"
+                used={usage.chat.used ?? 0}
+                limit={usage.chat.limit}
+              />
+            )}
             {usage.interview_prep && (
               <UsageBar
                 label="Interview Prep"
