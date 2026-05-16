@@ -54,7 +54,7 @@ def _payment_html(uid: str, email: str, name: str, key_id: str) -> str:
     <h1>Upgrade to CVPilot Pro</h1>
     <p class="subtitle">Unlimited AI coaching, job matches, and career tools.</p>
     <div class="price">
-      <div class="price-amount">₹199</div>
+      <div class="price-amount">₹1</div>
       <div class="price-per">per month · cancel anytime</div>
     </div>
     <div class="features">
@@ -67,7 +67,7 @@ def _payment_html(uid: str, email: str, name: str, key_id: str) -> str:
       <div class="feature"><span class="check">✓</span> Unlimited application tracking</div>
     </div>
     <button class="pay-btn" id="payBtn" onclick="startPayment()">
-      Pay ₹199 — UPI / Card / Net Banking
+      Pay ₹1 — UPI / Card / Net Banking
     </button>
     <p class="note">Powered by Razorpay · Secure payment<br>
     After payment, return to the CVPilot app and pull down to refresh your profile.</p>
@@ -86,7 +86,7 @@ def _payment_html(uid: str, email: str, name: str, key_id: str) -> str:
     btn.textContent = 'Opening payment…';
     var options = {{
       key: '{key_id}',
-      amount: 19900,
+      amount: 100,
       currency: 'INR',
       name: 'CVPilot',
       description: 'Pro subscription — monthly',
