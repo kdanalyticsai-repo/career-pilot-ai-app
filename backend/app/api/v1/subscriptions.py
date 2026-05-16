@@ -199,7 +199,7 @@ async def get_payment_url(
         "name": current_user.name or "",
         "amount": 100,
     })
-    return {"url": f"https://kdaanalytics.com/cvpilot/subscribe?{params}"}
+    return {"url": f"https://kdaanalytics.com/api/cvpilot/subscribe?{params}"}
 
 
 @router.post("/razorpay-webhook")
