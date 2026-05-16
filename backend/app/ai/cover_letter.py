@@ -69,7 +69,7 @@ def generate_cover_letter(job_title: str, job_company: str, job_description: str
 
     client = get_client()
     response = client.chat.completions.create(
-        model="gpt-4o-mini",
+        model="gpt-4.1-nano",
         max_tokens=1500,
         messages=[
             {"role": "system", "content": COVER_LETTER_SYSTEM},

@@ -74,7 +74,7 @@ def generate_interview_prep(job_title: str, job_company: str, job_skills: list[s
 
     client = get_client()
     response = client.chat.completions.create(
-        model="gpt-4o-mini",
+        model="gpt-4.1-nano",
         max_tokens=3000,
         messages=[
             {"role": "system", "content": INTERVIEW_SYSTEM},

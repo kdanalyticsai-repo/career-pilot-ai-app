@@ -77,7 +77,7 @@ def extract_text_from_pdf_bytes(pdf_bytes: bytes) -> str:
 def parse_resume(raw_text: str) -> dict:
     client = get_client()
     response = client.chat.completions.create(
-        model="gpt-4o-mini",
+        model="gpt-4.1-nano",
         max_tokens=4096,
         messages=[
             {"role": "system", "content": PARSE_SYSTEM_PROMPT},

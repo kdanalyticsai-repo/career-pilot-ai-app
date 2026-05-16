@@ -60,7 +60,7 @@ def tailor_resume(resume_data: dict, job_title: str, job_company: str, job_skill
 
     client = get_client()
     response = client.chat.completions.create(
-        model="gpt-4o-mini",
+        model="gpt-4.1-nano",
         max_tokens=4096,
         messages=[
             {"role": "system", "content": TAILOR_SYSTEM},

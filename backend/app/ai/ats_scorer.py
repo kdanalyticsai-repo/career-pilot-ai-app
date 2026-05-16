@@ -36,7 +36,7 @@ Resume (structured):
 def score_resume_ats(structured_resume: dict) -> dict:
     client = get_client()
     response = client.chat.completions.create(
-        model="gpt-4o-mini",
+        model="gpt-4.1-nano",
         max_tokens=2048,
         messages=[
             {"role": "system", "content": ATS_SYSTEM_PROMPT},

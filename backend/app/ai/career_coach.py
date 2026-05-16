@@ -33,7 +33,7 @@ def chat_with_coach(messages: list[dict], user_context: str | None = None) -> st
     try:
         client = get_client()
         response = client.chat.completions.create(
-            model="gpt-4o-mini",
+            model="gpt-4.1-nano",
             max_tokens=800,
             messages=[{"role": "system", "content": system}] + messages,
         )
