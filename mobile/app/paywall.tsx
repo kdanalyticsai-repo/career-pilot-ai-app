@@ -44,9 +44,14 @@ export default function PaywallScreen() {
     setIsLoading(true);
     try {
       const { data } = await api.get('/subscriptions/payment-url');
+      const supported = await Linking.canOpenURL(data.url);
+      if (!supported) {
+        Alert.alert('Error', `Cannot open URL: ${data.url}`);
+        return;
+      }
       await Linking.openURL(data.url);
-    } catch {
-      Alert.alert('Error', 'Could not open payment page. Please try again.');
+    } catch (err: any) {
+      Alert.alert('Error', err?.response?.data?.detail || err?.message || 'Could not open payment page.');
     } finally {
       setIsLoading(false);
     }
