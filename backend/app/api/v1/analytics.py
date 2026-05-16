@@ -33,12 +33,12 @@ async def get_dashboard(
     resume_result = await db.execute(
         select(Resume).where(Resume.user_id == user_id, Resume.is_primary == True)
     )
-    primary = resume_result.scalar_one_or_none()
+    primary = resume_result.scalars().first()
     if not primary:
         resume_result2 = await db.execute(
             select(Resume).where(Resume.user_id == user_id).order_by(Resume.created_at.desc())
         )
-        primary = resume_result2.scalar_one_or_none()
+        primary = resume_result2.scalars().first()
 
     ats_score = primary.ats_score if primary else None
     completeness = primary.completeness_score if primary else None
