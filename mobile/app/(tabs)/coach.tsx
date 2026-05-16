@@ -186,7 +186,7 @@ export default function CoachTab() {
           </View>
           <View style={styles.chatHeaderText}>
             <Text style={styles.chatHeaderTitle}>AI Career Coach</Text>
-            <Text style={styles.chatHeaderSub}>Powered by GPT-4.1 Nano</Text>
+            <Text style={styles.chatHeaderSub}>Powered by LLMs</Text>
           </View>
           <View style={styles.headerActions}>
             <TouchableOpacity onPress={() => setShowHistory(true)} style={styles.headerBtn}>
