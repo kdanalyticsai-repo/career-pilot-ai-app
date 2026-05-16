@@ -88,4 +88,43 @@ async def sync_from_adzuna(
 ):
     from app.services.adzuna_service import AdzunaService
     count = await AdzunaService().sync_jobs_to_db(db)
-    return {"synced": count}
+    return {"synced": count, "source": "adzuna"}
+
+
+@router.post("/sync-remotive", response_model=dict)
+async def sync_from_remotive(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    from app.services.remotive_service import RemotiveService
+    count = await RemotiveService().sync_jobs_to_db(db)
+    return {"synced": count, "source": "remotive"}
+
+
+@router.post("/sync-jobicy", response_model=dict)
+async def sync_from_jobicy(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    from app.services.jobicy_service import JobicyService
+    count = await JobicyService().sync_jobs_to_db(db)
+    return {"synced": count, "source": "jobicy"}
+
+
+@router.post("/sync-all", response_model=dict)
+async def sync_all_sources(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    from app.services.adzuna_service import AdzunaService
+    from app.services.remotive_service import RemotiveService
+    from app.services.jobicy_service import JobicyService
+
+    adzuna = await AdzunaService().sync_jobs_to_db(db)
+    remotive = await RemotiveService().sync_jobs_to_db(db)
+    jobicy = await JobicyService().sync_jobs_to_db(db)
+
+    return {
+        "synced": adzuna + remotive + jobicy,
+        "breakdown": {"adzuna": adzuna, "remotive": remotive, "jobicy": jobicy},
+    }

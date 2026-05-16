@@ -67,7 +67,7 @@ export default function JobsTab() {
   if (remoteType) params.set('remote_type', remoteType);
   if (savedOnly) params.set('saved_only', 'true');
 
-  const { data, isLoading, isRefetching, refetch, isError } = useQuery({
+  const { data, isLoading, isRefetching, refetch, isError, error } = useQuery({
     queryKey: ['jobs', params.toString()],
     queryFn: () => api.get(`/jobs?${params.toString()}`).then((r) => r.data),
     staleTime: 60_000,
@@ -79,8 +79,8 @@ export default function JobsTab() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['jobs'] }),
   });
 
-  const { mutate: syncAdzuna } = useMutation({
-    mutationFn: () => api.post('/jobs/sync-adzuna'),
+  const { mutate: syncAll } = useMutation({
+    mutationFn: () => api.post('/jobs/sync-all'),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['jobs'] }),
   });
 
@@ -100,6 +100,9 @@ export default function JobsTab() {
 
   const renderJob = useCallback(({ item }: { item: Job }) => {
     const salary = formatSalary(item.salary_min, item.salary_max, item.currency);
+    const score = item.match_score;
+    const sColor = matchColor(score);
+
     return (
       <TouchableOpacity
         style={[styles.card, Shadow.sm]}
@@ -107,25 +110,22 @@ export default function JobsTab() {
         onPress={() => router.push(`/jobs/${item.id}`)}
       >
         <View style={styles.cardTop}>
+          <View style={styles.companyAvatar}>
+            <Text style={styles.companyAvatarText}>{item.company[0]?.toUpperCase() ?? '?'}</Text>
+          </View>
           <View style={styles.cardMeta}>
-            <Text style={styles.jobTitle} numberOfLines={2}>{item.title}</Text>
+            <Text style={styles.jobTitle} numberOfLines={1}>{item.title}</Text>
             <Text style={styles.company}>{item.company}</Text>
-            <Text style={styles.location}>{item.location}</Text>
+            <Text style={styles.location}>📍 {item.location}</Text>
           </View>
           <View style={styles.cardRight}>
-            {item.match_score != null && (
-              <View style={[styles.scoreBadge, { backgroundColor: matchColor(item.match_score) + '18' }]}>
-                <Text style={[styles.scoreText, { color: matchColor(item.match_score) }]}>
-                  {item.match_score}%
-                </Text>
+            {score != null && (
+              <View style={[styles.scoreBadge, { backgroundColor: sColor + '18', borderColor: sColor + '40', borderWidth: 1 }]}>
+                <Text style={[styles.scoreText, { color: sColor }]}>{score}%</Text>
               </View>
             )}
-            <TouchableOpacity
-              style={styles.saveBtn}
-              hitSlop={8}
-              onPress={() => toggleSave({ id: item.id, saved: item.is_saved })}
-            >
-              <Text style={[styles.saveIcon, { color: item.is_saved ? Colors.warning : Colors.textMuted }]}>
+            <TouchableOpacity hitSlop={8} onPress={() => toggleSave({ id: item.id, saved: item.is_saved })}>
+              <Text style={{ fontSize: 20, color: item.is_saved ? Colors.warning : Colors.textMuted }}>
                 {item.is_saved ? '★' : '☆'}
               </Text>
             </TouchableOpacity>
@@ -133,10 +133,11 @@ export default function JobsTab() {
         </View>
 
         <View style={styles.tags}>
-          <Tag label={LABEL[item.job_type] ?? item.job_type} />
-          <Tag label={LABEL[item.experience_level] ?? item.experience_level} />
-          <Tag label={LABEL[item.remote_type] ?? item.remote_type} color={item.remote_type === 'remote' ? Colors.secondary : undefined} />
-          {salary && <Tag label={salary} />}
+          <Chip label={LABEL[item.job_type] ?? item.job_type} />
+          <Chip label={LABEL[item.experience_level] ?? item.experience_level} />
+          <Chip label={LABEL[item.remote_type] ?? item.remote_type}
+            primary={item.remote_type === 'remote'} />
+          {salary && <Chip label={salary} />}
         </View>
 
         {item.skills_required.length > 0 && (
@@ -157,54 +158,64 @@ export default function JobsTab() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['bottom']}>
-      {/* Header */}
+      {/* Search & Filter Bar */}
       <View style={styles.header}>
         <View style={styles.searchRow}>
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Search jobs, companies…"
-            placeholderTextColor={Colors.textMuted}
-            value={search}
-            onChangeText={setSearch}
-            returnKeyType="search"
-          />
+          <View style={styles.searchWrap}>
+            <Text style={styles.searchIcon}>⌕</Text>
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Search jobs, companies…"
+              placeholderTextColor={Colors.textMuted}
+              value={search}
+              onChangeText={setSearch}
+              returnKeyType="search"
+            />
+          </View>
           <TouchableOpacity
             style={[styles.filterBtn, activeFilters > 0 && styles.filterBtnActive]}
             onPress={() => setShowFilter(true)}
           >
             <Text style={[styles.filterBtnText, activeFilters > 0 && { color: Colors.primary }]}>
-              Filters{activeFilters > 0 ? ` (${activeFilters})` : ''}
+              {activeFilters > 0 ? `Filter (${activeFilters})` : 'Filter'}
             </Text>
           </TouchableOpacity>
         </View>
 
-        {jobs.length === 0 && !isLoading && (
-          <View style={styles.seedRow}>
-            <TouchableOpacity style={styles.seedBtn} onPress={() => { seedJobs(); }}>
-              <Text style={styles.seedBtnText}>Load Sample Jobs</Text>
+        {!isLoading && !isError && (
+          <View style={styles.actionRow}>
+            <TouchableOpacity style={styles.actionBtn} onPress={() => syncAll()}>
+              <Text style={styles.actionBtnText}>⟳ Sync Live Jobs</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={[styles.seedBtn, { backgroundColor: '#7C3AED12' }]} onPress={() => syncAdzuna()}>
-              <Text style={[styles.seedBtnText, { color: '#7C3AED' }]}>Sync Live Jobs</Text>
-            </TouchableOpacity>
+            {jobs.length === 0 && (
+              <TouchableOpacity style={[styles.actionBtn, styles.actionBtnOutline]} onPress={() => seedJobs()}>
+                <Text style={[styles.actionBtnText, { color: Colors.textSecondary }]}>Load Samples</Text>
+              </TouchableOpacity>
+            )}
+            {jobs.length > 0 && (
+              <TouchableOpacity style={[styles.actionBtn, styles.actionBtnOutline]} onPress={() => computeMatches()}>
+                <Text style={[styles.actionBtnText, { color: Colors.textSecondary }]}>✦ Recompute</Text>
+              </TouchableOpacity>
+            )}
           </View>
-        )}
-        {jobs.length > 0 && (
-          <TouchableOpacity style={styles.matchRow} onPress={() => computeMatches()}>
-            <Text style={styles.matchRowText}>Recompute Matches</Text>
-          </TouchableOpacity>
         )}
       </View>
 
       {isLoading ? (
         <View style={styles.center}>
           <ActivityIndicator size="large" color={Colors.primary} />
+          <Text style={[styles.emptySubtitle, { marginTop: Spacing.sm }]}>Loading jobs…</Text>
         </View>
       ) : isError ? (
         <View style={styles.center}>
           <Text style={styles.emptyTitle}>Could not load jobs</Text>
-          <Text style={styles.emptySubtitle}>Check your connection and try again</Text>
-          <TouchableOpacity onPress={() => refetch()} style={{ marginTop: 12 }}>
-            <Text style={{ color: Colors.primary, fontWeight: '600' }}>Retry</Text>
+          <Text style={[styles.emptySubtitle, { fontFamily: 'monospace', fontSize: 11, marginTop: 8, paddingHorizontal: 16 }]} selectable>
+            {(error as any)?.response?.status
+              ? `HTTP ${(error as any).response.status}: ${JSON.stringify((error as any).response.data)}`
+              : (error as any)?.message ?? String(error)}
+          </Text>
+          <TouchableOpacity onPress={() => refetch()} style={styles.retryBtn}>
+            <Text style={styles.retryBtnText}>Retry</Text>
           </TouchableOpacity>
         </View>
       ) : (
@@ -217,7 +228,7 @@ export default function JobsTab() {
           ListEmptyComponent={
             <View style={styles.empty}>
               <Text style={styles.emptyTitle}>No jobs found</Text>
-              <Text style={styles.emptySubtitle}>Try adjusting your filters or load the job feed</Text>
+              <Text style={styles.emptySubtitle}>Try adjusting your filters</Text>
             </View>
           }
         />
@@ -254,19 +265,16 @@ export default function JobsTab() {
   );
 }
 
-function Tag({ label, color }: { label: string; color?: string }) {
+function Chip({ label, primary }: { label: string; primary?: boolean }) {
   return (
-    <View style={[styles.tag, color ? { backgroundColor: color + '15' } : {}]}>
-      <Text style={[styles.tagText, color ? { color } : {}]}>{label}</Text>
+    <View style={[styles.tag, primary && styles.tagPrimary]}>
+      <Text style={[styles.tagText, primary && styles.tagTextPrimary]}>{label}</Text>
     </View>
   );
 }
 
 function FilterSection({ label, options, selected, onSelect }: {
-  label: string;
-  options: string[];
-  selected: string | null;
-  onSelect: (v: string | null) => void;
+  label: string; options: string[]; selected: string | null; onSelect: (v: string | null) => void;
 }) {
   return (
     <View style={styles.filterSection}>
@@ -290,71 +298,120 @@ function FilterSection({ label, options, selected, onSelect }: {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: Colors.background },
-  header: { backgroundColor: Colors.surface, padding: Spacing.md, borderBottomWidth: 1, borderBottomColor: Colors.border },
+  header: {
+    backgroundColor: Colors.surface, padding: Spacing.md,
+    borderBottomWidth: 1, borderBottomColor: Colors.border,
+  },
   searchRow: { flexDirection: 'row', gap: Spacing.sm, alignItems: 'center' },
+  searchWrap: {
+    flex: 1, flexDirection: 'row', alignItems: 'center',
+    backgroundColor: Colors.surfaceSecondary, borderRadius: Radius.full,
+    paddingHorizontal: Spacing.md, borderWidth: 1, borderColor: Colors.border,
+  },
+  searchIcon: { fontSize: 16, color: Colors.textMuted, marginRight: 6 },
   searchInput: {
-    flex: 1, backgroundColor: Colors.surfaceSecondary, borderRadius: Radius.md,
-    paddingHorizontal: Spacing.md, paddingVertical: 10,
+    flex: 1, paddingVertical: 10,
     ...Typography.body, color: Colors.text,
   },
   filterBtn: {
-    paddingHorizontal: Spacing.md, paddingVertical: 10, borderRadius: Radius.md,
+    paddingHorizontal: Spacing.md, paddingVertical: 10, borderRadius: Radius.full,
     backgroundColor: Colors.surfaceSecondary, borderWidth: 1, borderColor: Colors.border,
   },
-  filterBtnActive: { backgroundColor: Colors.primary + '12', borderColor: Colors.primary },
+  filterBtnActive: { backgroundColor: Colors.primaryLight + '60', borderColor: Colors.primary },
   filterBtnText: { ...Typography.label, color: Colors.textSecondary },
-  seedRow: { flexDirection: 'row', gap: Spacing.sm, marginTop: Spacing.sm },
-  seedBtn: { flex: 1, backgroundColor: Colors.primary + '12', borderRadius: Radius.md, padding: Spacing.sm, alignItems: 'center' },
-  seedBtnText: { ...Typography.label, color: Colors.primary, fontWeight: '600' },
-  matchRow: { marginTop: Spacing.sm, alignItems: 'flex-end' },
-  matchRowText: { ...Typography.bodySmall, color: Colors.primary },
 
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  actionRow: { flexDirection: 'row', gap: Spacing.sm, marginTop: Spacing.sm },
+  actionBtn: {
+    flex: 1, backgroundColor: Colors.primary, borderRadius: Radius.full,
+    paddingVertical: 8, alignItems: 'center',
+  },
+  actionBtnOutline: {
+    backgroundColor: Colors.surface,
+    borderWidth: 1, borderColor: Colors.border,
+  },
+  actionBtnText: { ...Typography.caption, color: Colors.textInverse, fontWeight: '700' },
+
+  center: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: Spacing.lg },
   list: { padding: Spacing.md, gap: Spacing.sm, paddingBottom: Spacing.xxl },
 
-  card: { backgroundColor: Colors.surface, borderRadius: Radius.lg, padding: Spacing.md },
-  cardTop: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: Spacing.sm },
+  card: {
+    backgroundColor: Colors.surface, borderRadius: Radius.lg, padding: Spacing.md,
+    borderWidth: 1, borderColor: Colors.borderSubtle,
+  },
+  cardTop: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: Spacing.sm, gap: Spacing.sm },
+  companyAvatar: {
+    width: 40, height: 40, borderRadius: Radius.md,
+    backgroundColor: Colors.primaryLight + '50', alignItems: 'center', justifyContent: 'center',
+  },
+  companyAvatarText: { fontSize: 16, fontWeight: '700', color: Colors.primary },
   cardMeta: { flex: 1 },
   cardRight: { alignItems: 'flex-end', gap: Spacing.xs },
   jobTitle: { ...Typography.h4, color: Colors.text, marginBottom: 2 },
   company: { ...Typography.label, color: Colors.textSecondary },
-  location: { ...Typography.bodySmall, color: Colors.textMuted, marginTop: 2 },
-  scoreBadge: { borderRadius: Radius.full, paddingHorizontal: Spacing.sm, paddingVertical: 3, minWidth: 46, alignItems: 'center' },
+  location: { ...Typography.caption, color: Colors.textMuted, marginTop: 2 },
+
+  scoreBadge: { borderRadius: Radius.full, paddingHorizontal: Spacing.sm, paddingVertical: 4, minWidth: 48, alignItems: 'center' },
   scoreText: { ...Typography.caption, fontWeight: '700' },
-  saveBtn: { padding: 4 },
-  saveIcon: { fontSize: 20 },
 
   tags: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: Spacing.sm },
-  tag: { backgroundColor: Colors.surfaceSecondary, borderRadius: Radius.full, paddingHorizontal: 8, paddingVertical: 3 },
-  tagText: { ...Typography.caption, color: Colors.textSecondary, fontWeight: '500' },
+  tag: {
+    backgroundColor: Colors.surfaceSecondary, borderRadius: Radius.full,
+    paddingHorizontal: 10, paddingVertical: 4,
+  },
+  tagPrimary: { backgroundColor: Colors.primaryLight + '40' },
+  tagText: { ...Typography.caption, color: Colors.textSecondary },
+  tagTextPrimary: { color: Colors.primary },
 
   skills: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
-  skillChip: { backgroundColor: Colors.primary + '12', borderRadius: Radius.full, paddingHorizontal: 8, paddingVertical: 3 },
-  skillText: { ...Typography.caption, color: Colors.primary, fontWeight: '600' },
+  skillChip: {
+    backgroundColor: Colors.primary + '12', borderRadius: Radius.full,
+    paddingHorizontal: 8, paddingVertical: 3,
+  },
+  skillText: { ...Typography.caption, color: Colors.primary },
   moreSkills: { ...Typography.caption, color: Colors.textMuted, paddingVertical: 3 },
 
   empty: { alignItems: 'center', paddingTop: Spacing.xxl },
   emptyTitle: { ...Typography.h4, color: Colors.text, marginBottom: Spacing.sm },
   emptySubtitle: { ...Typography.body, color: Colors.textSecondary, textAlign: 'center' },
+  retryBtn: {
+    marginTop: Spacing.md, backgroundColor: Colors.primary,
+    borderRadius: Radius.full, paddingVertical: 10, paddingHorizontal: Spacing.lg,
+  },
+  retryBtnText: { ...Typography.label, color: Colors.textInverse },
 
   sheet: { flex: 1, backgroundColor: Colors.background },
-  sheetHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: Spacing.md, borderBottomWidth: 1, borderBottomColor: Colors.border },
+  sheetHeader: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    padding: Spacing.md, borderBottomWidth: 1, borderBottomColor: Colors.border,
+    backgroundColor: Colors.surface,
+  },
   sheetTitle: { ...Typography.h3, color: Colors.text },
   clearBtn: { ...Typography.label, color: Colors.danger },
   sheetBody: { flex: 1, padding: Spacing.md },
   filterSection: { marginBottom: Spacing.lg },
-  filterSectionLabel: { ...Typography.label, color: Colors.textSecondary, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: Spacing.sm },
+  filterSectionLabel: {
+    ...Typography.caption, color: Colors.textMuted,
+    textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: Spacing.sm,
+  },
   filterOptions: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm },
-  filterOption: { borderRadius: Radius.full, paddingHorizontal: Spacing.md, paddingVertical: 8, backgroundColor: Colors.surfaceSecondary, borderWidth: 1, borderColor: Colors.border },
+  filterOption: {
+    borderRadius: Radius.full, paddingHorizontal: Spacing.md, paddingVertical: 8,
+    backgroundColor: Colors.surface, borderWidth: 1, borderColor: Colors.border,
+  },
   filterOptionSelected: { backgroundColor: Colors.primary, borderColor: Colors.primary },
   filterOptionText: { ...Typography.label, color: Colors.textSecondary },
   filterOptionTextSelected: { color: Colors.textInverse },
-  savedToggle: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: Spacing.md },
+  savedToggle: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: Spacing.md,
+  },
   savedToggleLabel: { ...Typography.label, color: Colors.text },
   toggle: { width: 44, height: 24, borderRadius: 12, backgroundColor: Colors.border, justifyContent: 'center', paddingHorizontal: 2 },
   toggleOn: { backgroundColor: Colors.primary },
   toggleThumb: { width: 20, height: 20, borderRadius: 10, backgroundColor: Colors.surface },
   toggleThumbOn: { alignSelf: 'flex-end' },
-  applyBtn: { margin: Spacing.md, backgroundColor: Colors.primary, borderRadius: Radius.md, padding: Spacing.md, alignItems: 'center' },
+  applyBtn: {
+    margin: Spacing.md, backgroundColor: Colors.primary,
+    borderRadius: Radius.lg, padding: Spacing.md, alignItems: 'center',
+  },
   applyBtnText: { ...Typography.label, color: Colors.textInverse, fontWeight: '700' },
 });
