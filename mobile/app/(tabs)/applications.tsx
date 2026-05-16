@@ -95,6 +95,10 @@ export default function ApplicationsTab() {
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.list}
         refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={Colors.primary} />}
+        initialNumToRender={10}
+        maxToRenderPerBatch={10}
+        windowSize={5}
+        removeClippedSubviews
         renderItem={({ item }) => (
           <TouchableOpacity
             style={[styles.card, Shadow.sm]}

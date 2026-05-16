@@ -6,6 +6,16 @@ from fastapi import HTTPException, status
 
 from app.models.job import Application, Job
 from app.schemas.job import ApplicationCreate, ApplicationUpdate, ApplicationResponse, ApplicationJobInfo
+from app.services.notification_service import get_user_push_tokens, send_push_notifications
+
+STATUS_LABELS = {
+    "applied": "Application submitted",
+    "screening": "You're in screening",
+    "interview": "Interview scheduled",
+    "offer": "Offer received!",
+    "rejected": "Application not selected",
+    "withdrawn": "Application withdrawn",
+}
 
 
 class ApplicationService:
@@ -82,6 +92,9 @@ class ApplicationService:
         if data.next_action_date is not None:
             app.next_action_date = data.next_action_date
 
+        status_changed = data.status and data.status != app.status
+        old_status = app.status
+
         app.timeline = timeline
         app.updated_at = now
 
@@ -90,6 +103,19 @@ class ApplicationService:
 
         job_result = await self.db.execute(select(Job).where(Job.id == app.job_id))
         job = job_result.scalar_one_or_none()
+
+        if status_changed and data.status:
+            tokens = await get_user_push_tokens(self.db, app.user_id)
+            if tokens:
+                job_title = job.title if job else "your application"
+                label = STATUS_LABELS.get(data.status, data.status.replace("_", " ").title())
+                await send_push_notifications(
+                    tokens,
+                    title=f"Application Update — {job_title}",
+                    body=label,
+                    data={"type": "application_status", "application_id": str(app.id), "status": data.status},
+                )
+
         return self._to_response(app, job)
 
     async def delete(self, application_id: uuid.UUID, user_id: uuid.UUID) -> None:

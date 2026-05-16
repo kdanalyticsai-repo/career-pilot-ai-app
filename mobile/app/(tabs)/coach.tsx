@@ -223,6 +223,11 @@ export default function CoachTab() {
             keyExtractor={(item) => item.id}
             contentContainerStyle={styles.messageList}
             onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: false })}
+            initialNumToRender={20}
+            maxToRenderPerBatch={10}
+            windowSize={10}
+            removeClippedSubviews={false}
+            keyboardShouldPersistTaps="handled"
             renderItem={({ item }) => (
               <View style={[styles.bubble, item.role === 'user' ? styles.userBubble : styles.assistantBubble]}>
                 {item.role === 'assistant' && (

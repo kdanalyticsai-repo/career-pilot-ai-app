@@ -119,12 +119,24 @@ async def sync_all_sources(
     from app.services.adzuna_service import AdzunaService
     from app.services.remotive_service import RemotiveService
     from app.services.jobicy_service import JobicyService
+    from app.services.notification_service import get_user_push_tokens, send_push_notifications
 
     adzuna = await AdzunaService().sync_jobs_to_db(db)
     remotive = await RemotiveService().sync_jobs_to_db(db)
     jobicy = await JobicyService().sync_jobs_to_db(db)
+    total = adzuna + remotive + jobicy
+
+    if total > 0:
+        tokens = await get_user_push_tokens(db, current_user.id)
+        if tokens:
+            await send_push_notifications(
+                tokens,
+                title="New Jobs Available",
+                body=f"{total} new job{'s' if total != 1 else ''} added from live sources. Tap to explore!",
+                data={"type": "new_jobs", "count": total},
+            )
 
     return {
-        "synced": adzuna + remotive + jobicy,
+        "synced": total,
         "breakdown": {"adzuna": adzuna, "remotive": remotive, "jobicy": jobicy},
     }

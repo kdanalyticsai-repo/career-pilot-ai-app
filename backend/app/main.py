@@ -10,7 +10,7 @@ except ImportError:
 
 from app.config import settings
 from app.database import async_engine, Base
-from app.api.v1 import auth, users, resumes, jobs, applications, ai, analytics, notifications, subscriptions
+from app.api.v1 import auth, users, resumes, jobs, applications, ai, analytics, notifications, subscriptions, admin
 import app.models.job  # noqa: F401
 import app.models.ai_features  # noqa: F401
 import app.models.notification  # noqa: F401
@@ -83,6 +83,7 @@ app.include_router(ai.router, prefix="/api/v1")
 app.include_router(analytics.router, prefix="/api/v1")
 app.include_router(notifications.router, prefix="/api/v1")
 app.include_router(subscriptions.router, prefix="/api/v1")
+app.include_router(admin.router, prefix="/api/v1")
 
 
 @app.get("/health")

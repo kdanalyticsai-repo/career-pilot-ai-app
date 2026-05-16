@@ -225,6 +225,11 @@ export default function JobsTab() {
           renderItem={renderJob}
           contentContainerStyle={styles.list}
           refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={Colors.primary} />}
+          initialNumToRender={10}
+          maxToRenderPerBatch={10}
+          windowSize={5}
+          removeClippedSubviews
+          keyboardShouldPersistTaps="handled"
           ListEmptyComponent={
             <View style={styles.empty}>
               <Text style={styles.emptyTitle}>No jobs found</Text>
