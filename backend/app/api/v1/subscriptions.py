@@ -17,7 +17,24 @@ router = APIRouter(prefix="/subscriptions", tags=["subscriptions"])
 BACKEND_URL = "https://cvpilot-backend-hop4.onrender.com"
 
 
-def _payment_html(uid: str, email: str, name: str, key_id: str) -> str:
+async def _create_razorpay_order(amount: int, uid: str) -> str:
+    """Create a Razorpay order server-side and return the order_id."""
+    import httpx, base64
+    credentials = base64.b64encode(
+        f"{settings.RAZORPAY_KEY_ID}:{settings.RAZORPAY_KEY_SECRET}".encode()
+    ).decode()
+    async with httpx.AsyncClient() as client:
+        resp = await client.post(
+            "https://api.razorpay.com/v1/orders",
+            headers={"Authorization": f"Basic {credentials}", "Content-Type": "application/json"},
+            json={"amount": amount, "currency": "INR", "notes": {"user_id": uid, "plan": "pro"}},
+            timeout=10,
+        )
+        resp.raise_for_status()
+        return resp.json()["id"]
+
+
+def _payment_html(uid: str, email: str, name: str, key_id: str, order_id: str) -> str:
     return f"""<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -86,6 +103,7 @@ def _payment_html(uid: str, email: str, name: str, key_id: str) -> str:
     btn.textContent = 'Opening payment…';
     var options = {{
       key: '{key_id}',
+      order_id: '{order_id}',
       amount: 100,
       currency: 'INR',
       name: 'CVPilot',
@@ -116,9 +134,13 @@ async def payment_page(uid: str = "", email: str = "", name: str = ""):
     """Hosted Razorpay checkout page — opened in browser from the app."""
     if not uid:
         return HTMLResponse("<h2>Invalid payment link. Please return to the app.</h2>", status_code=400)
-    if not settings.RAZORPAY_KEY_ID:
+    if not settings.RAZORPAY_KEY_ID or not settings.RAZORPAY_KEY_SECRET:
         return HTMLResponse("<h2>Payment not configured yet. Please try again later.</h2>", status_code=503)
-    return HTMLResponse(_payment_html(uid, email, name, settings.RAZORPAY_KEY_ID))
+    try:
+        order_id = await _create_razorpay_order(100, uid)
+    except Exception as e:
+        return HTMLResponse(f"<h2>Could not initiate payment: {e}</h2>", status_code=502)
+    return HTMLResponse(_payment_html(uid, email, name, settings.RAZORPAY_KEY_ID, order_id))
 
 
 @router.get("/plans")
