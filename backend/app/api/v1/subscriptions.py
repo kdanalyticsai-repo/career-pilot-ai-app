@@ -12,7 +12,7 @@ from app.services.subscription_service import PLANS, get_all_usage, FREE_LIMITS
 
 router = APIRouter(prefix="/subscriptions", tags=["subscriptions"])
 
-PAYMENT_PAGE_URL = "https://kdaanalytics.com/careerpilot/subscribe"
+PAYMENT_PAGE_URL = "https://kdaanalytics.com/cvpilot/subscribe"
 
 
 @router.get("/plans")
