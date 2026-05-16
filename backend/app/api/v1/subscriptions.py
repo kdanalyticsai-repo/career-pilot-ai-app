@@ -167,7 +167,7 @@ async def get_payment_url(current_user: User = Depends(get_current_user)):
     params = urllib.parse.urlencode({
         "uid": current_user.id,
         "email": current_user.email or "",
-        "name": current_user.full_name or "",
+        "name": current_user.name or "",
     })
     return {"url": f"{BACKEND_URL}/api/v1/subscriptions/pay?{params}"}
 
