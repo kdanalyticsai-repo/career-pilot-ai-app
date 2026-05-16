@@ -46,12 +46,21 @@ export default function PaywallScreen() {
       const { data } = await api.get('/subscriptions/payment-url');
       const supported = await Linking.canOpenURL(data.url);
       if (!supported) {
-        Alert.alert('Error', `Cannot open URL: ${data.url}`);
+        Alert.alert('Unable to Open', 'Could not open the payment page. Please make sure your browser app is installed and try again.');
         return;
       }
       await Linking.openURL(data.url);
     } catch (err: any) {
-      Alert.alert('Error', err?.response?.data?.detail || err?.message || 'Could not open payment page.');
+      const status = err?.response?.status;
+      let message = 'Something went wrong. Please try again in a moment.';
+      if (status === 401 || status === 403) {
+        message = 'Your session has expired. Please log out and log back in, then try again.';
+      } else if (status === 400) {
+        message = 'You are already on the Pro plan!';
+      } else if (!status) {
+        message = 'No internet connection. Please check your network and try again.';
+      }
+      Alert.alert('Could Not Open Payment', message);
     } finally {
       setIsLoading(false);
     }
