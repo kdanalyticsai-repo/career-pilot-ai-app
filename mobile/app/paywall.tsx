@@ -77,7 +77,7 @@ export default function PaywallScreen() {
         {/* Price card */}
         <View style={[styles.priceCard, Shadow.md]}>
           <View style={styles.priceRow}>
-            <Text style={styles.priceAmount}>₹199</Text>
+            <Text style={styles.priceAmount}>₹1</Text>
             <Text style={styles.pricePer}>/month</Text>
           </View>
           <Text style={styles.priceSub}>Cancel anytime · No hidden fees</Text>
@@ -104,7 +104,7 @@ export default function PaywallScreen() {
               <Text style={styles.proBadgeText}>RECOMMENDED</Text>
             </View>
             <Text style={[styles.planName, { color: Colors.textInverse }]}>Pro</Text>
-            <Text style={[styles.planPrice, { color: Colors.textInverse }]}>₹199/mo</Text>
+            <Text style={[styles.planPrice, { color: Colors.textInverse }]}>₹1/mo</Text>
             {PRO_FEATURES.map((f) => (
               <FeatureRow
                 key={f.label}
@@ -134,7 +134,7 @@ export default function PaywallScreen() {
               <ActivityIndicator color={Colors.textInverse} />
             ) : (
               <>
-                <Text style={styles.upgradeBtnText}>Upgrade to Pro — ₹199/month</Text>
+                <Text style={styles.upgradeBtnText}>Upgrade to Pro — ₹1/month</Text>
                 <Text style={styles.upgradeBtnSub}>Pay via UPI, Card, or Net Banking</Text>
               </>
             )}
