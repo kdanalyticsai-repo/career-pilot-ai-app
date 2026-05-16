@@ -9,7 +9,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useResumes } from '@/hooks/useResumes';
 import { ResumeCard } from '@/components/resume/ResumeCard';
 import { api } from '@/services/api';
-import { Colors, Typography, Spacing, Radius } from '@/constants/theme';
+import { Colors, Typography, Spacing, Radius, Shadow } from '@/constants/theme';
 
 export default function ResumeTab() {
   const { resumes, isLoading, refetch } = useResumes();
@@ -35,14 +35,10 @@ export default function ResumeTab() {
   });
 
   const confirmDelete = (id: string, name: string) => {
-    Alert.alert(
-      'Delete Resume',
-      `Delete "${name}"? This cannot be undone.`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Delete', style: 'destructive', onPress: () => deleteResume(id) },
-      ]
-    );
+    Alert.alert('Delete Resume', `Delete "${name}"? This cannot be undone.`, [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Delete', style: 'destructive', onPress: () => deleteResume(id) },
+    ]);
   };
 
   const openRename = (id: string, name: string) => {
@@ -66,13 +62,16 @@ export default function ResumeTab() {
 
       {isLoading ? (
         <View style={styles.center}>
-          <Text style={styles.loadingText}>Loading resumes...</Text>
+          <ActivityIndicator color={Colors.primary} size="large" />
+          <Text style={[styles.loadingText, { marginTop: Spacing.sm }]}>Loading resumes…</Text>
         </View>
       ) : resumes.length === 0 ? (
         <View style={styles.empty}>
-          <Text style={styles.emptyIcon}>📄</Text>
+          <View style={styles.emptyIconWrap}>
+            <Text style={styles.emptyIcon}>📄</Text>
+          </View>
           <Text style={styles.emptyTitle}>No resumes yet</Text>
-          <Text style={styles.emptySubtitle}>Upload your PDF resume and let AI analyze it</Text>
+          <Text style={styles.emptySubtitle}>Upload your PDF resume and let AI analyze it for ATS compatibility</Text>
           <TouchableOpacity style={styles.emptyBtn} onPress={() => router.push('/resume/upload')}>
             <Text style={styles.emptyBtnText}>Upload Resume</Text>
           </TouchableOpacity>
@@ -103,7 +102,7 @@ export default function ResumeTab() {
         onRequestClose={() => setRenameTarget(null)}
       >
         <TouchableOpacity style={styles.backdrop} activeOpacity={1} onPress={() => setRenameTarget(null)}>
-          <TouchableOpacity style={styles.modalBox} activeOpacity={1}>
+          <TouchableOpacity style={[styles.modalBox, Shadow.md]} activeOpacity={1}>
             <Text style={styles.modalTitle}>Rename Resume</Text>
             <TextInput
               style={styles.modalInput}
@@ -146,46 +145,57 @@ const styles = StyleSheet.create({
   },
   title: { ...Typography.h3, color: Colors.text },
   uploadBtn: {
-    backgroundColor: Colors.primary, borderRadius: Radius.md,
+    backgroundColor: Colors.primary, borderRadius: Radius.full,
     paddingHorizontal: Spacing.md, paddingVertical: 8,
   },
   uploadBtnText: { ...Typography.label, color: Colors.textInverse },
+
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   loadingText: { ...Typography.body, color: Colors.textSecondary },
   list: { padding: Spacing.lg, gap: Spacing.md },
+
   empty: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: Spacing.xl },
-  emptyIcon: { fontSize: 56, marginBottom: Spacing.lg },
+  emptyIconWrap: {
+    width: 80, height: 80, borderRadius: 40,
+    backgroundColor: Colors.primaryLight + '40',
+    alignItems: 'center', justifyContent: 'center', marginBottom: Spacing.lg,
+  },
+  emptyIcon: { fontSize: 36 },
   emptyTitle: { ...Typography.h3, color: Colors.text, marginBottom: Spacing.sm },
-  emptySubtitle: { ...Typography.body, color: Colors.textSecondary, textAlign: 'center', marginBottom: Spacing.xl },
+  emptySubtitle: {
+    ...Typography.body, color: Colors.textSecondary,
+    textAlign: 'center', marginBottom: Spacing.xl, lineHeight: 22,
+  },
   emptyBtn: {
-    backgroundColor: Colors.primary, borderRadius: Radius.md,
+    backgroundColor: Colors.primary, borderRadius: Radius.full,
     paddingHorizontal: Spacing.xl, paddingVertical: 14,
   },
   emptyBtnText: { ...Typography.label, color: Colors.textInverse },
 
-  // Rename modal
   backdrop: {
-    flex: 1, backgroundColor: 'rgba(0,0,0,0.45)',
+    flex: 1, backgroundColor: 'rgba(25,28,30,0.5)',
     justifyContent: 'center', alignItems: 'center', padding: Spacing.xl,
   },
   modalBox: {
-    backgroundColor: Colors.surface, borderRadius: Radius.lg,
+    backgroundColor: Colors.surface, borderRadius: Radius.xl,
     padding: Spacing.xl, width: '100%',
+    borderWidth: 1, borderColor: Colors.borderSubtle,
   },
   modalTitle: { ...Typography.h4, color: Colors.text, marginBottom: Spacing.lg },
   modalInput: {
     borderWidth: 1, borderColor: Colors.border, borderRadius: Radius.md,
     paddingHorizontal: Spacing.md, paddingVertical: 12,
     ...Typography.body, color: Colors.text, marginBottom: Spacing.lg,
+    backgroundColor: Colors.surfaceSecondary,
   },
   modalActions: { flexDirection: 'row', gap: Spacing.sm },
   cancelBtn: {
-    flex: 1, borderWidth: 1, borderColor: Colors.border, borderRadius: Radius.md,
+    flex: 1, borderWidth: 1, borderColor: Colors.border, borderRadius: Radius.lg,
     paddingVertical: 12, alignItems: 'center',
   },
   cancelBtnText: { ...Typography.label, color: Colors.textSecondary },
   saveBtn: {
-    flex: 1, backgroundColor: Colors.primary, borderRadius: Radius.md,
+    flex: 1, backgroundColor: Colors.primary, borderRadius: Radius.lg,
     paddingVertical: 12, alignItems: 'center',
   },
   saveBtnDisabled: { opacity: 0.5 },

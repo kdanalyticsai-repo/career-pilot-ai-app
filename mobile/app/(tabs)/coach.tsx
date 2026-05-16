@@ -12,11 +12,11 @@ type Message = { id: string; role: 'user' | 'assistant'; content: string; create
 type Session = { id: string; title: string; created_at: string; updated_at: string };
 
 const STARTER_PROMPTS = [
-  'How do I improve my ATS score?',
-  'What salary should I expect for my skills?',
-  'How should I prepare for behavioral interviews?',
-  'How do I negotiate a job offer?',
-  'What skills should I add to get more matches?',
+  { emoji: '📈', text: 'How do I improve my ATS score?' },
+  { emoji: '💰', text: 'What salary should I expect for my skills?' },
+  { emoji: '🎯', text: 'How should I prepare for behavioral interviews?' },
+  { emoji: '🤝', text: 'How do I negotiate a job offer?' },
+  { emoji: '⚡', text: 'What skills should I add to get more matches?' },
 ];
 
 export default function CoachTab() {
@@ -52,13 +52,7 @@ export default function CoachTab() {
   const handleSend = useCallback(() => {
     const msg = input.trim();
     if (!msg || isPending) return;
-    // Optimistic UI: add user message immediately
-    const tempMsg: Message = {
-      id: 'temp-' + Date.now(),
-      role: 'user',
-      content: msg,
-      created_at: new Date().toISOString(),
-    };
+    const tempMsg: Message = { id: 'temp-' + Date.now(), role: 'user', content: msg, created_at: new Date().toISOString() };
     setMessages((prev) => [...prev, tempMsg]);
     setInput('');
     sendMessage(msg);
@@ -79,26 +73,56 @@ export default function CoachTab() {
   };
 
   if (showHistory) {
+    const groupedSessions = (sessions as Session[] ?? []).reduce<Record<string, Session[]>>((acc, s) => {
+      const date = new Date(s.updated_at);
+      const today = new Date();
+      const yesterday = new Date(today);
+      yesterday.setDate(yesterday.getDate() - 1);
+      let group = 'Earlier';
+      if (date.toDateString() === today.toDateString()) group = 'Today';
+      else if (date.toDateString() === yesterday.toDateString()) group = 'Yesterday';
+      if (!acc[group]) acc[group] = [];
+      acc[group].push(s);
+      return acc;
+    }, {});
+
     return (
       <SafeAreaView style={styles.safe} edges={['bottom']}>
         <View style={styles.histHeader}>
-          <TouchableOpacity onPress={() => setShowHistory(false)}>
+          <TouchableOpacity onPress={() => setShowHistory(false)} style={styles.backBtnWrap}>
             <Text style={styles.backBtn}>← Back</Text>
           </TouchableOpacity>
           <Text style={styles.histTitle}>Chat History</Text>
-          <TouchableOpacity onPress={newChat}>
+          <TouchableOpacity onPress={newChat} style={styles.newChatWrap}>
             <Text style={styles.newChatBtn}>+ New</Text>
           </TouchableOpacity>
         </View>
         <ScrollView contentContainerStyle={styles.histList}>
-          {(sessions as Session[] ?? []).map((s) => (
-            <TouchableOpacity key={s.id} style={[styles.histItem, Shadow.sm]} onPress={() => loadSession(s.id)}>
-              <Text style={styles.histItemTitle} numberOfLines={1}>{s.title}</Text>
-              <Text style={styles.histItemDate}>{new Date(s.updated_at).toLocaleDateString('en-IN')}</Text>
-            </TouchableOpacity>
+          {Object.entries(groupedSessions).map(([group, items]) => (
+            <View key={group}>
+              <Text style={styles.histGroup}>{group}</Text>
+              {items.map((s) => (
+                <TouchableOpacity key={s.id} style={[styles.histItem, Shadow.sm]} onPress={() => loadSession(s.id)}>
+                  <View style={styles.histItemIcon}>
+                    <Text style={{ fontSize: 14 }}>✦</Text>
+                  </View>
+                  <View style={styles.histItemContent}>
+                    <Text style={styles.histItemTitle} numberOfLines={1}>{s.title}</Text>
+                    <Text style={styles.histItemDate}>
+                      {new Date(s.updated_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
+                    </Text>
+                  </View>
+                  <Text style={styles.histChevron}>›</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
           ))}
           {(sessions?.length ?? 0) === 0 && (
-            <Text style={styles.emptyHist}>No chat history yet</Text>
+            <View style={styles.emptyHistWrap}>
+              <Text style={styles.emptyHistIcon}>✦</Text>
+              <Text style={styles.emptyHist}>No chat history yet</Text>
+              <Text style={styles.emptyHistSub}>Start a conversation with your AI coach</Text>
+            </View>
           )}
         </ScrollView>
       </SafeAreaView>
@@ -110,9 +134,12 @@ export default function CoachTab() {
       <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
         {/* Header */}
         <View style={styles.chatHeader}>
-          <View>
+          <View style={styles.aiAvatarLarge}>
+            <Text style={styles.aiAvatarText}>✦</Text>
+          </View>
+          <View style={styles.chatHeaderText}>
             <Text style={styles.chatHeaderTitle}>AI Career Coach</Text>
-            <Text style={styles.chatHeaderSub}>Ask me anything about your career</Text>
+            <Text style={styles.chatHeaderSub}>Powered by GPT-4o</Text>
           </View>
           <View style={styles.headerActions}>
             <TouchableOpacity onPress={() => setShowHistory(true)} style={styles.headerBtn}>
@@ -124,21 +151,24 @@ export default function CoachTab() {
           </View>
         </View>
 
-        {/* Messages */}
+        {/* Messages or Starter */}
         {messages.length === 0 ? (
-          <ScrollView contentContainerStyle={styles.starterContainer}>
-            <Text style={styles.starterHeading}>How can I help you today?</Text>
-            <Text style={styles.starterSubheading}>I'm your personal career coach. Try one of these or ask your own question:</Text>
-            {STARTER_PROMPTS.map((prompt) => (
-              <TouchableOpacity
-                key={prompt}
-                style={[styles.starterCard, Shadow.sm]}
-                onPress={() => { setInput(prompt); sendMessage(prompt); setInput(''); }}
-              >
-                <Text style={styles.starterText}>{prompt}</Text>
-                <Text style={styles.starterArrow}>→</Text>
-              </TouchableOpacity>
-            ))}
+          <ScrollView contentContainerStyle={styles.starterContainer} showsVerticalScrollIndicator={false}>
+            <Text style={styles.starterHeading}>How can I help you?</Text>
+            <Text style={styles.starterSubheading}>Ask me anything about your career journey</Text>
+            <View style={styles.starterGrid}>
+              {STARTER_PROMPTS.map((p) => (
+                <TouchableOpacity
+                  key={p.text}
+                  style={[styles.starterCard, Shadow.sm]}
+                  onPress={() => { setInput(p.text); sendMessage(p.text); setInput(''); }}
+                  activeOpacity={0.85}
+                >
+                  <Text style={styles.starterEmoji}>{p.emoji}</Text>
+                  <Text style={styles.starterText}>{p.text}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
           </ScrollView>
         ) : (
           <FlatList
@@ -151,7 +181,7 @@ export default function CoachTab() {
               <View style={[styles.bubble, item.role === 'user' ? styles.userBubble : styles.assistantBubble]}>
                 {item.role === 'assistant' && (
                   <View style={styles.assistantAvatar}>
-                    <Text style={styles.avatarText}>AI</Text>
+                    <Text style={styles.avatarText}>✦</Text>
                   </View>
                 )}
                 <View style={[styles.bubbleContent, item.role === 'user' ? styles.userContent : styles.assistantContent]}>
@@ -165,7 +195,7 @@ export default function CoachTab() {
               isPending ? (
                 <View style={[styles.bubble, styles.assistantBubble]}>
                   <View style={styles.assistantAvatar}>
-                    <Text style={styles.avatarText}>AI</Text>
+                    <Text style={styles.avatarText}>✦</Text>
                   </View>
                   <View style={[styles.bubbleContent, styles.assistantContent]}>
                     <View style={styles.typingDots}>
@@ -179,7 +209,7 @@ export default function CoachTab() {
           />
         )}
 
-        {/* Input */}
+        {/* Input Bar */}
         <View style={[styles.inputBar, Shadow.md]}>
           <TextInput
             style={styles.textInput}
@@ -210,29 +240,37 @@ const styles = StyleSheet.create({
   flex: { flex: 1 },
 
   chatHeader: {
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    backgroundColor: Colors.surface, padding: Spacing.md,
-    borderBottomWidth: 1, borderBottomColor: Colors.border,
+    flexDirection: 'row', alignItems: 'center',
+    backgroundColor: Colors.surface, paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm,
+    borderBottomWidth: 1, borderBottomColor: Colors.border, gap: Spacing.sm,
   },
+  aiAvatarLarge: {
+    width: 36, height: 36, borderRadius: 18,
+    backgroundColor: Colors.primary, alignItems: 'center', justifyContent: 'center',
+  },
+  aiAvatarText: { color: Colors.textInverse, fontSize: 16 },
+  chatHeaderText: { flex: 1 },
   chatHeaderTitle: { ...Typography.h4, color: Colors.text },
-  chatHeaderSub: { ...Typography.caption, color: Colors.textMuted, marginTop: 2 },
-  headerActions: { flexDirection: 'row', gap: Spacing.sm },
+  chatHeaderSub: { ...Typography.caption, color: Colors.textMuted },
+  headerActions: { flexDirection: 'row', gap: Spacing.xs },
   headerBtn: {
-    paddingHorizontal: Spacing.sm, paddingVertical: 6, borderRadius: Radius.md,
+    paddingHorizontal: Spacing.sm, paddingVertical: 6, borderRadius: Radius.full,
     backgroundColor: Colors.surfaceSecondary, borderWidth: 1, borderColor: Colors.border,
   },
-  headerBtnPrimary: { backgroundColor: Colors.primary + '12', borderColor: Colors.primary + '40' },
+  headerBtnPrimary: { backgroundColor: Colors.primaryLight + '50', borderColor: Colors.primary + '40' },
   headerBtnText: { ...Typography.caption, color: Colors.textSecondary, fontWeight: '600' },
 
-  starterContainer: { padding: Spacing.lg, gap: Spacing.sm },
-  starterHeading: { ...Typography.h3, color: Colors.text, marginBottom: 4 },
-  starterSubheading: { ...Typography.body, color: Colors.textSecondary, marginBottom: Spacing.md, lineHeight: 22 },
+  starterContainer: { padding: Spacing.lg },
+  starterHeading: { ...Typography.h2, color: Colors.text, marginBottom: 4 },
+  starterSubheading: { ...Typography.body, color: Colors.textSecondary, marginBottom: Spacing.lg },
+  starterGrid: { gap: Spacing.sm },
   starterCard: {
-    backgroundColor: Colors.surface, borderRadius: Radius.md, padding: Spacing.md,
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    backgroundColor: Colors.surface, borderRadius: Radius.lg, padding: Spacing.md,
+    flexDirection: 'row', alignItems: 'center', gap: Spacing.sm,
+    borderWidth: 1, borderColor: Colors.borderSubtle,
   },
+  starterEmoji: { fontSize: 20, width: 30 },
   starterText: { ...Typography.label, color: Colors.text, flex: 1 },
-  starterArrow: { color: Colors.primary, fontWeight: '700', fontSize: 16 },
 
   messageList: { padding: Spacing.md, gap: Spacing.sm, paddingBottom: Spacing.md },
   bubble: { flexDirection: 'row', gap: Spacing.sm, alignItems: 'flex-end' },
@@ -242,15 +280,21 @@ const styles = StyleSheet.create({
     width: 28, height: 28, borderRadius: 14,
     backgroundColor: Colors.primary, justifyContent: 'center', alignItems: 'center',
   },
-  avatarText: { ...Typography.caption, color: Colors.textInverse, fontWeight: '700' },
+  avatarText: { color: Colors.textInverse, fontSize: 12 },
   bubbleContent: { maxWidth: '80%', borderRadius: Radius.lg, padding: Spacing.md },
-  userContent: { backgroundColor: Colors.primary, borderBottomRightRadius: 4 },
-  assistantContent: { backgroundColor: Colors.surface, borderBottomLeftRadius: 4, ...Shadow.sm },
+  userContent: {
+    backgroundColor: Colors.primary, borderBottomRightRadius: 4,
+  },
+  assistantContent: {
+    backgroundColor: Colors.surface, borderBottomLeftRadius: 4,
+    borderWidth: 1, borderColor: Colors.border,
+    ...Shadow.sm,
+  },
   bubbleText: { ...Typography.body, lineHeight: 22 },
   userText: { color: Colors.textInverse },
   assistantText: { color: Colors.text },
   typingDots: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  typingText: { ...Typography.bodySmall, color: Colors.textMuted },
+  typingText: { ...Typography.caption, color: Colors.textMuted },
 
   inputBar: {
     flexDirection: 'row', backgroundColor: Colors.surface,
@@ -263,10 +307,10 @@ const styles = StyleSheet.create({
     ...Typography.body, color: Colors.text, borderWidth: 1, borderColor: Colors.border,
   },
   sendBtn: {
-    width: 40, height: 40, borderRadius: 20, backgroundColor: Colors.primary,
-    justifyContent: 'center', alignItems: 'center',
+    width: 40, height: 40, borderRadius: 20,
+    backgroundColor: Colors.primary, justifyContent: 'center', alignItems: 'center',
   },
-  sendBtnDisabled: { backgroundColor: Colors.border },
+  sendBtnDisabled: { backgroundColor: Colors.surfaceMid },
   sendBtnText: { color: Colors.textInverse, fontWeight: '700', fontSize: 18 },
 
   histHeader: {
@@ -274,12 +318,32 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.surface, padding: Spacing.md,
     borderBottomWidth: 1, borderBottomColor: Colors.border,
   },
+  backBtnWrap: { minWidth: 60 },
   backBtn: { ...Typography.label, color: Colors.primary },
   histTitle: { ...Typography.h4, color: Colors.text },
+  newChatWrap: { minWidth: 60, alignItems: 'flex-end' },
   newChatBtn: { ...Typography.label, color: Colors.primary },
-  histList: { padding: Spacing.md, gap: Spacing.sm },
-  histItem: { backgroundColor: Colors.surface, borderRadius: Radius.md, padding: Spacing.md, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  histItemTitle: { ...Typography.label, color: Colors.text, flex: 1, marginRight: Spacing.sm },
-  histItemDate: { ...Typography.caption, color: Colors.textMuted },
-  emptyHist: { ...Typography.body, color: Colors.textMuted, textAlign: 'center', paddingTop: Spacing.xxl },
+  histList: { padding: Spacing.md, paddingBottom: Spacing.xxl },
+  histGroup: {
+    ...Typography.caption, color: Colors.textMuted,
+    textTransform: 'uppercase', letterSpacing: 0.8,
+    marginTop: Spacing.md, marginBottom: Spacing.sm,
+  },
+  histItem: {
+    backgroundColor: Colors.surface, borderRadius: Radius.lg, padding: Spacing.md,
+    flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, marginBottom: Spacing.sm,
+    borderWidth: 1, borderColor: Colors.borderSubtle,
+  },
+  histItemIcon: {
+    width: 36, height: 36, borderRadius: 18,
+    backgroundColor: Colors.primaryLight + '50', alignItems: 'center', justifyContent: 'center',
+  },
+  histItemContent: { flex: 1 },
+  histItemTitle: { ...Typography.label, color: Colors.text },
+  histItemDate: { ...Typography.caption, color: Colors.textMuted, marginTop: 2 },
+  histChevron: { fontSize: 20, color: Colors.textMuted },
+  emptyHistWrap: { alignItems: 'center', paddingTop: Spacing.xxl },
+  emptyHistIcon: { fontSize: 32, marginBottom: Spacing.md, color: Colors.primary },
+  emptyHist: { ...Typography.h4, color: Colors.text, marginBottom: 4 },
+  emptyHistSub: { ...Typography.body, color: Colors.textSecondary, textAlign: 'center' },
 });

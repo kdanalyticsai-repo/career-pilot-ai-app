@@ -1,4 +1,4 @@
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import { storage } from './storage';
 
 export async function uploadResumePdf(uploadUrl: string, fileUri: string): Promise<void> {
@@ -10,7 +10,7 @@ export async function uploadResumePdf(uploadUrl: string, fileUri: string): Promi
 
   const result = await FileSystem.uploadAsync(uploadUrl, fileUri, {
     httpMethod: 'PUT',
-    uploadType: FileSystem.FileSystemUploadType.BINARY_CONTENT,
+    uploadType: 0, // FileSystemUploadType.BINARY_CONTENT
     mimeType: 'application/pdf',
     headers,
   });
