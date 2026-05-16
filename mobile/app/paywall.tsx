@@ -97,7 +97,7 @@ export default function PaywallScreen() {
           <Text style={styles.priceSub}>Cancel anytime · No hidden fees</Text>
           <View style={styles.priceDivider} />
           <Text style={styles.priceCompare}>
-            vs LinkedIn Premium at ₹1,999/month — 10× cheaper
+            vs other paid career services — up to 10× cheaper
           </Text>
         </View>
 
