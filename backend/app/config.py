@@ -46,6 +46,10 @@ class Settings(BaseSettings):
     # Expo push notifications
     EXPO_ACCESS_TOKEN: str = ""
 
+    RAZORPAY_KEY_ID: str = ""
+    RAZORPAY_KEY_SECRET: str = ""
+    RAZORPAY_WEBHOOK_SECRET: str = ""
+
     SENTRY_DSN: str = ""
     ADMIN_EMAILS: str = ""  # comma-separated, e.g. "admin@cvpilot.app,sunildubeym1306@gmail.com"
     ALLOWED_ORIGINS: str = "http://localhost:3000,exp://localhost:8081,http://10.0.2.2:8000"

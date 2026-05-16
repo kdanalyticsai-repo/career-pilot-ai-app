@@ -1,11 +1,10 @@
 import { useState } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  ActivityIndicator, Alert,
+  ActivityIndicator, Alert, Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/services/api';
 import { useAuthStore } from '@/stores/authStore';
 import { Colors, Typography, Spacing, Radius, Shadow } from '@/constants/theme';
@@ -36,28 +35,22 @@ const PRO_FEATURES = [
 ];
 
 export default function PaywallScreen() {
-  const { user, setUser } = useAuthStore();
-  const queryClient = useQueryClient();
-
-  const { mutate: upgrade, isPending } = useMutation({
-    mutationFn: () => api.post('/subscriptions/upgrade', {}),
-    onSuccess: (res) => {
-      if (user) {
-        setUser({ ...user, subscription: 'pro' });
-      }
-      queryClient.invalidateQueries({ queryKey: ['my-usage'] });
-      Alert.alert(
-        'Welcome to Pro!',
-        'You now have access to all Pro features including unlimited AI Career Coach.',
-        [{ text: 'Awesome!', onPress: () => router.back() }],
-      );
-    },
-    onError: () => {
-      Alert.alert('Error', 'Could not process upgrade. Please try again.');
-    },
-  });
+  const { user } = useAuthStore();
+  const [isLoading, setIsLoading] = useState(false);
 
   const isPro = user?.subscription === 'pro';
+
+  async function handleUpgrade() {
+    setIsLoading(true);
+    try {
+      const { data } = await api.get('/subscriptions/payment-url');
+      await Linking.openURL(data.url);
+    } catch {
+      Alert.alert('Error', 'Could not open payment page. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  }
 
   return (
     <SafeAreaView style={styles.safe} edges={['bottom']}>
@@ -132,25 +125,26 @@ export default function PaywallScreen() {
           </View>
         ) : (
           <TouchableOpacity
-            style={[styles.upgradeBtn, isPending && { opacity: 0.7 }]}
-            onPress={() => upgrade()}
-            disabled={isPending}
+            style={[styles.upgradeBtn, isLoading && { opacity: 0.7 }]}
+            onPress={handleUpgrade}
+            disabled={isLoading}
             activeOpacity={0.85}
           >
-            {isPending ? (
+            {isLoading ? (
               <ActivityIndicator color={Colors.textInverse} />
             ) : (
               <>
                 <Text style={styles.upgradeBtnText}>Upgrade to Pro — ₹199/month</Text>
-                <Text style={styles.upgradeBtnSub}>Instant access · Cancel anytime</Text>
+                <Text style={styles.upgradeBtnSub}>Pay via UPI, Card, or Net Banking</Text>
               </>
             )}
           </TouchableOpacity>
         )}
 
         <Text style={styles.disclaimer}>
-          Subscription managed through Google Play. Billed monthly.
-          {'\n'}By upgrading you agree to our Terms of Service.
+          Payment processed securely via Razorpay.{'\n'}
+          After payment, return to the app and refresh your profile to activate Pro.{'\n'}
+          Cancel anytime by contacting support.
         </Text>
       </ScrollView>
     </SafeAreaView>
