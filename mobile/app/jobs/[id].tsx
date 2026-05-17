@@ -185,23 +185,32 @@ export default function JobDetailScreen() {
 
       {/* Sticky footer */}
       <View style={[styles.footer, Shadow.md]}>
-        <TouchableOpacity style={styles.saveFooterBtn} onPress={() => toggleSave()} disabled={isSaving}>
-          <Text style={[styles.saveFooterText, { color: job.is_saved ? Colors.warning : Colors.textSecondary }]}>
-            {job.is_saved ? '★ Saved' : '☆ Save'}
-          </Text>
-        </TouchableOpacity>
-        {job.external_url && (
-          <TouchableOpacity style={styles.externalBtn} onPress={() => Linking.openURL(job.external_url)}>
-            <Text style={styles.externalBtnText}>View on Site</Text>
+        <Text style={styles.applyNote}>
+          Apply on the original platform first, then mark it here to track your application.
+        </Text>
+        <View style={styles.footerButtons}>
+          <TouchableOpacity style={styles.saveFooterBtn} onPress={() => toggleSave()} disabled={isSaving}>
+            <Text style={[styles.saveFooterText, { color: job.is_saved ? Colors.warning : Colors.textSecondary }]}>
+              {job.is_saved ? '★ Saved' : '☆ Save'}
+            </Text>
           </TouchableOpacity>
-        )}
-        <TouchableOpacity
-          style={[styles.applyBtn, isApplying && styles.applyBtnDisabled]}
-          onPress={() => apply()}
-          disabled={isApplying}
-        >
-          <Text style={styles.applyBtnText}>{isApplying ? 'Applying…' : 'Apply & Track'}</Text>
-        </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.viewOriginalBtn, !job.external_url && styles.viewOriginalBtnDisabled]}
+            onPress={() => job.external_url && Linking.openURL(job.external_url)}
+            disabled={!job.external_url}
+          >
+            <Text style={[styles.viewOriginalBtnText, !job.external_url && { color: Colors.textMuted }]}>
+              View Original Job
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.applyBtn, isApplying && styles.applyBtnDisabled]}
+            onPress={() => apply()}
+            disabled={isApplying}
+          >
+            <Text style={styles.applyBtnText}>{isApplying ? 'Tracking…' : 'Mark as Applied'}</Text>
+          </TouchableOpacity>
+        </View>
       </View>
     </SafeAreaView>
   );
@@ -262,15 +271,18 @@ const styles = StyleSheet.create({
 
   footer: {
     backgroundColor: Colors.surface, borderTopWidth: 1, borderTopColor: Colors.border,
-    flexDirection: 'row', padding: Spacing.md, gap: Spacing.sm, alignItems: 'center',
+    padding: Spacing.md, gap: Spacing.sm,
   },
+  applyNote: { ...Typography.caption, color: Colors.textMuted, textAlign: 'center', marginBottom: 4 },
+  footerButtons: { flexDirection: 'row', gap: Spacing.sm, alignItems: 'center' },
   saveFooterBtn: { paddingHorizontal: Spacing.sm, paddingVertical: 10 },
   saveFooterText: { ...Typography.label, fontWeight: '600' },
-  externalBtn: {
-    paddingHorizontal: Spacing.md, paddingVertical: 10, borderRadius: Radius.md,
-    borderWidth: 1, borderColor: Colors.border,
+  viewOriginalBtn: {
+    flex: 1, paddingHorizontal: Spacing.sm, paddingVertical: 10, borderRadius: Radius.md,
+    borderWidth: 1.5, borderColor: Colors.primary, alignItems: 'center',
   },
-  externalBtnText: { ...Typography.label, color: Colors.textSecondary },
+  viewOriginalBtnDisabled: { borderColor: Colors.border },
+  viewOriginalBtnText: { ...Typography.label, color: Colors.primary, fontWeight: '600' },
   applyBtn: { flex: 1, backgroundColor: Colors.primary, borderRadius: Radius.md, paddingVertical: 10, paddingHorizontal: Spacing.md, alignItems: 'center' },
   applyBtnDisabled: { opacity: 0.6 },
   applyBtnText: { ...Typography.label, color: Colors.textInverse, fontWeight: '700' },
