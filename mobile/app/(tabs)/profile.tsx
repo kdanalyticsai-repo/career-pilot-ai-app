@@ -1,8 +1,10 @@
+import { useCallback } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import { useAuthStore } from '@/stores/authStore';
+import { authService } from '@/services/auth';
 import { api } from '@/services/api';
 import { Colors, Typography, Spacing, Radius, Shadow } from '@/constants/theme';
 
@@ -34,8 +36,14 @@ const usageStyles = StyleSheet.create({
 });
 
 export default function ProfileTab() {
-  const { user, logout } = useAuthStore();
+  const { user, logout, setUser } = useAuthStore();
   const isPro = user?.subscription === 'pro';
+
+  useFocusEffect(
+    useCallback(() => {
+      authService.getMe().then(setUser).catch(() => {});
+    }, [])
+  );
 
   const { data: usageData } = useQuery({
     queryKey: ['my-usage'],
