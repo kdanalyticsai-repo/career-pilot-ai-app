@@ -49,6 +49,7 @@ class Settings(BaseSettings):
     RAZORPAY_KEY_ID: str = ""
     RAZORPAY_KEY_SECRET: str = ""
     RAZORPAY_WEBHOOK_SECRET: str = ""
+    RAZORPAY_PLAN_ID: str = ""  # Created once via /subscriptions/setup-plan, then set here
 
     SENTRY_DSN: str = ""
     ADMIN_EMAILS: str = ""  # comma-separated, e.g. "admin@cvpilot.app,sunildubeym1306@gmail.com"

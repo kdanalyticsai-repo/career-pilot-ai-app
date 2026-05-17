@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 from typing import AsyncGenerator
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
@@ -41,6 +42,16 @@ async def get_current_user(
 
     if user is None:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
+
+    # Auto-downgrade if Pro subscription has expired
+    if (
+        user.subscription == "pro"
+        and user.pro_expires_at is not None
+        and user.pro_expires_at < datetime.now(timezone.utc)
+    ):
+        user.subscription = "free"
+        user.razorpay_subscription_id = None
+        await db.commit()
 
     return user
 

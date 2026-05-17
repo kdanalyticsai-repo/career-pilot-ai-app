@@ -1,10 +1,12 @@
+import base64
 import hashlib
 import hmac
 import json
 import urllib.parse
+from datetime import datetime, timezone, timedelta
 
+import httpx
 from fastapi import APIRouter, Depends, HTTPException, Request
-from fastapi.responses import HTMLResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
@@ -14,134 +16,191 @@ from app.services.subscription_service import PLANS, get_all_usage, FREE_LIMITS
 
 router = APIRouter(prefix="/subscriptions", tags=["subscriptions"])
 
-BACKEND_URL = "https://cvpilot-backend-hop4.onrender.com"
+SUBSCRIPTION_AMOUNT = 19900  # ₹199 in paise
+SUBSCRIPTION_TOTAL_CYCLES = 120  # 10 years — effectively indefinite
 
 
-async def _create_razorpay_order(amount: int, uid: str) -> str:
-    """Create a Razorpay order server-side and return the order_id."""
-    import httpx, base64
-    credentials = base64.b64encode(
+def _razorpay_auth() -> str:
+    return base64.b64encode(
         f"{settings.RAZORPAY_KEY_ID}:{settings.RAZORPAY_KEY_SECRET}".encode()
     ).decode()
+
+
+async def _razorpay_post(path: str, payload: dict) -> dict:
     async with httpx.AsyncClient() as client:
         resp = await client.post(
-            "https://api.razorpay.com/v1/orders",
-            headers={"Authorization": f"Basic {credentials}", "Content-Type": "application/json"},
-            json={"amount": amount, "currency": "INR", "notes": {"user_id": uid, "plan": "pro"}},
-            timeout=10,
+            f"https://api.razorpay.com/v1/{path}",
+            headers={"Authorization": f"Basic {_razorpay_auth()}", "Content-Type": "application/json"},
+            json=payload,
+            timeout=15,
         )
         resp.raise_for_status()
-        return resp.json()["id"]
+        return resp.json()
 
 
-def _payment_html(uid: str, email: str, name: str, key_id: str, order_id: str) -> str:
-    return f"""<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>CVPilot Pro – Upgrade</title>
-  <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
-  <style>
-    *{{box-sizing:border-box;margin:0;padding:0}}
-    body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f5f5f5;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px}}
-    .card{{background:#fff;border-radius:16px;padding:40px 32px;max-width:400px;width:100%;box-shadow:0 4px 24px rgba(0,0,0,.08);text-align:center}}
-    .logo{{font-size:40px;margin-bottom:16px}}
-    h1{{font-size:22px;font-weight:700;color:#1a1a1a;margin-bottom:8px}}
-    .subtitle{{color:#666;font-size:15px;margin-bottom:24px;line-height:1.5}}
-    .price{{background:#f0f4ff;border-radius:12px;padding:20px;margin-bottom:24px}}
-    .price-amount{{font-size:42px;font-weight:800;color:#4361EE}}
-    .price-per{{color:#666;font-size:14px;margin-top:4px}}
-    .features{{text-align:left;margin-bottom:28px}}
-    .feature{{display:flex;align-items:center;gap:10px;padding:6px 0;font-size:14px;color:#333}}
-    .check{{color:#22c55e;font-weight:700}}
-    .pay-btn{{width:100%;background:#4361EE;color:#fff;border:none;border-radius:12px;padding:16px;font-size:16px;font-weight:700;cursor:pointer;transition:opacity .2s}}
-    .pay-btn:hover{{opacity:.9}}
-    .pay-btn:disabled{{opacity:.6;cursor:not-allowed}}
-    .note{{font-size:12px;color:#999;margin-top:16px;line-height:1.6}}
-    #success{{display:none}}
-    #success h2{{color:#22c55e;font-size:24px;margin-bottom:12px}}
-    #success p{{color:#555;font-size:15px;line-height:1.6}}
-  </style>
-</head>
-<body>
-<div class="card">
-  <div id="payment-view">
-    <div class="logo">✦</div>
-    <h1>Upgrade to CVPilot Pro</h1>
-    <p class="subtitle">Unlimited AI coaching, job matches, and career tools.</p>
-    <div class="price">
-      <div class="price-amount">₹1</div>
-      <div class="price-per">per month · cancel anytime</div>
-    </div>
-    <div class="features">
-      <div class="feature"><span class="check">✓</span> Unlimited AI Career Coach chats</div>
-      <div class="feature"><span class="check">✓</span> Unlimited interview prep</div>
-      <div class="feature"><span class="check">✓</span> Unlimited job matches</div>
-      <div class="feature"><span class="check">✓</span> 10 resume tailorings / month</div>
-      <div class="feature"><span class="check">✓</span> Unlimited cover letters</div>
-      <div class="feature"><span class="check">✓</span> Up to 5 resume uploads</div>
-      <div class="feature"><span class="check">✓</span> Unlimited application tracking</div>
-    </div>
-    <button class="pay-btn" id="payBtn" onclick="startPayment()">
-      Pay ₹1 — UPI / Card / Net Banking
-    </button>
-    <p class="note">Powered by Razorpay · Secure payment<br>
-    After payment, return to the CVPilot app and pull down to refresh your profile.</p>
-  </div>
-  <div id="success">
-    <div class="logo">🎉</div>
-    <h2>Payment Successful!</h2>
-    <p>Your CVPilot account has been upgraded to Pro.<br><br>
-    Return to the app and pull down to refresh your profile — your Pro badge will appear within a minute.</p>
-  </div>
-</div>
-<script>
-  function startPayment() {{
-    var btn = document.getElementById('payBtn');
-    btn.disabled = true;
-    btn.textContent = 'Opening payment…';
-    var options = {{
-      key: '{key_id}',
-      order_id: '{order_id}',
-      amount: 100,
-      currency: 'INR',
-      name: 'CVPilot',
-      description: 'Pro subscription — monthly',
-      prefill: {{ email: '{email}', name: '{name}' }},
-      notes: {{ user_id: '{uid}', plan: 'pro' }},
-      theme: {{ color: '#4361EE' }},
-      handler: function(response) {{
-        document.getElementById('payment-view').style.display = 'none';
-        document.getElementById('success').style.display = 'block';
-      }},
-      modal: {{
-        ondismiss: function() {{
-          btn.disabled = false;
-          btn.textContent = 'Pay ₹1 — UPI / Card / Net Banking';
-        }}
-      }}
-    }};
-    new Razorpay(options).open();
-  }}
-</script>
-</body>
-</html>"""
+async def _ensure_plan() -> str:
+    """Return RAZORPAY_PLAN_ID from config, or raise if not configured."""
+    if not settings.RAZORPAY_PLAN_ID:
+        raise HTTPException(
+            503,
+            "Razorpay plan not configured. Call POST /subscriptions/setup-plan first, "
+            "then set RAZORPAY_PLAN_ID in environment variables.",
+        )
+    return settings.RAZORPAY_PLAN_ID
 
 
-@router.get("/pay", response_class=HTMLResponse, include_in_schema=False)
-async def payment_page(uid: str = "", email: str = "", name: str = ""):
-    """Hosted Razorpay checkout page — opened in browser from the app."""
-    if not uid:
-        return HTMLResponse("<h2>Invalid payment link. Please return to the app.</h2>", status_code=400)
+async def _create_subscription(plan_id: str, uid: str) -> str:
+    """Create a Razorpay Subscription and return the subscription_id."""
+    data = await _razorpay_post("subscriptions", {
+        "plan_id": plan_id,
+        "total_count": SUBSCRIPTION_TOTAL_CYCLES,
+        "quantity": 1,
+        "notes": {"user_id": uid, "plan": "pro"},
+    })
+    return data["id"]
+
+
+# ── Admin endpoint to create the Razorpay plan once ──────────────────────────
+
+@router.post("/setup-plan", include_in_schema=False)
+async def setup_razorpay_plan(current_user: User = Depends(get_current_user)):
+    """
+    One-time setup: creates a ₹199/month Razorpay plan and returns the plan_id.
+    Copy the plan_id to RAZORPAY_PLAN_ID in your environment variables.
+    Only accessible to admin emails.
+    """
+    admin_emails = [e.strip() for e in (settings.ADMIN_EMAILS or "").split(",") if e.strip()]
+    if current_user.email not in admin_emails:
+        raise HTTPException(403, "Admin only")
+
     if not settings.RAZORPAY_KEY_ID or not settings.RAZORPAY_KEY_SECRET:
-        return HTMLResponse("<h2>Payment not configured yet. Please try again later.</h2>", status_code=503)
-    try:
-        order_id = await _create_razorpay_order(100, uid)
-    except Exception as e:
-        return HTMLResponse(f"<h2>Could not initiate payment: {e}</h2>", status_code=502)
-    return HTMLResponse(_payment_html(uid, email, name, settings.RAZORPAY_KEY_ID, order_id))
+        raise HTTPException(503, "Razorpay keys not configured")
 
+    plan = await _razorpay_post("plans", {
+        "period": "monthly",
+        "interval": 1,
+        "item": {
+            "name": "CVPilot Pro",
+            "amount": SUBSCRIPTION_AMOUNT,
+            "currency": "INR",
+            "description": "CVPilot Pro — monthly subscription",
+        },
+        "notes": {"product": "cvpilot_pro"},
+    })
+    return {
+        "plan_id": plan["id"],
+        "message": f"Plan created. Set RAZORPAY_PLAN_ID={plan['id']} in your environment variables.",
+    }
+
+
+# ── Payment URL ───────────────────────────────────────────────────────────────
+
+@router.get("/payment-url")
+async def get_payment_url(current_user: User = Depends(get_current_user)):
+    """Create a Razorpay Subscription, return the checkout URL."""
+    if current_user.subscription == "pro":
+        raise HTTPException(400, "Already on Pro plan")
+
+    if not settings.RAZORPAY_KEY_ID or not settings.RAZORPAY_KEY_SECRET:
+        raise HTTPException(503, "Payment not configured")
+
+    plan_id = await _ensure_plan()
+    uid = str(current_user.id)
+    subscription_id = await _create_subscription(plan_id, uid)
+
+    params = urllib.parse.urlencode({
+        "subscription_id": subscription_id,
+        "key": settings.RAZORPAY_KEY_ID,
+        "uid": uid,
+        "email": current_user.email or "",
+        "name": current_user.name or "",
+        "amount": SUBSCRIPTION_AMOUNT,
+    })
+    return {"url": f"https://kdaanalytics.com/cvpilot/subscribe?{params}"}
+
+
+# ── Webhook ───────────────────────────────────────────────────────────────────
+
+@router.post("/razorpay-webhook")
+async def razorpay_webhook(request: Request, db: AsyncSession = Depends(get_db)):
+    body = await request.body()
+    signature = request.headers.get("X-Razorpay-Signature", "")
+
+    if not settings.RAZORPAY_WEBHOOK_SECRET:
+        raise HTTPException(500, "Webhook secret not configured")
+
+    expected = hmac.new(
+        settings.RAZORPAY_WEBHOOK_SECRET.encode(), body, hashlib.sha256
+    ).hexdigest()
+    if not hmac.compare_digest(expected, signature):
+        raise HTTPException(400, "Invalid webhook signature")
+
+    payload = json.loads(body)
+    event = payload.get("event", "")
+
+    # ── payment.captured (one-time fallback / first charge) ───────────────────
+    if event == "payment.captured":
+        notes = (
+            payload.get("payload", {})
+            .get("payment", {})
+            .get("entity", {})
+            .get("notes", {})
+        )
+        user_id = notes.get("user_id")
+        sub_id = (
+            payload.get("payload", {})
+            .get("payment", {})
+            .get("entity", {})
+            .get("subscription_id")
+        )
+        if user_id:
+            user = await db.get(User, user_id)
+            if user:
+                user.subscription = "pro"
+                user.pro_expires_at = datetime.now(timezone.utc) + timedelta(days=32)
+                if sub_id:
+                    user.razorpay_subscription_id = sub_id
+                await db.commit()
+
+    # ── subscription.charged (recurring monthly payment received) ─────────────
+    elif event == "subscription.charged":
+        entity = payload.get("payload", {}).get("subscription", {}).get("entity", {})
+        sub_id = entity.get("id")
+        notes = entity.get("notes", {})
+        user_id = notes.get("user_id")
+        if user_id:
+            user = await db.get(User, user_id)
+            if user:
+                user.subscription = "pro"
+                user.pro_expires_at = datetime.now(timezone.utc) + timedelta(days=32)
+                user.razorpay_subscription_id = sub_id
+                await db.commit()
+
+    # ── subscription.halted (payment failed after retries) ────────────────────
+    elif event == "subscription.halted":
+        entity = payload.get("payload", {}).get("subscription", {}).get("entity", {})
+        sub_id = entity.get("id")
+        if sub_id:
+            from sqlalchemy import select
+            result = await db.execute(
+                select(User).where(User.razorpay_subscription_id == sub_id)
+            )
+            user = result.scalar_one_or_none()
+            if user:
+                user.subscription = "free"
+                user.pro_expires_at = None
+                user.razorpay_subscription_id = None
+                await db.commit()
+
+    # ── subscription.cancelled / subscription.completed ───────────────────────
+    # Let pro_expires_at expire naturally — user keeps Pro until the paid period ends
+    elif event in ("subscription.cancelled", "subscription.completed"):
+        pass  # auto-downgrade handles this via pro_expires_at check in get_current_user
+
+    return {"status": "ok"}
+
+
+# ── Plan & usage endpoints ────────────────────────────────────────────────────
 
 @router.get("/plans")
 async def list_plans():
@@ -156,7 +215,6 @@ async def get_my_usage(
     usage = await get_all_usage(db, current_user.id)
     plan = current_user.subscription or "free"
     plan_data = PLANS.get(plan, PLANS["free"])
-
     features = plan_data["features"]
     result = {}
 
@@ -166,87 +224,15 @@ async def get_my_usage(
             result[feature] = {"used": used, "limit": None, "blocked": False}
         else:
             blocked = monthly_limit is None
-            result[feature] = {
-                "used": used,
-                "limit": monthly_limit,
-                "blocked": blocked,
-            }
+            result[feature] = {"used": used, "limit": monthly_limit, "blocked": blocked}
 
     return {
         "plan": plan,
         "usage": result,
         "resume_uploads": features.get("resume_uploads"),
         "application_tracking": features.get("application_tracking"),
+        "pro_expires_at": current_user.pro_expires_at.isoformat() if current_user.pro_expires_at else None,
     }
-
-
-@router.get("/payment-url")
-async def get_payment_url(
-    current_user: User = Depends(get_current_user),
-):
-    """Create a Razorpay order server-side, return URL to kdaanalytics.com checkout page."""
-    if current_user.subscription == "pro":
-        raise HTTPException(400, "Already on Pro plan")
-
-    uid = str(current_user.id)
-    order_id = await _create_razorpay_order(100, uid)
-
-    params = urllib.parse.urlencode({
-        "order_id": order_id,
-        "key": settings.RAZORPAY_KEY_ID,
-        "uid": uid,
-        "email": current_user.email or "",
-        "name": current_user.name or "",
-        "amount": 100,
-    })
-    return {"url": f"https://kdaanalytics.com/cvpilot/subscribe?{params}"}
-
-
-@router.post("/razorpay-webhook")
-async def razorpay_webhook(
-    request: Request,
-    db: AsyncSession = Depends(get_db),
-):
-    """
-    Razorpay posts here after a successful payment.
-    Verifies the webhook signature, then upgrades the user identified in notes.
-    Configure this URL in the Razorpay dashboard → Webhooks.
-    """
-    body = await request.body()
-    signature = request.headers.get("X-Razorpay-Signature", "")
-
-    if not settings.RAZORPAY_WEBHOOK_SECRET:
-        raise HTTPException(500, "Webhook secret not configured")
-
-    expected = hmac.new(
-        settings.RAZORPAY_WEBHOOK_SECRET.encode(),
-        body,
-        hashlib.sha256,
-    ).hexdigest()
-
-    if not hmac.compare_digest(expected, signature):
-        raise HTTPException(400, "Invalid webhook signature")
-
-    payload = json.loads(body)
-    event = payload.get("event", "")
-
-    user_id: str | None = None
-
-    if event == "payment.captured":
-        notes = payload.get("payload", {}).get("payment", {}).get("entity", {}).get("notes", {})
-        user_id = notes.get("user_id")
-
-    elif event == "subscription.charged":
-        notes = payload.get("payload", {}).get("subscription", {}).get("entity", {}).get("notes", {})
-        user_id = notes.get("user_id")
-
-    if user_id:
-        user = await db.get(User, user_id)
-        if user and user.subscription != "pro":
-            user.subscription = "pro"
-            await db.commit()
-
-    return {"status": "ok"}
 
 
 @router.post("/downgrade")
@@ -255,5 +241,7 @@ async def downgrade_to_free(
     db: AsyncSession = Depends(get_db),
 ):
     current_user.subscription = "free"
+    current_user.pro_expires_at = None
+    current_user.razorpay_subscription_id = None
     await db.commit()
     return {"subscription": "free"}

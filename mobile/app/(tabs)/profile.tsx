@@ -145,7 +145,12 @@ export default function ProfileTab() {
             <Text style={styles.proBannerIcon}>✦</Text>
             <View style={styles.proBannerText}>
               <Text style={styles.proBannerTitle}>Pro Member</Text>
-              <Text style={styles.proBannerSub}>All features unlocked · ₹199/month</Text>
+              <Text style={styles.proBannerSub}>
+                All features unlocked · ₹199/month
+                {usageData?.pro_expires_at
+                  ? `\nRenews ${new Date(usageData.pro_expires_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}`
+                  : ''}
+              </Text>
             </View>
           </View>
         )}

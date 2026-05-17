@@ -40,6 +40,8 @@ class User(Base):
     hashed_password: Mapped[str | None] = mapped_column(String(255))
     google_id: Mapped[str | None] = mapped_column(String(255), unique=True, index=True)
     subscription: Mapped[str] = mapped_column(String(20), default="free")
+    pro_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    razorpay_subscription_id: Mapped[str | None] = mapped_column(String(100), nullable=True)
     onboarded: Mapped[bool] = mapped_column(Boolean, default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
