@@ -16,7 +16,11 @@ from app.services.subscription_service import PLANS, get_all_usage, FREE_LIMITS
 
 router = APIRouter(prefix="/subscriptions", tags=["subscriptions"])
 
-SUBSCRIPTION_AMOUNT = 19900  # ₹199 in paise
+PLAN_CONFIG = {
+    "monthly":   {"amount": 19900,  "days": 30,  "label": "₹199/month"},
+    "quarterly": {"amount": 49900,  "days": 90,  "label": "₹499/quarter"},
+    "yearly":    {"amount": 149900, "days": 365, "label": "₹1,499/year"},
+}
 
 
 def _razorpay_auth() -> str:
@@ -25,7 +29,7 @@ def _razorpay_auth() -> str:
     ).decode()
 
 
-async def _create_order(uid: str) -> dict:
+async def _create_order(uid: str, plan: str, amount: int) -> dict:
     """Create a Razorpay Order and return the full order object."""
     async with httpx.AsyncClient() as client:
         resp = await client.post(
@@ -35,9 +39,9 @@ async def _create_order(uid: str) -> dict:
                 "Content-Type": "application/json",
             },
             json={
-                "amount": SUBSCRIPTION_AMOUNT,
+                "amount": amount,
                 "currency": "INR",
-                "notes": {"user_id": uid, "plan": "pro"},
+                "notes": {"user_id": uid, "plan": plan},
             },
             timeout=15,
         )
@@ -48,19 +52,23 @@ async def _create_order(uid: str) -> dict:
 # ── Payment URL ───────────────────────────────────────────────────────────────
 
 @router.get("/payment-url")
-async def get_payment_url(current_user: User = Depends(get_current_user)):
-    """Create a Razorpay Order and return the checkout URL.
-    No entry is created in Razorpay until this endpoint is called,
-    and the order only appears in Payments (not Subscriptions) on the dashboard.
-    """
+async def get_payment_url(
+    plan: str = "monthly",
+    current_user: User = Depends(get_current_user),
+):
+    """Create a Razorpay Order and return the checkout URL."""
     if current_user.subscription == "pro":
         raise HTTPException(400, "Already on Pro plan")
+
+    if plan not in PLAN_CONFIG:
+        raise HTTPException(400, f"Invalid plan. Choose from: {', '.join(PLAN_CONFIG)}")
 
     if not settings.RAZORPAY_KEY_ID or not settings.RAZORPAY_KEY_SECRET:
         raise HTTPException(503, "Payment not configured")
 
     uid = str(current_user.id)
-    order = await _create_order(uid)
+    config = PLAN_CONFIG[plan]
+    order = await _create_order(uid, plan, config["amount"])
 
     params = urllib.parse.urlencode({
         "order_id": order["id"],
@@ -68,7 +76,8 @@ async def get_payment_url(current_user: User = Depends(get_current_user)):
         "uid": uid,
         "email": current_user.email or "",
         "name": current_user.name or "",
-        "amount": SUBSCRIPTION_AMOUNT,
+        "amount": config["amount"],
+        "plan": plan,
     })
     return {"url": f"https://kdaanalytics.com/cvpilot/subscribe?{params}"}
 
@@ -96,11 +105,13 @@ async def razorpay_webhook(request: Request, db: AsyncSession = Depends(get_db))
         entity = payload.get("payload", {}).get("payment", {}).get("entity", {})
         notes = entity.get("notes", {})
         user_id = notes.get("user_id")
+        plan = notes.get("plan", "monthly")
         if user_id:
             user = await db.get(User, user_id)
             if user:
+                days = PLAN_CONFIG.get(plan, PLAN_CONFIG["monthly"])["days"]
                 user.subscription = "pro"
-                user.pro_expires_at = datetime.now(timezone.utc) + timedelta(days=32)
+                user.pro_expires_at = datetime.now(timezone.utc) + timedelta(days=days)
                 await db.commit()
 
     return {"status": "ok"}

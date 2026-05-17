@@ -11,41 +11,43 @@ import { useAuthStore } from '@/stores/authStore';
 import { authService } from '@/services/auth';
 import { Colors, Typography, Spacing, Radius, Shadow } from '@/constants/theme';
 
-const FREE_FEATURES = [
-  { label: '1 resume upload', included: true },
-  { label: 'Top 20 job matches / day', included: true },
-  { label: 'Basic ATS score', included: true },
-  { label: '5 AI Coach chats / month', included: true },
-  { label: '1 interview prep / month', included: true },
-  { label: '1 cover letter / month', included: true },
-  { label: '1 resume tailoring / month', included: true },
-  { label: 'Track up to 10 applications', included: true },
-  { label: 'Unlimited job matches', included: false },
-  { label: 'Unlimited AI coaching', included: false },
+type PlanId = 'monthly' | 'quarterly' | 'yearly';
+
+const PLANS: {
+  id: PlanId;
+  label: string;
+  price: string;
+  per: string;
+  savings: string | null;
+  badge: string | null;
+}[] = [
+  { id: 'monthly',   label: 'Monthly',   price: '₹199',   per: '/month',   savings: null,      badge: null           },
+  { id: 'quarterly', label: 'Quarterly', price: '₹499',   per: '/quarter', savings: 'Save ₹98', badge: 'MOST POPULAR' },
+  { id: 'yearly',    label: 'Yearly',    price: '₹1,499', per: '/year',    savings: 'Save ₹889', badge: 'BEST VALUE'  },
 ];
 
 const PRO_FEATURES = [
-  { label: 'Up to 5 resumes', included: true },
-  { label: 'Unlimited job matches', included: true },
-  { label: 'Full ATS score breakdown', included: true },
-  { label: 'Unlimited interview prep', included: true },
-  { label: 'Unlimited cover letters', included: true },
-  { label: '10 resume tailorings / month', included: true },
-  { label: 'Unlimited application tracking', included: true },
-  { label: 'AI Career Coach chat (unlimited)', included: true, highlight: true },
-  { label: 'Priority support', included: true },
+  { label: 'Up to 5 resumes' },
+  { label: 'Unlimited job matches' },
+  { label: 'Full ATS score breakdown' },
+  { label: 'Unlimited interview prep' },
+  { label: 'Unlimited cover letters' },
+  { label: '10 resume tailorings / month' },
+  { label: 'Unlimited application tracking' },
+  { label: 'AI Career Coach (unlimited)', highlight: true },
+  { label: 'Priority support' },
 ];
 
 export default function PaywallScreen() {
   const { user, setUser } = useAuthStore();
+  const [selectedPlan, setSelectedPlan] = useState<PlanId>('quarterly');
   const [isLoading, setIsLoading] = useState(false);
   const [verifyingPayment, setVerifyingPayment] = useState(false);
 
   const isPro = user?.subscription === 'pro';
+  const activePlan = PLANS.find((p) => p.id === selectedPlan)!;
 
   async function pollForProUpgrade(): Promise<boolean> {
-    // Webhook can take a few seconds to reach the backend after payment.
-    // Poll getMe() up to 6 times (every 3s = 18s total) until subscription is pro.
     for (let i = 0; i < 6; i++) {
       await new Promise(r => setTimeout(r, 3000));
       const updated = await authService.getMe().catch(() => null);
@@ -60,10 +62,9 @@ export default function PaywallScreen() {
   async function handleUpgrade() {
     setIsLoading(true);
     try {
-      const { data } = await api.get('/subscriptions/payment-url');
+      const { data } = await api.get(`/subscriptions/payment-url?plan=${selectedPlan}`);
       await WebBrowser.openAuthSessionAsync(data.url, 'cvpilot://');
 
-      // Browser closed — webhook may not have fired yet, poll until Pro or timeout
       setIsLoading(false);
       setVerifyingPayment(true);
       const upgraded = await pollForProUpgrade();
@@ -111,47 +112,61 @@ export default function PaywallScreen() {
           </Text>
         </View>
 
-        {/* Price card */}
-        <View style={[styles.priceCard, Shadow.md]}>
-          <View style={styles.priceRow}>
-            <Text style={styles.priceAmount}>₹199</Text>
-            <Text style={styles.pricePer}>/month</Text>
-          </View>
-          <Text style={styles.priceSub}>Cancel anytime · No hidden fees</Text>
-          <View style={styles.priceDivider} />
-          <Text style={styles.priceCompare}>
-            vs other paid career services — up to 10× cheaper
-          </Text>
+        {/* Plan selector */}
+        <Text style={styles.sectionLabel}>Choose your plan</Text>
+        <View style={styles.planList}>
+          {PLANS.map((plan) => {
+            const selected = selectedPlan === plan.id;
+            return (
+              <TouchableOpacity
+                key={plan.id}
+                style={[styles.planCard, selected && styles.planCardSelected]}
+                onPress={() => setSelectedPlan(plan.id)}
+                activeOpacity={0.8}
+              >
+                {/* Radio dot */}
+                <View style={[styles.radio, selected && styles.radioSelected]}>
+                  {selected && <View style={styles.radioDot} />}
+                </View>
+
+                {/* Plan name + badge */}
+                <View style={styles.planInfo}>
+                  <View style={styles.planNameRow}>
+                    <Text style={[styles.planName, selected && styles.planNameSelected]}>
+                      {plan.label}
+                    </Text>
+                    {plan.badge && (
+                      <View style={[styles.planBadge, plan.badge === 'MOST POPULAR' ? styles.planBadgePopular : styles.planBadgeBest]}>
+                        <Text style={styles.planBadgeText}>{plan.badge}</Text>
+                      </View>
+                    )}
+                  </View>
+                  {plan.savings && (
+                    <Text style={styles.planSavings}>{plan.savings}</Text>
+                  )}
+                </View>
+
+                {/* Price */}
+                <View style={styles.planPriceWrap}>
+                  <Text style={[styles.planPrice, selected && styles.planPriceSelected]}>{plan.price}</Text>
+                  <Text style={styles.planPer}>{plan.per}</Text>
+                </View>
+              </TouchableOpacity>
+            );
+          })}
         </View>
 
-        {/* Plan comparison */}
-        <View style={styles.plansRow}>
-          {/* Free */}
-          <View style={[styles.planCard, Shadow.sm]}>
-            <Text style={styles.planName}>Free</Text>
-            <Text style={styles.planPrice}>₹0</Text>
-            {FREE_FEATURES.map((f) => (
-              <FeatureRow key={f.label} label={f.label} included={f.included} />
-            ))}
-          </View>
-
-          {/* Pro */}
-          <View style={[styles.planCard, styles.planCardPro, Shadow.md]}>
-            <View style={styles.proBadge}>
-              <Text style={styles.proBadgeText}>RECOMMENDED</Text>
+        {/* Pro features */}
+        <View style={[styles.featuresCard, Shadow.sm]}>
+          <Text style={styles.featuresTitle}>Everything in Pro</Text>
+          {PRO_FEATURES.map((f) => (
+            <View key={f.label} style={styles.featureRow}>
+              <Text style={[styles.featureCheck, f.highlight && { color: Colors.tertiary }]}>✓</Text>
+              <Text style={[styles.featureLabel, f.highlight && styles.featureLabelHighlight]}>
+                {f.label}
+              </Text>
             </View>
-            <Text style={[styles.planName, { color: Colors.textInverse }]}>Pro</Text>
-            <Text style={[styles.planPrice, { color: Colors.textInverse }]}>₹199/mo</Text>
-            {PRO_FEATURES.map((f) => (
-              <FeatureRow
-                key={f.label}
-                label={f.label}
-                included={f.included}
-                highlight={f.highlight}
-                dark
-              />
-            ))}
-          </View>
+          ))}
         </View>
 
         {/* CTA */}
@@ -176,7 +191,9 @@ export default function PaywallScreen() {
               <ActivityIndicator color={Colors.textInverse} />
             ) : (
               <>
-                <Text style={styles.upgradeBtnText}>Upgrade to Pro — ₹199/month</Text>
+                <Text style={styles.upgradeBtnText}>
+                  Upgrade to Pro — {activePlan.price}{activePlan.per}
+                </Text>
                 <Text style={styles.upgradeBtnSub}>Pay via UPI, Card, or Net Banking</Text>
               </>
             )}
@@ -185,36 +202,11 @@ export default function PaywallScreen() {
 
         <Text style={styles.disclaimer}>
           Payment processed securely via Razorpay.{'\n'}
-          After payment, return to the app and refresh your profile to activate Pro.{'\n'}
-          Cancel anytime by contacting support.
+          After payment, return to the app to activate Pro.{'\n'}
+          Renew manually before expiry to keep access.
         </Text>
       </ScrollView>
     </SafeAreaView>
-  );
-}
-
-function FeatureRow({
-  label, included, highlight, dark,
-}: {
-  label: string; included: boolean; highlight?: boolean; dark?: boolean;
-}) {
-  const textColor = dark
-    ? included ? Colors.textInverse : Colors.textInverse + '60'
-    : included ? Colors.text : Colors.textMuted;
-
-  return (
-    <View style={styles.featureRow}>
-      <Text style={[styles.featureCheck, { color: included ? (highlight ? Colors.tertiary : (dark ? Colors.textInverse : Colors.success)) : Colors.textMuted }]}>
-        {included ? '✓' : '✗'}
-      </Text>
-      <Text style={[
-        styles.featureLabel,
-        { color: textColor },
-        highlight && { fontWeight: '700' },
-      ]}>
-        {label}
-      </Text>
-    </View>
   );
 }
 
@@ -242,39 +234,52 @@ const styles = StyleSheet.create({
   heroTitle: { ...Typography.h2, color: Colors.text, textAlign: 'center', marginBottom: Spacing.sm },
   heroSub: { ...Typography.body, color: Colors.textSecondary, textAlign: 'center', lineHeight: 22 },
 
-  priceCard: {
-    backgroundColor: Colors.surface, borderRadius: Radius.xl,
-    padding: Spacing.lg, alignItems: 'center',
-    borderWidth: 1, borderColor: Colors.borderSubtle,
-    marginBottom: Spacing.lg,
-  },
-  priceRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 4 },
-  priceAmount: { fontSize: 48, fontWeight: '800', color: Colors.primary, lineHeight: 56 },
-  pricePer: { ...Typography.body, color: Colors.textSecondary, marginBottom: 8 },
-  priceSub: { ...Typography.caption, color: Colors.textMuted, marginTop: 4 },
-  priceDivider: { width: 40, height: 1, backgroundColor: Colors.border, marginVertical: Spacing.sm },
-  priceCompare: { ...Typography.caption, color: Colors.tertiary, fontWeight: '600', textAlign: 'center' },
+  sectionLabel: { ...Typography.label, color: Colors.textSecondary, fontWeight: '600', marginBottom: Spacing.sm },
 
-  plansRow: { flexDirection: 'row', gap: Spacing.sm, marginBottom: Spacing.lg },
+  planList: { gap: Spacing.sm, marginBottom: Spacing.lg },
   planCard: {
-    flex: 1, backgroundColor: Colors.surface, borderRadius: Radius.lg,
-    padding: Spacing.md, borderWidth: 1, borderColor: Colors.borderSubtle,
+    flexDirection: 'row', alignItems: 'center', gap: Spacing.sm,
+    backgroundColor: Colors.surface, borderRadius: Radius.lg,
+    padding: Spacing.md, borderWidth: 1.5, borderColor: Colors.border,
   },
-  planCardPro: {
-    backgroundColor: Colors.primary,
-    borderColor: Colors.primaryDark,
+  planCardSelected: {
+    borderColor: Colors.primary,
+    backgroundColor: Colors.primary + '08',
   },
-  proBadge: {
-    backgroundColor: Colors.tertiary, borderRadius: Radius.full,
-    paddingHorizontal: Spacing.sm, paddingVertical: 3,
-    alignSelf: 'flex-start', marginBottom: Spacing.sm,
+
+  radio: {
+    width: 20, height: 20, borderRadius: 10,
+    borderWidth: 2, borderColor: Colors.border,
+    alignItems: 'center', justifyContent: 'center',
   },
-  proBadgeText: { fontSize: 9, fontWeight: '800', color: Colors.text, letterSpacing: 0.5 },
-  planName: { ...Typography.h4, color: Colors.text, marginBottom: 2 },
-  planPrice: { ...Typography.label, color: Colors.textSecondary, marginBottom: Spacing.md },
-  featureRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 6, marginBottom: 6 },
-  featureCheck: { fontSize: 12, fontWeight: '700', marginTop: 1, width: 14 },
-  featureLabel: { ...Typography.caption, flex: 1, lineHeight: 18 },
+  radioSelected: { borderColor: Colors.primary },
+  radioDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: Colors.primary },
+
+  planInfo: { flex: 1 },
+  planNameRow: { flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' },
+  planName: { ...Typography.label, color: Colors.text, fontWeight: '600' },
+  planNameSelected: { color: Colors.primary },
+  planBadge: { borderRadius: Radius.full, paddingHorizontal: 6, paddingVertical: 2 },
+  planBadgePopular: { backgroundColor: Colors.primary + '20' },
+  planBadgeBest: { backgroundColor: Colors.tertiary + '30' },
+  planBadgeText: { fontSize: 9, fontWeight: '800', color: Colors.primary, letterSpacing: 0.4 },
+  planSavings: { ...Typography.caption, color: Colors.success, fontWeight: '600', marginTop: 2 },
+
+  planPriceWrap: { alignItems: 'flex-end' },
+  planPrice: { ...Typography.label, color: Colors.text, fontWeight: '700', fontSize: 16 },
+  planPriceSelected: { color: Colors.primary },
+  planPer: { ...Typography.caption, color: Colors.textMuted },
+
+  featuresCard: {
+    backgroundColor: Colors.surface, borderRadius: Radius.lg,
+    padding: Spacing.lg, marginBottom: Spacing.lg,
+    borderWidth: 1, borderColor: Colors.borderSubtle,
+  },
+  featuresTitle: { ...Typography.h4, color: Colors.text, marginBottom: Spacing.md },
+  featureRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, marginBottom: 8 },
+  featureCheck: { fontSize: 13, fontWeight: '700', color: Colors.success, marginTop: 1, width: 16 },
+  featureLabel: { ...Typography.body, color: Colors.text, flex: 1, lineHeight: 20 },
+  featureLabelHighlight: { fontWeight: '700', color: Colors.tertiary },
 
   upgradeBtn: {
     backgroundColor: Colors.primary, borderRadius: Radius.lg,
