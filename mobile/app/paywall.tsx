@@ -8,6 +8,7 @@ import { router } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
 import { api } from '@/services/api';
 import { useAuthStore } from '@/stores/authStore';
+import { authService } from '@/services/auth';
 import { Colors, Typography, Spacing, Radius, Shadow } from '@/constants/theme';
 
 const FREE_FEATURES = [
@@ -36,7 +37,7 @@ const PRO_FEATURES = [
 ];
 
 export default function PaywallScreen() {
-  const { user } = useAuthStore();
+  const { user, setUser } = useAuthStore();
   const [isLoading, setIsLoading] = useState(false);
 
   const isPro = user?.subscription === 'pro';
@@ -48,12 +49,20 @@ export default function PaywallScreen() {
       // openAuthSessionAsync opens a Chrome Custom Tab / Safari VC that monitors
       // for the cvpilot:// redirect — intercepts it and closes automatically,
       // instead of letting Android Chrome block the custom scheme.
-      const result = await WebBrowser.openAuthSessionAsync(data.url, 'cvpilot://');
-      if (result.type === 'success') {
-        // Payment complete — navigate to profile; useFocusEffect will refresh user
-        router.replace('/(tabs)/profile');
+      // Opens a Chrome Custom Tab. Resolves when user closes the tab (back button)
+      // or if the cvpilot:// redirect is intercepted automatically.
+      await WebBrowser.openAuthSessionAsync(data.url, 'cvpilot://');
+
+      // Browser is now closed — check if payment actually completed
+      // regardless of HOW the browser was closed (back button or deep link)
+      const updated = await authService.getMe().catch(() => null);
+      if (updated) {
+        setUser(updated);
+        if (updated.subscription === 'pro') {
+          router.replace('/(tabs)/profile');
+          return;
+        }
       }
-      // type === 'cancel' means user closed without paying — do nothing
     } catch (err: any) {
       const status = err?.response?.status;
       let message = 'Something went wrong. Please try again in a moment.';
