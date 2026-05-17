@@ -39,29 +39,38 @@ const PRO_FEATURES = [
 export default function PaywallScreen() {
   const { user, setUser } = useAuthStore();
   const [isLoading, setIsLoading] = useState(false);
+  const [verifyingPayment, setVerifyingPayment] = useState(false);
 
   const isPro = user?.subscription === 'pro';
+
+  async function pollForProUpgrade(): Promise<boolean> {
+    // Webhook can take a few seconds to reach the backend after payment.
+    // Poll getMe() up to 6 times (every 3s = 18s total) until subscription is pro.
+    for (let i = 0; i < 6; i++) {
+      await new Promise(r => setTimeout(r, 3000));
+      const updated = await authService.getMe().catch(() => null);
+      if (updated?.subscription === 'pro') {
+        setUser(updated);
+        return true;
+      }
+    }
+    return false;
+  }
 
   async function handleUpgrade() {
     setIsLoading(true);
     try {
       const { data } = await api.get('/subscriptions/payment-url');
-      // openAuthSessionAsync opens a Chrome Custom Tab / Safari VC that monitors
-      // for the cvpilot:// redirect — intercepts it and closes automatically,
-      // instead of letting Android Chrome block the custom scheme.
-      // Opens a Chrome Custom Tab. Resolves when user closes the tab (back button)
-      // or if the cvpilot:// redirect is intercepted automatically.
       await WebBrowser.openAuthSessionAsync(data.url, 'cvpilot://');
 
-      // Browser is now closed — check if payment actually completed
-      // regardless of HOW the browser was closed (back button or deep link)
-      const updated = await authService.getMe().catch(() => null);
-      if (updated) {
-        setUser(updated);
-        if (updated.subscription === 'pro') {
-          router.replace('/(tabs)/profile');
-          return;
-        }
+      // Browser closed — webhook may not have fired yet, poll until Pro or timeout
+      setIsLoading(false);
+      setVerifyingPayment(true);
+      const upgraded = await pollForProUpgrade();
+      setVerifyingPayment(false);
+
+      if (upgraded) {
+        router.replace('/(tabs)/profile');
       }
     } catch (err: any) {
       const status = err?.response?.status;
@@ -76,6 +85,7 @@ export default function PaywallScreen() {
       Alert.alert('Could Not Open Payment', message);
     } finally {
       setIsLoading(false);
+      setVerifyingPayment(false);
     }
   }
 
@@ -152,12 +162,17 @@ export default function PaywallScreen() {
           </View>
         ) : (
           <TouchableOpacity
-            style={[styles.upgradeBtn, isLoading && { opacity: 0.7 }]}
+            style={[styles.upgradeBtn, (isLoading || verifyingPayment) && { opacity: 0.7 }]}
             onPress={handleUpgrade}
-            disabled={isLoading}
+            disabled={isLoading || verifyingPayment}
             activeOpacity={0.85}
           >
-            {isLoading ? (
+            {verifyingPayment ? (
+              <>
+                <ActivityIndicator color={Colors.textInverse} />
+                <Text style={[styles.upgradeBtnSub, { marginTop: 8 }]}>Verifying payment…</Text>
+              </>
+            ) : isLoading ? (
               <ActivityIndicator color={Colors.textInverse} />
             ) : (
               <>
