@@ -111,12 +111,30 @@ async def _get_subscription_status(subscription_id: str) -> str | None:
     return None
 
 
+async def _cancel_subscription(subscription_id: str) -> None:
+    """Cancel a Razorpay subscription silently (best-effort)."""
+    try:
+        async with httpx.AsyncClient() as client:
+            await client.post(
+                f"https://api.razorpay.com/v1/subscriptions/{subscription_id}/cancel",
+                headers={"Authorization": f"Basic {_razorpay_auth()}"},
+                json={"cancel_at_cycle_end": 0},
+                timeout=10,
+            )
+    except Exception:
+        pass
+
+
 @router.get("/payment-url")
 async def get_payment_url(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Return a checkout URL, reusing any pending subscription to avoid duplicates."""
+    """
+    Create a Razorpay Subscription and return the checkout URL.
+    - Cancels any previous abandoned (created) subscription in Razorpay.
+    - Does NOT store the subscription_id until payment is confirmed via webhook.
+    """
     if current_user.subscription == "pro":
         raise HTTPException(400, "Already on Pro plan")
 
@@ -126,17 +144,16 @@ async def get_payment_url(
     plan_id = await _ensure_plan()
     uid = str(current_user.id)
 
-    # Reuse an existing "created" subscription if the user has one
-    subscription_id = None
+    # Cancel any previous abandoned subscription so Razorpay stays clean
     if current_user.razorpay_subscription_id:
         status = await _get_subscription_status(current_user.razorpay_subscription_id)
         if status == "created":
-            subscription_id = current_user.razorpay_subscription_id
+            await _cancel_subscription(current_user.razorpay_subscription_id)
+            current_user.razorpay_subscription_id = None
+            await db.commit()
 
-    if not subscription_id:
-        subscription_id = await _create_subscription(plan_id, uid)
-        current_user.razorpay_subscription_id = subscription_id
-        await db.commit()
+    # Create fresh subscription — only saved to DB when webhook confirms payment
+    subscription_id = await _create_subscription(plan_id, uid)
 
     params = urllib.parse.urlencode({
         "subscription_id": subscription_id,
