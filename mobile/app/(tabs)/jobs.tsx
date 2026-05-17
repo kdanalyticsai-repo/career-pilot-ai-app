@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TextInput, TouchableOpacity,
-  ActivityIndicator, RefreshControl, Modal, ScrollView,
+  ActivityIndicator, RefreshControl, Modal, ScrollView, Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -74,20 +74,40 @@ export default function JobsTab() {
     retry: 2,
   });
 
+  const { data: resumesData } = useQuery({
+    queryKey: ['resumes'],
+    queryFn: () => api.get('/resumes').then((r) => r.data),
+    staleTime: 60_000,
+  });
+  const hasResume = (resumesData?.resumes?.length ?? 0) > 0;
+
   const { mutate: seedJobs } = useMutation({
     mutationFn: () => api.post('/jobs/seed'),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['jobs'] }),
   });
 
-  const { mutate: syncAll } = useMutation({
+  const { mutate: syncAll, isPending: isSyncing } = useMutation({
     mutationFn: () => api.post('/jobs/sync-all'),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['jobs'] }),
+    onError: () => {},
   });
 
-  const { mutate: computeMatches } = useMutation({
+  const { mutate: computeMatches, isPending: isComputing } = useMutation({
     mutationFn: () => api.post('/jobs/compute-matches'),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['jobs'] }),
+    onError: () => {},
   });
+
+  function handleRecompute() {
+    if (!hasResume) {
+      Alert.alert('No Resume Found', 'Upload your resume to find the match!', [
+        { text: 'Upload Resume', onPress: () => router.push('/resume/upload') },
+        { text: 'Cancel', style: 'cancel' },
+      ]);
+      return;
+    }
+    computeMatches();
+  }
 
   const { mutate: toggleSave } = useMutation({
     mutationFn: ({ id, saved }: { id: string; saved: boolean }) =>
@@ -183,19 +203,45 @@ export default function JobsTab() {
         </View>
 
         {!isLoading && !isError && (
-          <View style={styles.actionRow}>
-            <TouchableOpacity style={styles.actionBtn} onPress={() => syncAll()}>
-              <Text style={styles.actionBtnText}>⟳ Sync Live Jobs</Text>
-            </TouchableOpacity>
-            {jobs.length === 0 && (
-              <TouchableOpacity style={[styles.actionBtn, styles.actionBtnOutline]} onPress={() => seedJobs()}>
-                <Text style={[styles.actionBtnText, { color: Colors.textSecondary }]}>Load Samples</Text>
+          <View>
+            <View style={styles.actionRow}>
+              <TouchableOpacity
+                style={[styles.actionBtn, isSyncing && { opacity: 0.7 }]}
+                onPress={() => syncAll()}
+                disabled={isSyncing || isComputing}
+              >
+                {isSyncing
+                  ? <ActivityIndicator size="small" color={Colors.textInverse} />
+                  : <Text style={styles.actionBtnText}>⟳ Sync Live Jobs</Text>
+                }
               </TouchableOpacity>
+              {jobs.length === 0 && (
+                <TouchableOpacity style={[styles.actionBtn, styles.actionBtnOutline]} onPress={() => seedJobs()}>
+                  <Text style={[styles.actionBtnText, { color: Colors.textSecondary }]}>Load Samples</Text>
+                </TouchableOpacity>
+              )}
+              {jobs.length > 0 && (
+                <TouchableOpacity
+                  style={[styles.actionBtn, styles.actionBtnOutline, isComputing && { opacity: 0.7 }]}
+                  onPress={handleRecompute}
+                  disabled={isSyncing || isComputing}
+                >
+                  {isComputing
+                    ? <ActivityIndicator size="small" color={Colors.textSecondary} />
+                    : <Text style={[styles.actionBtnText, { color: Colors.textSecondary }]}>✦ Recompute</Text>
+                  }
+                </TouchableOpacity>
+              )}
+            </View>
+            {isSyncing && (
+              <View style={styles.statusBanner}>
+                <Text style={styles.statusBannerText}>⟳  Syncing live jobs, please wait…</Text>
+              </View>
             )}
-            {jobs.length > 0 && (
-              <TouchableOpacity style={[styles.actionBtn, styles.actionBtnOutline]} onPress={() => computeMatches()}>
-                <Text style={[styles.actionBtnText, { color: Colors.textSecondary }]}>✦ Recompute</Text>
-              </TouchableOpacity>
+            {isComputing && (
+              <View style={styles.statusBanner}>
+                <Text style={styles.statusBannerText}>✦  Matching your profile with available live jobs…</Text>
+              </View>
             )}
           </View>
         )}
@@ -326,6 +372,12 @@ const styles = StyleSheet.create({
   filterBtnText: { ...Typography.label, color: Colors.textSecondary },
 
   actionRow: { flexDirection: 'row', gap: Spacing.sm, marginTop: Spacing.sm },
+  statusBanner: {
+    marginTop: Spacing.sm, backgroundColor: Colors.primaryLight + '20',
+    borderRadius: Radius.md, paddingVertical: 8, paddingHorizontal: Spacing.md,
+    borderWidth: 1, borderColor: Colors.primary + '30',
+  },
+  statusBannerText: { ...Typography.caption, color: Colors.primary, textAlign: 'center' },
   actionBtn: {
     flex: 1, backgroundColor: Colors.primary, borderRadius: Radius.full,
     paddingVertical: 8, alignItems: 'center',
