@@ -32,9 +32,17 @@ export default function RegisterScreen() {
   const onSubmit = async (data: FormData) => {
     try {
       await registerUser(data.email, data.password, data.name);
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Registration failed. Try again.';
-      Alert.alert('Error', message);
+    } catch (err: any) {
+      const status = err?.response?.status;
+      let message = 'Could not create account. Please try again.';
+      if (!status) {
+        message = 'No internet connection. Please check your network and try again.';
+      } else if (status === 400 || status === 409) {
+        message = 'An account with this email already exists. Try signing in instead.';
+      } else if (status === 422) {
+        message = 'Please check your details and try again.';
+      }
+      Alert.alert('Sign Up Failed', message);
     }
   };
 

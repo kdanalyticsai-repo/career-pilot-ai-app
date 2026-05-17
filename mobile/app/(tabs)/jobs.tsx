@@ -209,10 +209,10 @@ export default function JobsTab() {
       ) : isError ? (
         <View style={styles.center}>
           <Text style={styles.emptyTitle}>Could not load jobs</Text>
-          <Text style={[styles.emptySubtitle, { fontFamily: 'monospace', fontSize: 11, marginTop: 8, paddingHorizontal: 16 }]} selectable>
-            {(error as any)?.response?.status
-              ? `HTTP ${(error as any).response.status}: ${JSON.stringify((error as any).response.data)}`
-              : (error as any)?.message ?? String(error)}
+          <Text style={styles.emptySubtitle}>
+            {!(error as any)?.response?.status
+              ? 'No internet connection. Please check your network and try again.'
+              : 'Something went wrong. Please try again in a moment.'}
           </Text>
           <TouchableOpacity onPress={() => refetch()} style={styles.retryBtn}>
             <Text style={styles.retryBtnText}>Retry</Text>

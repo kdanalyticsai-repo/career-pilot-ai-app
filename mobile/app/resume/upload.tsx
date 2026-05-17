@@ -50,9 +50,19 @@ export default function UploadResumeScreen() {
       Alert.alert('Uploaded!', 'Your resume is being analyzed. This takes about 30 seconds.', [
         { text: 'OK', onPress: () => router.back() },
       ]);
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      Alert.alert('Upload failed', msg);
+    } catch (err: any) {
+      const status = err?.response?.status;
+      let msg = 'Upload failed. Please try again.';
+      if (!status) {
+        msg = 'No internet connection. Please check your network and try again.';
+      } else if (status === 401 || status === 403) {
+        msg = 'Your session has expired. Please log out and sign in again.';
+      } else if (status === 413) {
+        msg = 'File is too large. Please use a PDF under 10 MB.';
+      } else if (status === 400) {
+        msg = 'This file could not be processed. Make sure it is a valid PDF and try again.';
+      }
+      Alert.alert('Upload Failed', msg);
     } finally {
       setIsUploading(false);
     }

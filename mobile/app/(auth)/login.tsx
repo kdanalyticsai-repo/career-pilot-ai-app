@@ -28,9 +28,17 @@ export default function LoginScreen() {
   const onSubmit = async (data: FormData) => {
     try {
       await login(data.email, data.password);
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Login failed. Check your credentials.';
-      Alert.alert('Login Failed', message);
+    } catch (err: any) {
+      const status = err?.response?.status;
+      let message = 'Sign in failed. Please try again.';
+      if (!status) {
+        message = 'No internet connection. Please check your network and try again.';
+      } else if (status === 401 || status === 422) {
+        message = 'Incorrect email or password. Please try again.';
+      } else if (status === 429) {
+        message = 'Too many attempts. Please wait a moment and try again.';
+      }
+      Alert.alert('Sign In Failed', message);
     }
   };
 
