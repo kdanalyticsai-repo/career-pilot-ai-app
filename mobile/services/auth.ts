@@ -10,6 +10,7 @@ interface UserInfo {
   id: string;
   email: string;
   name: string | null;
+  phone: string | null;
   subscription: string;
   onboarded: boolean;
   avatar_url: string | null;
