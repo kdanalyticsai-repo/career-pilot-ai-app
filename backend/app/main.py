@@ -8,9 +8,13 @@ try:
 except ImportError:
     _has_sentry = False
 
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from apscheduler.triggers.cron import CronTrigger
+
 from app.config import settings
 from app.database import async_engine, Base
 from app.api.v1 import auth, users, resumes, jobs, applications, ai, analytics, notifications, subscriptions, admin
+from app.jobs.renewal_reminder import send_pro_renewal_reminders
 import app.models.job  # noqa: F401
 import app.models.ai_features  # noqa: F401
 import app.models.notification  # noqa: F401
@@ -55,7 +59,20 @@ async def lifespan(app: FastAPI):
 
     if settings.SENTRY_DSN and _has_sentry:
         sentry_sdk.init(dsn=settings.SENTRY_DSN, traces_sample_rate=0.1)
+
+    # Daily renewal reminder — runs at 9:00 AM IST (03:30 UTC)
+    scheduler = AsyncIOScheduler(timezone="UTC")
+    scheduler.add_job(
+        send_pro_renewal_reminders,
+        CronTrigger(hour=3, minute=30),
+        id="pro_renewal_reminders",
+        replace_existing=True,
+    )
+    scheduler.start()
+
     yield
+
+    scheduler.shutdown(wait=False)
 
 
 app = FastAPI(
