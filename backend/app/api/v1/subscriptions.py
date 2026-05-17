@@ -95,9 +95,28 @@ async def setup_razorpay_plan(current_user: User = Depends(get_current_user)):
 
 # ── Payment URL ───────────────────────────────────────────────────────────────
 
+async def _get_subscription_status(subscription_id: str) -> str | None:
+    """Fetch status of an existing Razorpay subscription."""
+    try:
+        async with httpx.AsyncClient() as client:
+            resp = await client.get(
+                f"https://api.razorpay.com/v1/subscriptions/{subscription_id}",
+                headers={"Authorization": f"Basic {_razorpay_auth()}"},
+                timeout=10,
+            )
+            if resp.status_code == 200:
+                return resp.json().get("status")
+    except Exception:
+        pass
+    return None
+
+
 @router.get("/payment-url")
-async def get_payment_url(current_user: User = Depends(get_current_user)):
-    """Create a Razorpay Subscription, return the checkout URL."""
+async def get_payment_url(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Return a checkout URL, reusing any pending subscription to avoid duplicates."""
     if current_user.subscription == "pro":
         raise HTTPException(400, "Already on Pro plan")
 
@@ -106,7 +125,18 @@ async def get_payment_url(current_user: User = Depends(get_current_user)):
 
     plan_id = await _ensure_plan()
     uid = str(current_user.id)
-    subscription_id = await _create_subscription(plan_id, uid)
+
+    # Reuse an existing "created" subscription if the user has one
+    subscription_id = None
+    if current_user.razorpay_subscription_id:
+        status = await _get_subscription_status(current_user.razorpay_subscription_id)
+        if status == "created":
+            subscription_id = current_user.razorpay_subscription_id
+
+    if not subscription_id:
+        subscription_id = await _create_subscription(plan_id, uid)
+        current_user.razorpay_subscription_id = subscription_id
+        await db.commit()
 
     params = urllib.parse.urlencode({
         "subscription_id": subscription_id,
