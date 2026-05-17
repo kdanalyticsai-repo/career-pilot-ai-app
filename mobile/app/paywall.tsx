@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  ActivityIndicator, Alert, Linking,
+  ActivityIndicator, Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
+import * as WebBrowser from 'expo-web-browser';
 import { api } from '@/services/api';
 import { useAuthStore } from '@/stores/authStore';
 import { Colors, Typography, Spacing, Radius, Shadow } from '@/constants/theme';
@@ -44,12 +45,15 @@ export default function PaywallScreen() {
     setIsLoading(true);
     try {
       const { data } = await api.get('/subscriptions/payment-url');
-      const supported = await Linking.canOpenURL(data.url);
-      if (!supported) {
-        Alert.alert('Unable to Open', 'Could not open the payment page. Please make sure your browser app is installed and try again.');
-        return;
+      // openAuthSessionAsync opens a Chrome Custom Tab / Safari VC that monitors
+      // for the cvpilot:// redirect — intercepts it and closes automatically,
+      // instead of letting Android Chrome block the custom scheme.
+      const result = await WebBrowser.openAuthSessionAsync(data.url, 'cvpilot://');
+      if (result.type === 'success') {
+        // Payment complete — navigate to profile; useFocusEffect will refresh user
+        router.replace('/(tabs)/profile');
       }
-      await Linking.openURL(data.url);
+      // type === 'cancel' means user closed without paying — do nothing
     } catch (err: any) {
       const status = err?.response?.status;
       let message = 'Something went wrong. Please try again in a moment.';
