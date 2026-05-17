@@ -17,7 +17,6 @@ from app.services.subscription_service import PLANS, get_all_usage, FREE_LIMITS
 router = APIRouter(prefix="/subscriptions", tags=["subscriptions"])
 
 SUBSCRIPTION_AMOUNT = 19900  # ₹199 in paise
-SUBSCRIPTION_TOTAL_CYCLES = 120  # 10 years — effectively indefinite
 
 
 def _razorpay_auth() -> str:
@@ -26,114 +25,33 @@ def _razorpay_auth() -> str:
     ).decode()
 
 
-async def _razorpay_post(path: str, payload: dict) -> dict:
+async def _create_order(uid: str) -> dict:
+    """Create a Razorpay Order and return the full order object."""
     async with httpx.AsyncClient() as client:
         resp = await client.post(
-            f"https://api.razorpay.com/v1/{path}",
-            headers={"Authorization": f"Basic {_razorpay_auth()}", "Content-Type": "application/json"},
-            json=payload,
+            "https://api.razorpay.com/v1/orders",
+            headers={
+                "Authorization": f"Basic {_razorpay_auth()}",
+                "Content-Type": "application/json",
+            },
+            json={
+                "amount": SUBSCRIPTION_AMOUNT,
+                "currency": "INR",
+                "notes": {"user_id": uid, "plan": "pro"},
+            },
             timeout=15,
         )
         resp.raise_for_status()
         return resp.json()
 
 
-async def _ensure_plan() -> str:
-    """Return RAZORPAY_PLAN_ID from config, or raise if not configured."""
-    if not settings.RAZORPAY_PLAN_ID:
-        raise HTTPException(
-            503,
-            "Razorpay plan not configured. Call POST /subscriptions/setup-plan first, "
-            "then set RAZORPAY_PLAN_ID in environment variables.",
-        )
-    return settings.RAZORPAY_PLAN_ID
-
-
-async def _create_subscription(plan_id: str, uid: str) -> str:
-    """Create a Razorpay Subscription and return the subscription_id."""
-    data = await _razorpay_post("subscriptions", {
-        "plan_id": plan_id,
-        "total_count": SUBSCRIPTION_TOTAL_CYCLES,
-        "quantity": 1,
-        "notes": {"user_id": uid, "plan": "pro"},
-    })
-    return data["id"]
-
-
-# ── Admin endpoint to create the Razorpay plan once ──────────────────────────
-
-@router.post("/setup-plan", include_in_schema=False)
-async def setup_razorpay_plan(current_user: User = Depends(get_current_user)):
-    """
-    One-time setup: creates a ₹199/month Razorpay plan and returns the plan_id.
-    Copy the plan_id to RAZORPAY_PLAN_ID in your environment variables.
-    Only accessible to admin emails.
-    """
-    admin_emails = [e.strip() for e in (settings.ADMIN_EMAILS or "").split(",") if e.strip()]
-    if current_user.email not in admin_emails:
-        raise HTTPException(403, "Admin only")
-
-    if not settings.RAZORPAY_KEY_ID or not settings.RAZORPAY_KEY_SECRET:
-        raise HTTPException(503, "Razorpay keys not configured")
-
-    plan = await _razorpay_post("plans", {
-        "period": "monthly",
-        "interval": 1,
-        "item": {
-            "name": "CVPilot Pro",
-            "amount": SUBSCRIPTION_AMOUNT,
-            "currency": "INR",
-            "description": "CVPilot Pro — monthly subscription",
-        },
-        "notes": {"product": "cvpilot_pro"},
-    })
-    return {
-        "plan_id": plan["id"],
-        "message": f"Plan created. Set RAZORPAY_PLAN_ID={plan['id']} in your environment variables.",
-    }
-
-
 # ── Payment URL ───────────────────────────────────────────────────────────────
 
-async def _get_subscription_status(subscription_id: str) -> str | None:
-    """Fetch status of an existing Razorpay subscription."""
-    try:
-        async with httpx.AsyncClient() as client:
-            resp = await client.get(
-                f"https://api.razorpay.com/v1/subscriptions/{subscription_id}",
-                headers={"Authorization": f"Basic {_razorpay_auth()}"},
-                timeout=10,
-            )
-            if resp.status_code == 200:
-                return resp.json().get("status")
-    except Exception:
-        pass
-    return None
-
-
-async def _cancel_subscription(subscription_id: str) -> None:
-    """Cancel a Razorpay subscription silently (best-effort)."""
-    try:
-        async with httpx.AsyncClient() as client:
-            await client.post(
-                f"https://api.razorpay.com/v1/subscriptions/{subscription_id}/cancel",
-                headers={"Authorization": f"Basic {_razorpay_auth()}"},
-                json={"cancel_at_cycle_end": 0},
-                timeout=10,
-            )
-    except Exception:
-        pass
-
-
 @router.get("/payment-url")
-async def get_payment_url(
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
-):
-    """
-    Create a Razorpay Subscription and return the checkout URL.
-    - Cancels any previous abandoned (created) subscription in Razorpay.
-    - Does NOT store the subscription_id until payment is confirmed via webhook.
+async def get_payment_url(current_user: User = Depends(get_current_user)):
+    """Create a Razorpay Order and return the checkout URL.
+    No entry is created in Razorpay until this endpoint is called,
+    and the order only appears in Payments (not Subscriptions) on the dashboard.
     """
     if current_user.subscription == "pro":
         raise HTTPException(400, "Already on Pro plan")
@@ -141,22 +59,11 @@ async def get_payment_url(
     if not settings.RAZORPAY_KEY_ID or not settings.RAZORPAY_KEY_SECRET:
         raise HTTPException(503, "Payment not configured")
 
-    plan_id = await _ensure_plan()
     uid = str(current_user.id)
-
-    # Cancel any previous abandoned subscription so Razorpay stays clean
-    if current_user.razorpay_subscription_id:
-        status = await _get_subscription_status(current_user.razorpay_subscription_id)
-        if status == "created":
-            await _cancel_subscription(current_user.razorpay_subscription_id)
-            current_user.razorpay_subscription_id = None
-            await db.commit()
-
-    # Create fresh subscription — only saved to DB when webhook confirms payment
-    subscription_id = await _create_subscription(plan_id, uid)
+    order = await _create_order(uid)
 
     params = urllib.parse.urlencode({
-        "subscription_id": subscription_id,
+        "order_id": order["id"],
         "key": settings.RAZORPAY_KEY_ID,
         "uid": uid,
         "email": current_user.email or "",
@@ -185,34 +92,8 @@ async def razorpay_webhook(request: Request, db: AsyncSession = Depends(get_db))
     payload = json.loads(body)
     event = payload.get("event", "")
 
-    # ── payment.captured (one-time fallback / first charge) ───────────────────
     if event == "payment.captured":
-        notes = (
-            payload.get("payload", {})
-            .get("payment", {})
-            .get("entity", {})
-            .get("notes", {})
-        )
-        user_id = notes.get("user_id")
-        sub_id = (
-            payload.get("payload", {})
-            .get("payment", {})
-            .get("entity", {})
-            .get("subscription_id")
-        )
-        if user_id:
-            user = await db.get(User, user_id)
-            if user:
-                user.subscription = "pro"
-                user.pro_expires_at = datetime.now(timezone.utc) + timedelta(days=32)
-                if sub_id:
-                    user.razorpay_subscription_id = sub_id
-                await db.commit()
-
-    # ── subscription.charged (recurring monthly payment received) ─────────────
-    elif event == "subscription.charged":
-        entity = payload.get("payload", {}).get("subscription", {}).get("entity", {})
-        sub_id = entity.get("id")
+        entity = payload.get("payload", {}).get("payment", {}).get("entity", {})
         notes = entity.get("notes", {})
         user_id = notes.get("user_id")
         if user_id:
@@ -220,29 +101,7 @@ async def razorpay_webhook(request: Request, db: AsyncSession = Depends(get_db))
             if user:
                 user.subscription = "pro"
                 user.pro_expires_at = datetime.now(timezone.utc) + timedelta(days=32)
-                user.razorpay_subscription_id = sub_id
                 await db.commit()
-
-    # ── subscription.halted (payment failed after retries) ────────────────────
-    elif event == "subscription.halted":
-        entity = payload.get("payload", {}).get("subscription", {}).get("entity", {})
-        sub_id = entity.get("id")
-        if sub_id:
-            from sqlalchemy import select
-            result = await db.execute(
-                select(User).where(User.razorpay_subscription_id == sub_id)
-            )
-            user = result.scalar_one_or_none()
-            if user:
-                user.subscription = "free"
-                user.pro_expires_at = None
-                user.razorpay_subscription_id = None
-                await db.commit()
-
-    # ── subscription.cancelled / subscription.completed ───────────────────────
-    # Let pro_expires_at expire naturally — user keeps Pro until the paid period ends
-    elif event in ("subscription.cancelled", "subscription.completed"):
-        pass  # auto-downgrade handles this via pro_expires_at check in get_current_user
 
     return {"status": "ok"}
 
