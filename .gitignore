@@ -42,6 +42,9 @@ yarn-debug.log*
 .vscode/
 .idea/
 
+# Claude Code local settings
+.claude/settings.local.json
+
 # AWS / secrets
 *.pem
 *.key
