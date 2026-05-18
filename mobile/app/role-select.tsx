@@ -59,14 +59,6 @@ export default function RoleSelectScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* Sign in link */}
-        <View style={styles.signinRow}>
-          <Text style={styles.signinText}>Already have an account? </Text>
-          <TouchableOpacity onPress={() => router.push('/(auth)/login')}>
-            <Text style={styles.signinLink}>Sign In</Text>
-          </TouchableOpacity>
-        </View>
-
       </View>
     </SafeAreaView>
   );
@@ -111,10 +103,4 @@ const styles = StyleSheet.create({
   },
   cardBtnText: { ...Typography.label, color: Colors.textInverse, fontWeight: '700' },
 
-  signinRow: {
-    flexDirection: 'row', justifyContent: 'center',
-    marginTop: Spacing.sm,
-  },
-  signinText: { ...Typography.body, color: Colors.textSecondary },
-  signinLink: { ...Typography.body, color: Colors.primary, fontWeight: '600' },
 });
