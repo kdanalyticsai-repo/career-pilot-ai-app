@@ -48,7 +48,7 @@ export default function RootLayout() {
       }
     } else {
       if (user?.role === 'job_provider') {
-        router.replace('/(provider-tabs)' as any);
+        router.replace('/(provider-tabs)/listings' as any);
       } else {
         router.replace('/(tabs)');
         registerForPushNotifications().catch(() => {});
