@@ -1,6 +1,7 @@
+import { useState } from 'react';
 import {
   View, Text, StyleSheet, TextInput, TouchableOpacity,
-  KeyboardAvoidingView, Platform, ScrollView, Alert,
+  KeyboardAvoidingView, Platform, ScrollView, ActivityIndicator,
 } from 'react-native';
 import { Link } from 'expo-router';
 import { useForm, Controller } from 'react-hook-form';
@@ -24,25 +25,37 @@ const schema = z.object({
 type FormData = z.infer<typeof schema>;
 
 export default function RegisterScreen() {
-  const { register: registerUser, isLoading } = useAuthStore();
+  const { register: registerUser, isLoading, pendingRole } = useAuthStore();
+  const [errorMsg, setErrorMsg] = useState('');
   const { control, handleSubmit, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
   });
 
+  const isProvider = pendingRole === 'job_provider';
+  const tagline = isProvider
+    ? 'List smarter. Hire faster.'
+    : 'Apply smarter. Get hired faster.';
+  const subtitle = isProvider
+    ? 'Create your Job Provider account'
+    : 'Create your free Job Seeker account';
+
   const onSubmit = async (data: FormData) => {
+    setErrorMsg('');
     try {
       await registerUser(data.email, data.password, data.name);
     } catch (err: any) {
       const status = err?.response?.status;
-      let message = 'Could not create account. Please try again.';
       if (!status) {
-        message = 'No internet connection. Please check your network and try again.';
+        setErrorMsg('No internet connection. Please check your network and try again.');
       } else if (status === 400 || status === 409) {
-        message = 'An account with this email already exists. Try signing in instead.';
+        setErrorMsg('An account with this email already exists. Try signing in instead.');
       } else if (status === 422) {
-        message = 'Please check your details and try again.';
+        setErrorMsg('Please check your details — all fields are required and password must be at least 8 characters.');
+      } else if (status >= 500) {
+        setErrorMsg('Our servers are having trouble. Please try again in a few minutes.');
+      } else {
+        setErrorMsg('Could not create account. Please try again.');
       }
-      Alert.alert('Sign Up Failed', message);
     }
   };
 
@@ -52,10 +65,17 @@ export default function RegisterScreen() {
         <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
           <View style={styles.header}>
             <Text style={styles.logo}>CVProAI</Text>
+            <Text style={styles.tagline}>{tagline}</Text>
           </View>
 
           <View style={styles.form}>
-            <Text style={styles.title}>Create account</Text>
+            <Text style={styles.title}>{subtitle}</Text>
+
+            {errorMsg ? (
+              <View style={styles.errorBox}>
+                <Text style={styles.errorBoxText}>{errorMsg}</Text>
+              </View>
+            ) : null}
 
             {(['name', 'email', 'password', 'confirmPassword'] as const).map((field) => (
               <Controller
@@ -73,11 +93,11 @@ export default function RegisterScreen() {
                       keyboardType={field === 'email' ? 'email-address' : 'default'}
                       autoCapitalize={field === 'name' ? 'words' : 'none'}
                       secureTextEntry={field === 'password' || field === 'confirmPassword'}
-                      onChangeText={onChange}
+                      onChangeText={(t) => { onChange(t); setErrorMsg(''); }}
                       onBlur={onBlur}
                       value={value}
                     />
-                    {errors[field] && <Text style={styles.errorText}>{errors[field]?.message}</Text>}
+                    {errors[field] && <Text style={styles.fieldError}>{errors[field]?.message}</Text>}
                   </View>
                 )}
               />
@@ -88,7 +108,9 @@ export default function RegisterScreen() {
               onPress={handleSubmit(onSubmit)}
               disabled={isLoading}
             >
-              <Text style={styles.buttonText}>{isLoading ? 'Creating account...' : 'Create Account'}</Text>
+              {isLoading
+                ? <ActivityIndicator color={Colors.textInverse} />
+                : <Text style={styles.buttonText}>Create Account</Text>}
             </TouchableOpacity>
 
             <View style={styles.footer}>
@@ -110,8 +132,15 @@ const styles = StyleSheet.create({
   container: { flexGrow: 1, paddingHorizontal: Spacing.lg, paddingTop: Spacing.xl },
   header: { alignItems: 'center', marginBottom: Spacing.xl },
   logo: { ...Typography.h1, color: Colors.primary },
+  tagline: { ...Typography.body, color: Colors.textSecondary, marginTop: 4 },
   form: { backgroundColor: Colors.surface, borderRadius: Radius.lg, padding: Spacing.lg },
-  title: { ...Typography.h2, color: Colors.text, marginBottom: Spacing.lg },
+  title: { ...Typography.h3, color: Colors.text, marginBottom: Spacing.md },
+  errorBox: {
+    backgroundColor: Colors.danger + '12', borderRadius: Radius.md,
+    borderWidth: 1, borderColor: Colors.danger + '40',
+    paddingHorizontal: Spacing.md, paddingVertical: 10, marginBottom: Spacing.sm,
+  },
+  errorBoxText: { ...Typography.body, color: Colors.danger, textAlign: 'center' },
   fieldGroup: { marginBottom: Spacing.md },
   label: { ...Typography.label, color: Colors.text, marginBottom: Spacing.xs },
   input: {
@@ -125,7 +154,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.background,
   },
   inputError: { borderColor: Colors.danger },
-  errorText: { ...Typography.caption, color: Colors.danger, marginTop: 4 },
+  fieldError: { ...Typography.caption, color: Colors.danger, marginTop: 4 },
   button: {
     backgroundColor: Colors.primary,
     borderRadius: Radius.md,

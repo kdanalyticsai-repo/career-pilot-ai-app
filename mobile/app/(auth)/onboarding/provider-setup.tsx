@@ -22,8 +22,17 @@ export default function ProviderSetupScreen() {
         company_name: company.trim(),
       });
       setUser(data);
-    } catch {
-      Alert.alert('Error', 'Could not complete setup. Please try again.');
+    } catch (err: any) {
+      const status = err?.response?.status;
+      if (!status) {
+        Alert.alert('No Connection', 'Please check your internet connection and try again.');
+      } else if (status === 401) {
+        Alert.alert('Session Expired', 'Your session has expired. Please sign in again.');
+      } else if (status >= 500) {
+        Alert.alert('Server Error', 'Our servers are having trouble. Please try again in a few minutes.');
+      } else {
+        Alert.alert('Setup Failed', 'Could not complete your profile setup. Please try again.');
+      }
     } finally {
       setLoading(false);
     }

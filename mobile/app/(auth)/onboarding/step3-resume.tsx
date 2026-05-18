@@ -50,8 +50,19 @@ export default function OnboardingStep3() {
         setUser({ ...user, onboarded: true });
       }
       router.replace('/(tabs)');
-    } catch {
-      Alert.alert('Upload failed', 'Please try again.');
+    } catch (err: any) {
+      const status = err?.response?.status;
+      if (!status) {
+        Alert.alert('No Connection', 'Please check your internet connection and try again.');
+      } else if (status === 413) {
+        Alert.alert('File Too Large', 'Your PDF exceeds the 10 MB limit. Please compress it and try again.');
+      } else if (status === 415) {
+        Alert.alert('Invalid File', 'Only PDF files are supported. Please select a valid PDF.');
+      } else if (status >= 500) {
+        Alert.alert('Server Error', 'Our servers are having trouble processing your resume. Please try again.');
+      } else {
+        Alert.alert('Upload Failed', 'Could not upload your resume. Please try again.');
+      }
       setFileName(null);
     } finally {
       setIsUploading(false);

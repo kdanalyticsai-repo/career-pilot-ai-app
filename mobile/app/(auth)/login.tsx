@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import {
   View, Text, StyleSheet, TextInput, TouchableOpacity,
-  KeyboardAvoidingView, Platform, ScrollView, Alert,
+  KeyboardAvoidingView, Platform, ScrollView, ActivityIndicator,
 } from 'react-native';
-import { Link, router } from 'expo-router';
+import { Link } from 'expo-router';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -13,49 +13,59 @@ import { useAuthStore } from '@/stores/authStore';
 import { Colors, Typography, Spacing, Radius } from '@/constants/theme';
 
 const schema = z.object({
-  email: z.string().email('Enter a valid email'),
+  email: z.string().email('Enter a valid email address'),
   password: z.string().min(1, 'Password is required'),
 });
 
 type FormData = z.infer<typeof schema>;
 
 export default function LoginScreen() {
-  const { login, isLoading } = useAuthStore();
+  const { login, isLoading, pendingRole } = useAuthStore();
+  const [errorMsg, setErrorMsg] = useState('');
   const { control, handleSubmit, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
   });
 
+  const isProvider = pendingRole === 'job_provider';
+  const tagline = isProvider ? 'List smarter. Hire faster.' : 'Apply smarter. Get hired faster.';
+
   const onSubmit = async (data: FormData) => {
+    setErrorMsg('');
     try {
       await login(data.email, data.password);
     } catch (err: any) {
       const status = err?.response?.status;
-      let message = 'Sign in failed. Please try again.';
       if (!status) {
-        message = 'No internet connection. Please check your network and try again.';
+        setErrorMsg('No internet connection. Please check your network and try again.');
       } else if (status === 401 || status === 422) {
-        message = 'Incorrect email or password. Please try again.';
+        setErrorMsg('Incorrect email or password. Please check your details and try again.');
       } else if (status === 429) {
-        message = 'Too many attempts. Please wait a moment and try again.';
+        setErrorMsg('Too many sign-in attempts. Please wait a moment and try again.');
+      } else if (status >= 500) {
+        setErrorMsg('Our servers are having trouble. Please try again in a few minutes.');
+      } else {
+        setErrorMsg('Sign in failed. Please try again.');
       }
-      Alert.alert('Sign In Failed', message);
     }
   };
 
   return (
     <SafeAreaView style={styles.safe}>
-      <KeyboardAvoidingView
-        style={styles.flex}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      >
+      <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
           <View style={styles.header}>
             <Text style={styles.logo}>CVProAI</Text>
-            <Text style={styles.tagline}>Apply smarter. Get hired faster.</Text>
+            <Text style={styles.tagline}>{tagline}</Text>
           </View>
 
           <View style={styles.form}>
             <Text style={styles.title}>Welcome back</Text>
+
+            {errorMsg ? (
+              <View style={styles.errorBox}>
+                <Text style={styles.errorBoxText}>{errorMsg}</Text>
+              </View>
+            ) : null}
 
             <Controller
               control={control}
@@ -68,11 +78,11 @@ export default function LoginScreen() {
                     placeholder="you@example.com"
                     keyboardType="email-address"
                     autoCapitalize="none"
-                    onChangeText={onChange}
+                    onChangeText={(t) => { onChange(t); setErrorMsg(''); }}
                     onBlur={onBlur}
                     value={value}
                   />
-                  {errors.email && <Text style={styles.errorText}>{errors.email.message}</Text>}
+                  {errors.email && <Text style={styles.fieldError}>{errors.email.message}</Text>}
                 </View>
               )}
             />
@@ -87,11 +97,11 @@ export default function LoginScreen() {
                     style={[styles.input, errors.password && styles.inputError]}
                     placeholder="Enter your password"
                     secureTextEntry
-                    onChangeText={onChange}
+                    onChangeText={(t) => { onChange(t); setErrorMsg(''); }}
                     onBlur={onBlur}
                     value={value}
                   />
-                  {errors.password && <Text style={styles.errorText}>{errors.password.message}</Text>}
+                  {errors.password && <Text style={styles.fieldError}>{errors.password.message}</Text>}
                 </View>
               )}
             />
@@ -101,7 +111,9 @@ export default function LoginScreen() {
               onPress={handleSubmit(onSubmit)}
               disabled={isLoading}
             >
-              <Text style={styles.buttonText}>{isLoading ? 'Signing in...' : 'Sign In'}</Text>
+              {isLoading
+                ? <ActivityIndicator color={Colors.textInverse} />
+                : <Text style={styles.buttonText}>Sign In</Text>}
             </TouchableOpacity>
 
             <View style={styles.footer}>
@@ -139,7 +151,13 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.background,
   },
   inputError: { borderColor: Colors.danger },
-  errorText: { ...Typography.caption, color: Colors.danger, marginTop: 4 },
+  fieldError: { ...Typography.caption, color: Colors.danger, marginTop: 4 },
+  errorBox: {
+    backgroundColor: Colors.danger + '12', borderRadius: Radius.md,
+    borderWidth: 1, borderColor: Colors.danger + '40',
+    paddingHorizontal: Spacing.md, paddingVertical: 10, marginBottom: Spacing.sm,
+  },
+  errorBoxText: { ...Typography.body, color: Colors.danger, textAlign: 'center' },
   button: {
     backgroundColor: Colors.primary,
     borderRadius: Radius.md,
