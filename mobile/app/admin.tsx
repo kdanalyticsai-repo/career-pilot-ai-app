@@ -1,0 +1,356 @@
+import { useState } from 'react';
+import { View, Text, StyleSheet, ScrollView, RefreshControl, ActivityIndicator, TouchableOpacity, Alert, Modal } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { router } from 'expo-router';
+import { api } from '@/services/api';
+import { Colors, Typography, Spacing, Radius, Shadow } from '@/constants/theme';
+
+function StatCard({ label, value, sub, color }: { label: string; value: string | number; sub?: string; color?: string }) {
+  return (
+    <View style={[statStyles.card, Shadow.sm]}>
+      <Text style={statStyles.label}>{label}</Text>
+      <Text style={[statStyles.value, color ? { color } : {}]}>{value}</Text>
+      {sub ? <Text style={statStyles.sub}>{sub}</Text> : null}
+    </View>
+  );
+}
+
+const statStyles = StyleSheet.create({
+  card: {
+    flex: 1, backgroundColor: Colors.surface, borderRadius: Radius.lg,
+    padding: Spacing.md, borderWidth: 1, borderColor: Colors.borderSubtle,
+  },
+  label: { ...Typography.caption, color: Colors.textMuted, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4 },
+  value: { ...Typography.h2, color: Colors.text },
+  sub: { ...Typography.caption, color: Colors.textSecondary, marginTop: 2 },
+});
+
+export default function AdminScreen() {
+  const [refreshing, setRefreshing] = useState(false);
+  const [selectedJob, setSelectedJob] = useState<any>(null);
+  const qc = useQueryClient();
+
+  const { data: stats, isLoading: statsLoading, refetch: refetchStats, error: statsError } = useQuery({
+    queryKey: ['admin-stats'],
+    queryFn: () => api.get('/admin/stats').then(r => r.data),
+    retry: false,
+  });
+
+  const { data: usersData, isLoading: usersLoading, refetch: refetchUsers } = useQuery({
+    queryKey: ['admin-users'],
+    queryFn: () => api.get('/admin/users?limit=20').then(r => r.data),
+    retry: false,
+  });
+
+  const { data: pendingJobsData, refetch: refetchPending } = useQuery({
+    queryKey: ['admin-pending-jobs'],
+    queryFn: () => api.get('/admin/pending-jobs').then(r => r.data),
+    retry: false,
+  });
+
+  const { mutate: approveJob } = useMutation({
+    mutationFn: (jobId: string) => api.post(`/admin/jobs/${jobId}/approve`),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin-pending-jobs'] });
+      qc.invalidateQueries({ queryKey: ['admin-stats'] });
+      setSelectedJob(null);
+      Alert.alert('Approved', 'The listing is now live on the job feed.');
+    },
+  });
+
+  const { mutate: rejectJob } = useMutation({
+    mutationFn: (jobId: string) => api.post(`/admin/jobs/${jobId}/reject`),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin-pending-jobs'] });
+      qc.invalidateQueries({ queryKey: ['admin-stats'] });
+      setSelectedJob(null);
+      Alert.alert('Rejected', 'The listing has been rejected.');
+    },
+  });
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await Promise.all([refetchStats(), refetchUsers(), refetchPending()]);
+    setRefreshing(false);
+  };
+
+  const pendingJobs: any[] = pendingJobsData ?? [];
+
+  if (statsLoading) {
+    return (
+      <SafeAreaView style={styles.safe}>
+        <ActivityIndicator size="large" color={Colors.primary} style={{ marginTop: 80 }} />
+      </SafeAreaView>
+    );
+  }
+
+  if (statsError) {
+    return (
+      <SafeAreaView style={styles.safe}>
+        <View style={styles.errorWrap}>
+          <Text style={styles.errorIcon}>🔒</Text>
+          <Text style={styles.errorTitle}>Access Denied</Text>
+          <Text style={styles.errorBody}>Admin access requires your email to be in ADMIN_EMAILS on the server.</Text>
+          <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+            <Text style={styles.backBtnText}>Go Back</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  const u = stats?.users ?? {};
+  const rev = stats?.revenue ?? {};
+  const jobs = stats?.jobs ?? {};
+  const applications = stats?.applications ?? {};
+  const resumes = stats?.resumes ?? {};
+
+  const recentUsers: any[] = usersData?.users ?? [];
+
+  return (
+    <SafeAreaView style={styles.safe} edges={['bottom']}>
+      <ScrollView
+        contentContainerStyle={styles.container}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.primary} />}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Header */}
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => router.back()} style={styles.backRow}>
+            <Text style={styles.backArrow}>‹</Text>
+          </TouchableOpacity>
+          <View>
+            <Text style={styles.title}>Admin Dashboard</Text>
+            <Text style={styles.subtitle}>Internal — do not share</Text>
+          </View>
+        </View>
+
+        {/* Users */}
+        <Text style={styles.sectionLabel}>USERS</Text>
+        <View style={styles.row}>
+          <StatCard label="Total" value={u.total ?? 0} />
+          <StatCard label="Free" value={u.free ?? 0} color={Colors.textSecondary} />
+          <StatCard label="Pro" value={u.pro ?? 0} color={Colors.primary} />
+        </View>
+        <View style={[styles.singleCard, Shadow.sm]}>
+          <Text style={styles.singleLabel}>New Signups (last 7 days)</Text>
+          <Text style={[styles.singleValue, { color: Colors.tertiary }]}>+{u.signups_last_7d ?? 0}</Text>
+        </View>
+
+        {/* Revenue */}
+        <Text style={styles.sectionLabel}>REVENUE</Text>
+        <View style={styles.row}>
+          <StatCard
+            label="Est. MRR"
+            value={`₹${(rev.monthly_inr ?? 0).toLocaleString('en-IN')}`}
+            sub="Based on pro users × ₹199"
+          />
+          <StatCard
+            label="Pro Subs"
+            value={rev.pro_subscribers ?? 0}
+            color={Colors.primary}
+          />
+        </View>
+
+        {/* Activity */}
+        <Text style={styles.sectionLabel}>ACTIVITY</Text>
+        <View style={styles.row}>
+          <StatCard label="Active Jobs" value={jobs.total_active ?? 0} />
+          <StatCard label="Applications" value={applications.total ?? 0} />
+          <StatCard label="Resumes" value={resumes.total ?? 0} />
+        </View>
+
+        {/* Pending Jobs */}
+        <Text style={styles.sectionLabel}>
+          PENDING JOB LISTINGS
+          {stats?.pending_provider_jobs > 0
+            ? ` (${stats.pending_provider_jobs})`
+            : ''}
+        </Text>
+        <View style={[styles.listCard, Shadow.sm]}>
+          {pendingJobs.length === 0 ? (
+            <Text style={styles.emptyText}>No pending listings</Text>
+          ) : (
+            pendingJobs.map((job: any, i: number) => (
+              <TouchableOpacity
+                key={job.id}
+                style={[styles.userRow, i < pendingJobs.length - 1 && styles.userRowBorder]}
+                onPress={() => setSelectedJob(job)}
+                activeOpacity={0.7}
+              >
+                <View style={styles.userInfo}>
+                  <Text style={styles.userName} numberOfLines={1}>{job.title}</Text>
+                  <Text style={styles.userEmail} numberOfLines={1}>{job.company} · {job.location}</Text>
+                  <Text style={styles.userDate}>By {job.provider_name ?? job.provider_email}</Text>
+                </View>
+                <View style={[styles.planChip, { backgroundColor: Colors.warning + '15' }]}>
+                  <Text style={[styles.planChipText, { color: Colors.warning }]}>REVIEW</Text>
+                </View>
+              </TouchableOpacity>
+            ))
+          )}
+        </View>
+
+        {/* Recent signups */}
+        <Text style={styles.sectionLabel}>RECENT SIGNUPS</Text>
+        <View style={[styles.listCard, Shadow.sm]}>
+          {usersLoading ? (
+            <ActivityIndicator color={Colors.primary} style={{ padding: Spacing.md }} />
+          ) : recentUsers.length === 0 ? (
+            <Text style={styles.emptyText}>No users yet</Text>
+          ) : (
+            recentUsers.map((u: any, i: number) => (
+              <View
+                key={u.id}
+                style={[styles.userRow, i < recentUsers.length - 1 && styles.userRowBorder]}
+              >
+                <View style={styles.userAvatar}>
+                  <Text style={styles.userAvatarText}>
+                    {(u.name ?? u.email ?? '?')[0].toUpperCase()}
+                  </Text>
+                </View>
+                <View style={styles.userInfo}>
+                  <Text style={styles.userName} numberOfLines={1}>{u.name ?? '(no name)'}</Text>
+                  <Text style={styles.userEmail} numberOfLines={1}>{u.email}</Text>
+                  <Text style={styles.userDate}>
+                    Joined {new Date(u.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                  </Text>
+                </View>
+                <View style={[styles.planChip, u.subscription === 'pro' && styles.planChipPro]}>
+                  <Text style={[styles.planChipText, u.subscription === 'pro' && styles.planChipTextPro]}>
+                    {u.subscription === 'pro' ? 'PRO' : 'FREE'}
+                  </Text>
+                </View>
+              </View>
+            ))
+          )}
+        </View>
+
+        <Text style={styles.footer}>Pull to refresh · Data is live from backend</Text>
+      </ScrollView>
+
+      {/* Job Review Modal */}
+      <Modal visible={!!selectedJob} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setSelectedJob(null)}>
+        {selectedJob && (
+          <SafeAreaView style={{ flex: 1, backgroundColor: Colors.background }}>
+            <ScrollView contentContainerStyle={{ padding: Spacing.lg, gap: Spacing.md, paddingBottom: Spacing.xxl }}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Text style={[Typography.h3, { color: Colors.text }]}>Review Listing</Text>
+                <TouchableOpacity onPress={() => setSelectedJob(null)}>
+                  <Text style={{ fontSize: 24, color: Colors.textMuted }}>✕</Text>
+                </TouchableOpacity>
+              </View>
+
+              <View style={[styles.listCard, Shadow.sm, { padding: Spacing.md, gap: Spacing.sm }]}>
+                <Text style={[Typography.h4, { color: Colors.text }]}>{selectedJob.title}</Text>
+                <Text style={[Typography.body, { color: Colors.textSecondary }]}>{selectedJob.company} · {selectedJob.location}</Text>
+                <Text style={[Typography.caption, { color: Colors.textMuted }]}>
+                  {selectedJob.job_type?.replace('_', '-')} · {selectedJob.experience_level} · {selectedJob.remote_type}
+                </Text>
+                {selectedJob.salary_min && selectedJob.salary_max
+                  ? <Text style={[Typography.caption, { color: Colors.textMuted }]}>₹{(selectedJob.salary_min/1000).toFixed(0)}k–{(selectedJob.salary_max/1000).toFixed(0)}k/yr</Text>
+                  : null}
+              </View>
+
+              {selectedJob.skills_required?.length > 0 && (
+                <View style={[styles.listCard, Shadow.sm, { padding: Spacing.md }]}>
+                  <Text style={[Typography.caption, { color: Colors.textMuted, marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.5 }]}>Skills</Text>
+                  <Text style={[Typography.body, { color: Colors.text }]}>{selectedJob.skills_required.join(', ')}</Text>
+                </View>
+              )}
+
+              <View style={[styles.listCard, Shadow.sm, { padding: Spacing.md }]}>
+                <Text style={[Typography.caption, { color: Colors.textMuted, marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.5 }]}>Description</Text>
+                <Text style={[Typography.body, { color: Colors.text, lineHeight: 22 }]}>{selectedJob.description}</Text>
+              </View>
+
+              <View style={[styles.listCard, Shadow.sm, { padding: Spacing.md }]}>
+                <Text style={[Typography.caption, { color: Colors.textMuted, marginBottom: 4, textTransform: 'uppercase', letterSpacing: 0.5 }]}>Posted by</Text>
+                <Text style={[Typography.label, { color: Colors.text }]}>{selectedJob.provider_name}</Text>
+                <Text style={[Typography.bodySmall, { color: Colors.textSecondary }]}>{selectedJob.provider_email}</Text>
+              </View>
+
+              <View style={{ flexDirection: 'row', gap: Spacing.sm }}>
+                <TouchableOpacity
+                  style={{ flex: 1, backgroundColor: Colors.tertiary, borderRadius: Radius.md, padding: Spacing.md, alignItems: 'center' }}
+                  onPress={() => approveJob(selectedJob.id)}
+                >
+                  <Text style={[Typography.label, { color: Colors.textInverse }]}>Approve & Go Live</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={{ flex: 1, borderWidth: 1.5, borderColor: Colors.danger + '60', borderRadius: Radius.md, padding: Spacing.md, alignItems: 'center', backgroundColor: Colors.danger + '08' }}
+                  onPress={() => rejectJob(selectedJob.id)}
+                >
+                  <Text style={[Typography.label, { color: Colors.danger }]}>Reject</Text>
+                </TouchableOpacity>
+              </View>
+            </ScrollView>
+          </SafeAreaView>
+        )}
+      </Modal>
+
+    </SafeAreaView>
+  );
+}
+
+const styles = StyleSheet.create({
+  safe: { flex: 1, backgroundColor: Colors.background },
+  container: { padding: Spacing.lg, paddingBottom: Spacing.xxl, gap: Spacing.md },
+
+  header: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, marginBottom: Spacing.sm },
+  backRow: { padding: 4 },
+  backArrow: { fontSize: 28, color: Colors.primary, fontWeight: '300', lineHeight: 32 },
+  title: { ...Typography.h3, color: Colors.text },
+  subtitle: { ...Typography.caption, color: Colors.danger, marginTop: 2, letterSpacing: 0.3 },
+
+  sectionLabel: {
+    ...Typography.caption, color: Colors.textMuted,
+    textTransform: 'uppercase', letterSpacing: 1,
+    marginTop: Spacing.xs, marginBottom: 2,
+  },
+
+  row: { flexDirection: 'row', gap: Spacing.sm },
+
+  singleCard: {
+    backgroundColor: Colors.surface, borderRadius: Radius.lg,
+    padding: Spacing.md, flexDirection: 'row', alignItems: 'center',
+    justifyContent: 'space-between', borderWidth: 1, borderColor: Colors.borderSubtle,
+  },
+  singleLabel: { ...Typography.label, color: Colors.textSecondary },
+  singleValue: { ...Typography.h3, color: Colors.tertiary },
+
+  listCard: {
+    backgroundColor: Colors.surface, borderRadius: Radius.lg,
+    borderWidth: 1, borderColor: Colors.borderSubtle, overflow: 'hidden',
+  },
+  emptyText: { ...Typography.body, color: Colors.textMuted, padding: Spacing.lg, textAlign: 'center' },
+  userRow: { flexDirection: 'row', alignItems: 'center', padding: Spacing.md, gap: Spacing.md },
+  userRowBorder: { borderBottomWidth: 1, borderBottomColor: Colors.border },
+  userAvatar: {
+    width: 36, height: 36, borderRadius: 18,
+    backgroundColor: Colors.primary + '20',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  userAvatarText: { ...Typography.label, color: Colors.primary, fontWeight: '700' },
+  userInfo: { flex: 1 },
+  userName: { ...Typography.label, color: Colors.text },
+  userEmail: { ...Typography.bodySmall, color: Colors.textSecondary },
+  userDate: { ...Typography.caption, color: Colors.textMuted, marginTop: 1 },
+  planChip: {
+    backgroundColor: Colors.surfaceSecondary,
+    borderRadius: Radius.full, paddingHorizontal: 8, paddingVertical: 3,
+  },
+  planChipPro: { backgroundColor: Colors.primary + '15' },
+  planChipText: { ...Typography.caption, color: Colors.textMuted, letterSpacing: 0.3 },
+  planChipTextPro: { color: Colors.primary },
+
+  errorWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: Spacing.xl, gap: Spacing.md },
+  errorIcon: { fontSize: 48 },
+  errorTitle: { ...Typography.h3, color: Colors.text },
+  errorBody: { ...Typography.body, color: Colors.textSecondary, textAlign: 'center', lineHeight: 22 },
+  backBtn: { backgroundColor: Colors.primary, borderRadius: Radius.md, paddingHorizontal: Spacing.lg, paddingVertical: Spacing.sm, marginTop: Spacing.sm },
+  backBtnText: { ...Typography.label, color: Colors.textInverse },
+
+  footer: { ...Typography.caption, color: Colors.textMuted, textAlign: 'center', marginTop: Spacing.sm },
+});

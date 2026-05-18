@@ -11,14 +11,15 @@ interface UserInfo {
   email: string;
   name: string | null;
   phone: string | null;
+  role: string;
   subscription: string;
   onboarded: boolean;
   avatar_url: string | null;
 }
 
 export const authService = {
-  async register(email: string, password: string, name: string): Promise<AuthTokens> {
-    const { data } = await api.post<AuthTokens>('/auth/register', { email, password, name });
+  async register(email: string, password: string, name: string, role: string = 'job_seeker'): Promise<AuthTokens> {
+    const { data } = await api.post<AuthTokens>('/auth/register', { email, password, name, role });
     await storage.setTokens(data.access_token, data.refresh_token);
     return data;
   },

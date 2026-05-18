@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert, ScrollView, Linking } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useFocusEffect } from 'expo-router';
@@ -38,6 +38,19 @@ const usageStyles = StyleSheet.create({
 export default function ProfileTab() {
   const { user, logout, setUser } = useAuthStore();
   const isPro = user?.subscription === 'pro';
+  const versionTaps = useRef(0);
+  const versionTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleVersionTap = () => {
+    versionTaps.current += 1;
+    if (versionTimer.current) clearTimeout(versionTimer.current);
+    if (versionTaps.current >= 7) {
+      versionTaps.current = 0;
+      router.push('/admin' as any);
+      return;
+    }
+    versionTimer.current = setTimeout(() => { versionTaps.current = 0; }, 2000);
+  };
 
   useFocusEffect(
     useCallback(() => {
@@ -196,7 +209,7 @@ export default function ProfileTab() {
 
         {/* App Info */}
         <View style={[styles.menuCard, Shadow.sm]}>
-          <View style={styles.menuRow}>
+          <TouchableOpacity style={styles.menuRow} onPress={handleVersionTap} activeOpacity={1}>
             <View style={styles.menuIconWrap}>
               <Text style={styles.menuIcon}>ℹ️</Text>
             </View>
@@ -204,7 +217,7 @@ export default function ProfileTab() {
               <Text style={styles.menuLabel}>App Version</Text>
               <Text style={styles.menuSub}>CVProAI v1.0.0</Text>
             </View>
-          </View>
+          </TouchableOpacity>
         </View>
 
         <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout} activeOpacity={0.8}>

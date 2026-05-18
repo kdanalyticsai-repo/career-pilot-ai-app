@@ -39,15 +39,22 @@ export default function RootLayout() {
     if (!hydrated) return;
 
     if (!isAuthenticated) {
-      router.replace('/(auth)/login');
+      router.replace('/role-select' as any);
     } else if (!user?.onboarded) {
-      router.replace('/(auth)/onboarding/step1-profile');
+      if (user?.role === 'job_provider') {
+        router.replace('/(auth)/onboarding/provider-setup' as any);
+      } else {
+        router.replace('/(auth)/onboarding/step1-profile');
+      }
     } else {
-      router.replace('/(tabs)');
-      // Register push token after authentication
-      registerForPushNotifications().catch(() => {});
+      if (user?.role === 'job_provider') {
+        router.replace('/(provider-tabs)' as any);
+      } else {
+        router.replace('/(tabs)');
+        registerForPushNotifications().catch(() => {});
+      }
     }
-  }, [hydrated, isAuthenticated, user?.onboarded]);
+  }, [hydrated, isAuthenticated, user?.onboarded, user?.role]);
 
   return (
     <GestureHandlerRootView style={styles.root}>
@@ -56,8 +63,10 @@ export default function RootLayout() {
           <PaperProvider>
             <StatusBar style="auto" />
             <Stack screenOptions={{ headerShown: false }}>
+              <Stack.Screen name="role-select" />
               <Stack.Screen name="(auth)" />
               <Stack.Screen name="(tabs)" />
+              <Stack.Screen name="(provider-tabs)" />
               <Stack.Screen name="resume/[id]" options={{ headerShown: true, title: 'Resume' }} />
               <Stack.Screen name="resume/upload" options={{ headerShown: true, title: 'Upload Resume' }} />
               <Stack.Screen name="resume/[id]/edit/[section]" options={{ headerShown: true, title: 'Edit Section', presentation: 'modal' }} />
@@ -70,6 +79,7 @@ export default function RootLayout() {
               <Stack.Screen name="profile/notifications" options={{ headerShown: true, title: 'Notifications' }} />
               <Stack.Screen name="profile/settings" options={{ headerShown: true, title: 'Settings' }} />
               <Stack.Screen name="paywall" options={{ headerShown: false, presentation: 'modal' }} />
+              <Stack.Screen name="provider/jobs/[id]" options={{ headerShown: true, title: 'Listing Details' }} />
             </Stack>
           </PaperProvider>
         </QueryClientProvider>

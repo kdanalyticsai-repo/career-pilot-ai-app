@@ -7,6 +7,7 @@ interface User {
   email: string;
   name: string | null;
   phone: string | null;
+  role: string;
   subscription: string;
   onboarded: boolean;
   avatar_url: string | null;
@@ -17,6 +18,7 @@ interface AuthState {
   isAuthenticated: boolean;
   isLoading: boolean;
   hydrated: boolean;
+  pendingRole: string;
 
   hydrate: () => Promise<void>;
   login: (email: string, password: string) => Promise<void>;
@@ -24,6 +26,7 @@ interface AuthState {
   googleLogin: (idToken: string) => Promise<void>;
   logout: () => Promise<void>;
   setUser: (user: User) => void;
+  setPendingRole: (role: string) => void;
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
@@ -31,6 +34,7 @@ export const useAuthStore = create<AuthState>((set) => ({
   isAuthenticated: false,
   isLoading: false,
   hydrated: false,
+  pendingRole: 'job_seeker',
 
   hydrate: async () => {
     const token = await storage.getAccessToken();
@@ -61,7 +65,8 @@ export const useAuthStore = create<AuthState>((set) => ({
   register: async (email, password, name) => {
     set({ isLoading: true });
     try {
-      await authService.register(email, password, name);
+      const { pendingRole } = useAuthStore.getState();
+      await authService.register(email, password, name, pendingRole);
       const user = await authService.getMe();
       set({ user, isAuthenticated: true });
     } finally {
@@ -86,4 +91,5 @@ export const useAuthStore = create<AuthState>((set) => ({
   },
 
   setUser: (user) => set({ user }),
+  setPendingRole: (role) => set({ pendingRole: role }),
 }));
