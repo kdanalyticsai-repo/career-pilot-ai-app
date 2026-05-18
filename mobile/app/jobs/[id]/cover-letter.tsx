@@ -161,7 +161,7 @@ const styles = StyleSheet.create({
   letterInput: {
     ...Typography.body, color: Colors.text, lineHeight: 26,
     backgroundColor: Colors.surfaceSecondary, borderRadius: Radius.md,
-    padding: Spacing.md, minHeight: 300, borderWidth: 1, borderColor: Colors.borderFocus,
+    padding: Spacing.md, minHeight: 300, borderWidth: 1, borderColor: Colors.primary,
   },
 
   actionRow: { flexDirection: 'row', gap: Spacing.sm },
