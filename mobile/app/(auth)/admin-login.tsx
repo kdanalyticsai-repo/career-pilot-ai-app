@@ -1,17 +1,15 @@
 import { useState } from 'react';
 import {
   View, Text, StyleSheet, TextInput, TouchableOpacity,
-  KeyboardAvoidingView, Platform, ScrollView, Alert, ActivityIndicator,
+  KeyboardAvoidingView, Platform, ScrollView, ActivityIndicator,
 } from 'react-native';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuthStore } from '@/stores/authStore';
 import { Colors, Typography, Spacing, Radius } from '@/constants/theme';
 
-const ADMIN_EMAIL = process.env.EXPO_PUBLIC_ADMIN_EMAIL ?? '';
-
 export default function AdminLoginScreen() {
-  const { login, isLoading, logout } = useAuthStore();
+  const { adminLogin, isLoading } = useAuthStore();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -23,24 +21,24 @@ export default function AdminLoginScreen() {
       return;
     }
 
-    if (email.trim().toLowerCase() !== ADMIN_EMAIL.toLowerCase()) {
-      setError('Only Admins are required to access this space.');
-      return;
-    }
-
     try {
-      await login(email.trim(), password);
+      await adminLogin(email.trim(), password);
       router.replace('/admin' as any);
     } catch (err: any) {
       const status = err?.response?.status;
-      if (status === 401) {
+      if (!status) {
+        setError('No internet connection. Please check your network and try again.');
+      } else if (status === 403) {
+        setError('Only Admins are required to access this space.');
+      } else if (status === 401) {
         setError('Incorrect password. Please try again.');
-      } else if (!status) {
-        setError('No internet connection. Please check your network.');
+      } else if (status === 503) {
+        setError('Admin access is not configured on the server.');
+      } else if (status >= 500) {
+        setError('Server error. Please try again in a few minutes.');
       } else {
         setError('Login failed. Please try again.');
       }
-      await logout();
     }
   };
 

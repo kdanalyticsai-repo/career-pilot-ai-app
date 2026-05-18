@@ -53,6 +53,8 @@ class Settings(BaseSettings):
 
     SENTRY_DSN: str = ""
     ADMIN_EMAILS: str = ""  # comma-separated, e.g. "admin@cvpilot.app,sunildubeym1306@gmail.com"
+    ADMIN_EMAIL: str = ""   # single admin email for the dedicated admin login flow
+    ADMIN_PASSWORD: str = ""  # admin password (set in Render env vars, never hardcoded)
     ALLOWED_ORIGINS: str = "http://localhost:3000,exp://localhost:8081,http://10.0.2.2:8000"
 
     @property

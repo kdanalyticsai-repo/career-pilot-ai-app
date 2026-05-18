@@ -36,3 +36,8 @@ class TokenResponse(BaseModel):
 
 class MessageResponse(BaseModel):
     message: str
+
+
+class AdminLoginRequest(BaseModel):
+    email: EmailStr
+    password: str

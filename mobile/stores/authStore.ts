@@ -22,6 +22,7 @@ interface AuthState {
 
   hydrate: () => Promise<void>;
   login: (email: string, password: string) => Promise<void>;
+  adminLogin: (email: string, password: string) => Promise<void>;
   register: (email: string, password: string, name: string) => Promise<void>;
   googleLogin: (idToken: string) => Promise<void>;
   logout: () => Promise<void>;
@@ -55,6 +56,17 @@ export const useAuthStore = create<AuthState>((set) => ({
     set({ isLoading: true });
     try {
       await authService.login(email, password);
+      const user = await authService.getMe();
+      set({ user, isAuthenticated: true });
+    } finally {
+      set({ isLoading: false });
+    }
+  },
+
+  adminLogin: async (email, password) => {
+    set({ isLoading: true });
+    try {
+      await authService.adminLogin(email, password);
       const user = await authService.getMe();
       set({ user, isAuthenticated: true });
     } finally {

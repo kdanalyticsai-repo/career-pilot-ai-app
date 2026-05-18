@@ -30,6 +30,12 @@ export const authService = {
     return data;
   },
 
+  async adminLogin(email: string, password: string): Promise<AuthTokens> {
+    const { data } = await api.post<AuthTokens>('/auth/admin-login', { email, password });
+    await storage.setTokens(data.access_token, data.refresh_token);
+    return data;
+  },
+
   async googleLogin(idToken: string): Promise<AuthTokens> {
     const { data } = await api.post<AuthTokens>('/auth/google', { id_token: idToken });
     await storage.setTokens(data.access_token, data.refresh_token);

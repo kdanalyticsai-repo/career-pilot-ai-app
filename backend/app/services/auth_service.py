@@ -78,6 +78,24 @@ class AuthService:
         refresh_token = create_refresh_token(str(user.id))
         return user, access_token, refresh_token
 
+    async def upsert_admin(self, email: str) -> tuple[str, str]:
+        result = await self.db.execute(select(User).where(User.email == email))
+        user = result.scalar_one_or_none()
+        if not user:
+            user = User(
+                email=email,
+                name="Admin",
+                hashed_password=hash_password(settings.ADMIN_PASSWORD),
+                role="admin",
+                onboarded=True,
+            )
+            self.db.add(user)
+            await self.db.commit()
+            await self.db.refresh(user)
+        access_token = create_access_token(str(user.id))
+        refresh_token = create_refresh_token(str(user.id))
+        return access_token, refresh_token
+
     async def get_user_by_id(self, user_id: str) -> User | None:
         result = await self.db.execute(select(User).where(User.id == user_id))
         return result.scalar_one_or_none()

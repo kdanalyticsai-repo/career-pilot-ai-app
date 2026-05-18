@@ -6,7 +6,7 @@ from google.auth.transport import requests as google_requests
 from app.dependencies import get_db
 from app.schemas.auth import (
     RegisterRequest, LoginRequest, GoogleAuthRequest,
-    RefreshRequest, TokenResponse, MessageResponse
+    RefreshRequest, TokenResponse, MessageResponse, AdminLoginRequest,
 )
 from app.services.auth_service import AuthService
 from app.core.security import decode_refresh_token, create_access_token, create_refresh_token
@@ -18,8 +18,29 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 
 @router.post("/register", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
 async def register(data: RegisterRequest, db: AsyncSession = Depends(get_db)):
+    if settings.ADMIN_EMAIL and data.email.lower() == settings.ADMIN_EMAIL.lower():
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="This email address is reserved for admin use only. Please use a different email.",
+        )
     service = AuthService(db)
     _, access_token, refresh_token = await service.register(data)
+    return TokenResponse(access_token=access_token, refresh_token=refresh_token)
+
+
+@router.post("/admin-login", response_model=TokenResponse)
+async def admin_login(data: AdminLoginRequest, db: AsyncSession = Depends(get_db)):
+    if not settings.ADMIN_EMAIL or not settings.ADMIN_PASSWORD:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Admin access is not configured")
+
+    if data.email.lower() != settings.ADMIN_EMAIL.lower():
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Only admins are allowed to access this space")
+
+    if data.password != settings.ADMIN_PASSWORD:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid admin credentials")
+
+    service = AuthService(db)
+    access_token, refresh_token = await service.upsert_admin(data.email)
     return TokenResponse(access_token=access_token, refresh_token=refresh_token)
 
 
