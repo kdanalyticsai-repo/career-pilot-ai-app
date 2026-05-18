@@ -39,6 +39,7 @@ class User(Base):
     avatar_url: Mapped[str | None] = mapped_column(String(500))
     hashed_password: Mapped[str | None] = mapped_column(String(255))
     google_id: Mapped[str | None] = mapped_column(String(255), unique=True, index=True)
+    role: Mapped[str] = mapped_column(String(20), default="job_seeker")
     subscription: Mapped[str] = mapped_column(String(20), default="free")
     pro_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     razorpay_subscription_id: Mapped[str | None] = mapped_column(String(100), nullable=True)

@@ -8,6 +8,7 @@ export default function AuthLayout() {
       <Stack.Screen name="onboarding/step1-profile" />
       <Stack.Screen name="onboarding/step2-preferences" />
       <Stack.Screen name="onboarding/step3-resume" />
+      <Stack.Screen name="onboarding/provider-setup" />
     </Stack>
   );
 }

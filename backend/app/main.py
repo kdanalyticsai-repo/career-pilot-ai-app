@@ -13,7 +13,7 @@ from apscheduler.triggers.cron import CronTrigger
 
 from app.config import settings
 from app.database import async_engine, Base
-from app.api.v1 import auth, users, resumes, jobs, applications, ai, analytics, notifications, subscriptions, admin
+from app.api.v1 import auth, users, resumes, jobs, applications, ai, analytics, notifications, subscriptions, admin, provider
 from app.jobs.renewal_reminder import send_pro_renewal_reminders
 import app.models.job  # noqa: F401
 import app.models.ai_features  # noqa: F401
@@ -27,6 +27,9 @@ async def _run_migrations(conn):
         return
     migrations = [
         "ALTER TABLE users ADD COLUMN IF NOT EXISTS phone VARCHAR(20)",
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS role VARCHAR(20) DEFAULT 'job_seeker'",
+        "ALTER TABLE jobs ADD COLUMN IF NOT EXISTS posted_by CHAR(36) REFERENCES users(id) ON DELETE SET NULL",
+        "ALTER TABLE jobs ADD COLUMN IF NOT EXISTS review_status VARCHAR(20)",
         "ALTER TABLE resumes ADD COLUMN IF NOT EXISTS prev_ats_score INTEGER",
         "ALTER TABLE resumes ADD COLUMN IF NOT EXISTS completeness_score INTEGER",
         "ALTER TABLE resumes ADD COLUMN IF NOT EXISTS embedding_id VARCHAR(255)",
@@ -101,6 +104,7 @@ app.include_router(analytics.router, prefix="/api/v1")
 app.include_router(notifications.router, prefix="/api/v1")
 app.include_router(subscriptions.router, prefix="/api/v1")
 app.include_router(admin.router, prefix="/api/v1")
+app.include_router(provider.router, prefix="/api/v1")
 
 
 @app.get("/health")

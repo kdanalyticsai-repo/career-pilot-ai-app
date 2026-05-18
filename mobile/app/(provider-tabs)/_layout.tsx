@@ -49,7 +49,7 @@ export default function ProviderTabsLayout() {
       }}
     >
       <Tabs.Screen
-        name="index"
+        name="listings"
         options={{
           title: 'My Jobs',
           headerTitle: 'My Listings',

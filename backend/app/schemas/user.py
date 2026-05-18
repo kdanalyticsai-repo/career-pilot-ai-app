@@ -9,6 +9,7 @@ class UserResponse(BaseModel):
     name: str | None
     phone: str | None
     avatar_url: str | None
+    role: str
     subscription: str
     onboarded: bool
     created_at: datetime

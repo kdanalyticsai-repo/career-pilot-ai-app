@@ -1,3 +1,4 @@
+import uuid
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
@@ -70,6 +71,12 @@ async def get_stats(
     )
     signups_last_7d = recent_result.scalar() or 0
 
+    # Pending provider jobs
+    pending_result = await db.execute(
+        select(func.count(Job.id)).where(Job.source == "provider", Job.review_status == "pending")
+    )
+    pending_provider_jobs = pending_result.scalar() or 0
+
     return {
         "users": {
             "total": total_users,
@@ -77,6 +84,7 @@ async def get_stats(
             "pro": pro_users,
             "signups_last_7d": signups_last_7d,
         },
+        "pending_provider_jobs": pending_provider_jobs,
         "revenue": {
             "monthly_inr": monthly_revenue_inr,
             "monthly_usd": round(monthly_revenue_inr / 83, 2),
@@ -94,6 +102,72 @@ async def get_stats(
             "total": total_resumes,
         },
     }
+
+
+@router.get("/pending-jobs")
+async def list_pending_jobs(
+    _: User = Depends(_require_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(
+        select(Job, User)
+        .join(User, Job.posted_by == User.id)
+        .where(Job.source == "provider", Job.review_status == "pending")
+        .order_by(Job.posted_at.desc())
+    )
+    rows = result.all()
+    return [
+        {
+            "id": str(job.id),
+            "title": job.title,
+            "company": job.company,
+            "location": job.location,
+            "description": job.description,
+            "requirements": job.requirements,
+            "skills_required": job.skills_required,
+            "salary_min": job.salary_min,
+            "salary_max": job.salary_max,
+            "job_type": job.job_type,
+            "experience_level": job.experience_level,
+            "remote_type": job.remote_type,
+            "posted_at": job.posted_at.isoformat() if job.posted_at else None,
+            "provider_name": user.name,
+            "provider_email": user.email,
+        }
+        for job, user in rows
+    ]
+
+
+@router.post("/jobs/{job_id}/approve", status_code=200)
+async def approve_job(
+    job_id: uuid.UUID,
+    _: User = Depends(_require_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(select(Job).where(Job.id == job_id))
+    job = result.scalar_one_or_none()
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    job.is_active = True
+    job.review_status = "approved"
+    await db.commit()
+    return {"status": "approved", "job_id": str(job_id)}
+
+
+@router.post("/jobs/{job_id}/reject", status_code=200)
+async def reject_job(
+    job_id: uuid.UUID,
+    _: User = Depends(_require_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(select(Job).where(Job.id == job_id))
+    job = result.scalar_one_or_none()
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    job.review_status = "rejected"
+    job.is_active = False
+    await db.commit()
+    return {"status": "rejected", "job_id": str(job_id)}
 
 
 @router.get("/users")

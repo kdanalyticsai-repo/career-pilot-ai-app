@@ -70,6 +70,18 @@ async def require_pro(user: User = Depends(get_current_user)) -> User:
     return user
 
 
+def require_role(role: str):
+    """Returns a dependency that checks the user has the required role."""
+    async def _dep(current_user: User = Depends(get_current_user)) -> User:
+        if current_user.role != role:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"This endpoint requires the '{role}' role",
+            )
+        return current_user
+    return _dep
+
+
 def require_feature(feature: str):
     """
     Returns a FastAPI dependency that checks plan access + monthly usage limit
