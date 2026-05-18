@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { router } from 'expo-router';
 import { api } from '@/services/api';
+import { useAuthStore } from '@/stores/authStore';
 import { Colors, Typography, Spacing, Radius, Shadow } from '@/constants/theme';
 
 function StatCard({ label, value, sub, color }: { label: string; value: string | number; sub?: string; color?: string }) {
@@ -27,6 +28,7 @@ const statStyles = StyleSheet.create({
 });
 
 export default function AdminScreen() {
+  const { logout } = useAuthStore();
   const [refreshing, setRefreshing] = useState(false);
   const [selectedJob, setSelectedJob] = useState<any>(null);
   const qc = useQueryClient();
@@ -91,9 +93,9 @@ export default function AdminScreen() {
         <View style={styles.errorWrap}>
           <Text style={styles.errorIcon}>🔒</Text>
           <Text style={styles.errorTitle}>Access Denied</Text>
-          <Text style={styles.errorBody}>Admin access requires your email to be in ADMIN_EMAILS on the server.</Text>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-            <Text style={styles.backBtnText}>Go Back</Text>
+          <Text style={styles.errorBody}>Your account does not have admin privileges. Please contact the system administrator.</Text>
+          <TouchableOpacity onPress={async () => { await logout(); router.replace('/role-select' as any); }} style={styles.backBtn}>
+            <Text style={styles.backBtnText}>Sign Out</Text>
           </TouchableOpacity>
         </View>
       </SafeAreaView>

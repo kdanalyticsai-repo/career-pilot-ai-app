@@ -16,7 +16,8 @@ PLANS = {"free": {"price": 0}, "pro": {"price": 199}}
 
 def _require_admin(current_user: User = Depends(get_current_user)) -> User:
     admin_emails = {e.strip() for e in (settings.ADMIN_EMAILS or "").split(",") if e.strip()}
-    if current_user.email not in admin_emails:
+    is_admin = current_user.role == "admin" or current_user.email in admin_emails
+    if not is_admin:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin access required")
     return current_user
 
