@@ -52,7 +52,7 @@ export default function NotificationSettingsScreen() {
       <ScrollView contentContainerStyle={styles.container}>
         <View style={[styles.card, Shadow.sm]}>
           <Text style={styles.sectionTitle}>Push Notifications</Text>
-          <Text style={styles.sectionSub}>Sent to your device via the CVPilot app</Text>
+          <Text style={styles.sectionSub}>Sent to your device via the CVProAI app</Text>
 
           <PrefRow
             label="Job alerts"

@@ -64,7 +64,7 @@ export default function TabsLayout() {
         name="index"
         options={{
           title: 'Home',
-          headerTitle: 'CVPilot',
+          headerTitle: 'CVProAI',
           tabBarIcon: ({ focused, color }) => (
             <TabIcon name="home-outline" activeName="home" focused={focused} color={color} />
           ),

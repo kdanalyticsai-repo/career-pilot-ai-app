@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Alert, ScrollView, Linking } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useFocusEffect } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
@@ -63,6 +63,8 @@ export default function ProfileTab() {
     { label: 'Notification Settings', icon: '🔔', route: '/profile/notifications', sub: 'Manage alerts' },
     { label: 'Settings', icon: '⚙️', route: '/profile/settings', sub: 'Privacy, data & more' },
   ];
+
+  const SUPPORT_EMAIL = 'info@kdaanalytics.com';
 
   const initials = user?.name
     ?.split(' ')
@@ -146,9 +148,9 @@ export default function ProfileTab() {
             <View style={styles.proBannerText}>
               <Text style={styles.proBannerTitle}>Pro Member</Text>
               <Text style={styles.proBannerSub}>
-                All features unlocked · ₹199/month
+                All features unlocked
                 {usageData?.pro_expires_at
-                  ? `\nRenews ${new Date(usageData.pro_expires_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}`
+                  ? `\nExpires ${new Date(usageData.pro_expires_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}`
                   : ''}
               </Text>
             </View>
@@ -160,7 +162,7 @@ export default function ProfileTab() {
           {rows.map(({ label, icon, route, sub }, i) => (
             <TouchableOpacity
               key={route}
-              style={[styles.menuRow, i < rows.length - 1 && styles.menuRowBorder]}
+              style={[styles.menuRow, styles.menuRowBorder]}
               onPress={() => router.push(route as any)}
               activeOpacity={0.7}
             >
@@ -174,6 +176,22 @@ export default function ProfileTab() {
               <Text style={styles.menuChevron}>›</Text>
             </TouchableOpacity>
           ))}
+          {isPro && (
+            <TouchableOpacity
+              style={styles.menuRow}
+              onPress={() => Linking.openURL(`mailto:${SUPPORT_EMAIL}`)}
+              activeOpacity={0.7}
+            >
+              <View style={[styles.menuIconWrap, { backgroundColor: Colors.primary + '15' }]}>
+                <Text style={styles.menuIcon}>✉️</Text>
+              </View>
+              <View style={styles.menuLabelWrap}>
+                <Text style={styles.menuLabel}>Pro Support</Text>
+                <Text style={[styles.menuSub, { color: Colors.primary }]}>{SUPPORT_EMAIL}</Text>
+              </View>
+              <Text style={styles.menuChevron}>›</Text>
+            </TouchableOpacity>
+          )}
         </View>
 
         {/* App Info */}
@@ -184,7 +202,7 @@ export default function ProfileTab() {
             </View>
             <View style={styles.menuLabelWrap}>
               <Text style={styles.menuLabel}>App Version</Text>
-              <Text style={styles.menuSub}>CVPilot v1.0.0</Text>
+              <Text style={styles.menuSub}>CVProAI v1.0.0</Text>
             </View>
           </View>
         </View>

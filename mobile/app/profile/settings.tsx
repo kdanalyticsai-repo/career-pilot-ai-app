@@ -16,7 +16,7 @@ export default function SettingsScreen() {
   const handleExportData = async () => {
     Alert.alert(
       'Export Your Data',
-      'We will prepare a summary of all your CVPilot data including resumes, applications, and settings.',
+      'We will prepare a summary of all your CVProAI data including resumes, applications, and settings.',
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -80,7 +80,7 @@ export default function SettingsScreen() {
         {
           label: 'Subscription',
           icon: '✦',
-          sub: user?.subscription === 'pro' ? 'Pro Plan · ₹199/month' : 'Free Plan · Upgrade for more',
+          sub: user?.subscription === 'pro' ? 'Pro Plan · Active' : 'Free Plan · Upgrade for more',
           onPress: () => router.push('/paywall'),
         },
       ],
@@ -110,14 +110,14 @@ export default function SettingsScreen() {
           icon: '🔒',
           sub: 'How we handle your data',
           onPress: () =>
-            Alert.alert('Privacy Policy', 'CVPilot collects only the data required to provide resume matching and career coaching. Your resume data is stored securely and never shared with third parties without your consent.'),
+            Alert.alert('Privacy Policy', 'CVProAI collects only the data required to provide resume matching and career coaching. Your resume data is stored securely and never shared with third parties without your consent.'),
         },
         {
           label: 'Terms of Service',
           icon: '📄',
           sub: 'Usage terms and conditions',
           onPress: () =>
-            Alert.alert('Terms of Service', 'By using CVPilot you agree to use the service for lawful job-search purposes only. AI-generated content is for guidance and should be reviewed before use.'),
+            Alert.alert('Terms of Service', 'By using CVProAI you agree to use the service for lawful job-search purposes only. AI-generated content is for guidance and should be reviewed before use.'),
         },
       ],
     },
@@ -173,8 +173,8 @@ export default function SettingsScreen() {
         ))}
 
         <View style={styles.appInfo}>
-          <Text style={styles.appInfoText}>CVPilot v1.0.0</Text>
-          <Text style={styles.appInfoText}>© 2026 CVPilot. All rights reserved.</Text>
+          <Text style={styles.appInfoText}>CVProAI v1.0.0</Text>
+          <Text style={styles.appInfoText}>© 2026 CVProAI. All rights reserved.</Text>
         </View>
       </ScrollView>
     </SafeAreaView>

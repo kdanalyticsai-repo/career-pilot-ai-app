@@ -35,7 +35,7 @@ const PRO_FEATURES = [
   { label: '10 resume tailorings / month' },
   { label: 'Unlimited application tracking' },
   { label: 'AI Career Coach (unlimited)', highlight: true },
-  { label: 'Priority support' },
+  { label: '24h email support' },
 ];
 
 export default function PaywallScreen() {
@@ -106,7 +106,7 @@ export default function PaywallScreen() {
           <View style={styles.heroIcon}>
             <Text style={styles.heroIconText}>✦</Text>
           </View>
-          <Text style={styles.heroTitle}>Unlock Your Full Potential</Text>
+          <Text style={styles.heroTitle}>Apply smarter. Get hired faster.</Text>
           <Text style={styles.heroSub}>
             Upgrade to Pro and get unlimited AI coaching, job matching, and resume tools.
           </Text>

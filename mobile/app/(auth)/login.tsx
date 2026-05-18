@@ -50,8 +50,8 @@ export default function LoginScreen() {
       >
         <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
           <View style={styles.header}>
-            <Text style={styles.logo}>CVPilot</Text>
-            <Text style={styles.tagline}>Find jobs that match your skills</Text>
+            <Text style={styles.logo}>CVProAI</Text>
+            <Text style={styles.tagline}>Apply smarter. Get hired faster.</Text>
           </View>
 
           <View style={styles.form}>

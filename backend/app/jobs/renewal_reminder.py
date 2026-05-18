@@ -64,7 +64,7 @@ async def _notify_user(db: AsyncSession, user: User) -> None:
 
     await send_push_notifications(
         tokens=tokens,
-        title="Your CVPilot Pro is expiring soon ✦",
+        title="Your CVProAI Pro is expiring soon ✦",
         body=f"Your Pro plan expires in {days_left} day{'s' if days_left != 1 else ''} ({expiry_str}). Renew to keep unlimited access.",
         data={"screen": "paywall"},
     )
