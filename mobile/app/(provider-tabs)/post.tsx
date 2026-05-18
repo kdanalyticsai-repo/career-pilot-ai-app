@@ -89,7 +89,7 @@ export default function PostJobScreen() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['provider-jobs'] });
       Alert.alert('Submitted!', 'Your listing has been submitted for review. We\'ll make it live once approved.', [
-        { text: 'View My Listings', onPress: () => router.replace('/(provider-tabs)' as any) },
+        { text: 'View My Listings', onPress: () => router.replace('/(provider-tabs)/listings' as any) },
       ]);
       setTitle(''); setCompany(''); setLocation(''); setDescription('');
       setSkills(''); setRequirements(''); setSalaryMin(''); setSalaryMax('');
