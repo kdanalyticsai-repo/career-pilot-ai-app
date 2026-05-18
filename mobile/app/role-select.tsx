@@ -25,6 +25,16 @@ export default function RoleSelectScreen() {
         {/* Role selection */}
         <Text style={styles.prompt}>I am a...</Text>
 
+        {process.env.EXPO_PUBLIC_ADMIN_EMAIL ? (
+          <TouchableOpacity
+            style={styles.adminBtn}
+            onPress={() => router.push('/(auth)/login')}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.adminBtnText}>🔐 Admin Access</Text>
+          </TouchableOpacity>
+        ) : null}
+
         <View style={styles.cards}>
           {/* Job Seeker */}
           <TouchableOpacity
@@ -76,6 +86,15 @@ const styles = StyleSheet.create({
   tagline: { ...Typography.body, color: Colors.textSecondary, marginTop: 4 },
 
   prompt: { ...Typography.h4, color: Colors.textSecondary, textAlign: 'center' },
+
+  adminBtn: {
+    alignSelf: 'center',
+    borderWidth: 1, borderColor: Colors.border,
+    borderRadius: Radius.full,
+    paddingHorizontal: Spacing.lg, paddingVertical: 8,
+    backgroundColor: Colors.surface,
+  },
+  adminBtnText: { ...Typography.caption, color: Colors.textMuted, letterSpacing: 0.3 },
 
   cards: { gap: Spacing.md },
 

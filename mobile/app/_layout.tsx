@@ -38,8 +38,12 @@ export default function RootLayout() {
   useEffect(() => {
     if (!hydrated) return;
 
+    const adminEmail = process.env.EXPO_PUBLIC_ADMIN_EMAIL;
+
     if (!isAuthenticated) {
       router.replace('/role-select' as any);
+    } else if (adminEmail && user?.email === adminEmail) {
+      router.replace('/admin' as any);
     } else if (!user?.onboarded) {
       if (user?.role === 'job_provider') {
         router.replace('/(auth)/onboarding/provider-setup' as any);
