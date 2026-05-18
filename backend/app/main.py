@@ -28,7 +28,7 @@ async def _run_migrations(conn):
     migrations = [
         "ALTER TABLE users ADD COLUMN IF NOT EXISTS phone VARCHAR(20)",
         "ALTER TABLE users ADD COLUMN IF NOT EXISTS role VARCHAR(20) DEFAULT 'job_seeker'",
-        "ALTER TABLE jobs ADD COLUMN IF NOT EXISTS posted_by CHAR(36) REFERENCES users(id) ON DELETE SET NULL",
+        "ALTER TABLE jobs ADD COLUMN IF NOT EXISTS posted_by UUID REFERENCES users(id) ON DELETE SET NULL",
         "ALTER TABLE jobs ADD COLUMN IF NOT EXISTS review_status VARCHAR(20)",
         "ALTER TABLE resumes ADD COLUMN IF NOT EXISTS prev_ats_score INTEGER",
         "ALTER TABLE resumes ADD COLUMN IF NOT EXISTS completeness_score INTEGER",
