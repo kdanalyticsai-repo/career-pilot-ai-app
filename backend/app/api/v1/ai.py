@@ -57,7 +57,7 @@ async def chat(
 
 @router.get("/chat/sessions", response_model=list[ChatSessionOut])
 async def list_sessions(
-    current_user: User = Depends(require_feature("chat")),
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     sessions = await AIService(db).list_sessions(current_user.id)
@@ -69,7 +69,7 @@ async def list_sessions(
 @router.get("/chat/sessions/{session_id}", response_model=ChatSessionOut)
 async def get_session(
     session_id: uuid.UUID,
-    current_user: User = Depends(require_feature("chat")),
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     svc = AIService(db)
@@ -90,7 +90,7 @@ async def get_session(
 @router.delete("/chat/sessions/{session_id}", status_code=204)
 async def delete_session(
     session_id: uuid.UUID,
-    current_user: User = Depends(require_feature("chat")),
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     await AIService(db).delete_session(session_id, current_user.id)

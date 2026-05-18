@@ -90,10 +90,14 @@ export default function CoachTab() {
   }, [input, isPending, sendMessage]);
 
   const loadSession = async (sid: string) => {
-    const res = await api.get(`/ai/chat/sessions/${sid}`);
-    setSessionId(sid);
-    setMessages(res.data.messages);
-    setShowHistory(false);
+    try {
+      const res = await api.get(`/ai/chat/sessions/${sid}`);
+      setSessionId(sid);
+      setMessages(res.data.messages);
+      setShowHistory(false);
+    } catch {
+      Alert.alert('Error', 'Could not load this conversation. Please try again.');
+    }
   };
 
   const newChat = () => {
