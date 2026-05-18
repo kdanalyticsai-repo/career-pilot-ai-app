@@ -53,8 +53,8 @@ export default function RoleSelectScreen() {
             <Text style={styles.cardDesc}>
               Post job listings, manage requirements, and connect with qualified candidates
             </Text>
-            <View style={[styles.cardBtn, styles.cardBtnProvider]}>
-              <Text style={[styles.cardBtnText, { color: Colors.primary }]}>Hire Talent →</Text>
+            <View style={styles.cardBtn}>
+              <Text style={styles.cardBtnText}>Hire Talent →</Text>
             </View>
           </TouchableOpacity>
         </View>
@@ -84,10 +84,7 @@ const styles = StyleSheet.create({
     padding: Spacing.lg, borderWidth: 1, borderColor: Colors.borderSubtle,
     gap: Spacing.sm,
   },
-  cardProvider: {
-    borderColor: Colors.primary + '30',
-    backgroundColor: Colors.primaryLight + '30',
-  },
+  cardProvider: {},
 
   cardIcon: { fontSize: 32 },
   cardTitle: { ...Typography.h3, color: Colors.text },
@@ -97,9 +94,6 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.primary, borderRadius: Radius.md,
     paddingVertical: 10, paddingHorizontal: Spacing.md,
     alignSelf: 'flex-start', marginTop: Spacing.xs,
-  },
-  cardBtnProvider: {
-    backgroundColor: Colors.primaryLight,
   },
   cardBtnText: { ...Typography.label, color: Colors.textInverse, fontWeight: '700' },
 
