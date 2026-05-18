@@ -28,7 +28,7 @@ export default function RoleSelectScreen() {
         {process.env.EXPO_PUBLIC_ADMIN_EMAIL ? (
           <TouchableOpacity
             style={styles.adminBtn}
-            onPress={() => router.push('/(auth)/login')}
+            onPress={() => router.push('/(auth)/admin-login' as any)}
             activeOpacity={0.7}
           >
             <Text style={styles.adminBtnText}>🔐 Admin Access</Text>
