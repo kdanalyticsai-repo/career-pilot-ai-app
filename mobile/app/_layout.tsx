@@ -40,6 +40,8 @@ export default function RootLayout() {
 
     if (!isAuthenticated) {
       router.replace('/role-select' as any);
+    } else if (user?.role === 'admin') {
+      router.replace('/admin' as any);
     } else if (!user?.onboarded) {
       if (user?.role === 'job_provider') {
         router.replace('/(auth)/onboarding/provider-setup' as any);
