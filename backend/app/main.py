@@ -19,6 +19,7 @@ import app.models.job  # noqa: F401
 import app.models.ai_features  # noqa: F401
 import app.models.notification  # noqa: F401
 import app.models.subscription  # noqa: F401
+import app.models.profiles  # noqa: F401
 
 
 async def _run_migrations(conn):
@@ -48,6 +49,35 @@ async def _run_migrations(conn):
         )
         """,
         "CREATE INDEX IF NOT EXISTS idx_usage_records_user ON usage_records(user_id)",
+        # Separate profile tables
+        """
+        CREATE TABLE IF NOT EXISTS job_seeker_profiles (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            user_id UUID NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+            experience_level VARCHAR(20),
+            work_style VARCHAR(20),
+            job_types JSONB,
+            preferred_locations JSONB,
+            min_salary INTEGER,
+            desired_roles JSONB,
+            created_at TIMESTAMPTZ DEFAULT NOW(),
+            updated_at TIMESTAMPTZ DEFAULT NOW()
+        )
+        """,
+        "CREATE INDEX IF NOT EXISTS idx_job_seeker_profiles_user ON job_seeker_profiles(user_id)",
+        """
+        CREATE TABLE IF NOT EXISTS job_provider_profiles (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            user_id UUID NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+            company_name VARCHAR(255),
+            company_size VARCHAR(50),
+            industry VARCHAR(100),
+            website VARCHAR(500),
+            created_at TIMESTAMPTZ DEFAULT NOW(),
+            updated_at TIMESTAMPTZ DEFAULT NOW()
+        )
+        """,
+        "CREATE INDEX IF NOT EXISTS idx_job_provider_profiles_user ON job_provider_profiles(user_id)",
     ]
     for stmt in migrations:
         await conn.execute(text(stmt))

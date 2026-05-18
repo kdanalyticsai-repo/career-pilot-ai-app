@@ -37,3 +37,32 @@ class OnboardingCompleteRequest(BaseModel):
     name: str
     phone: str | None = None
     preferences: UserPreferences
+    # provider-only fields (ignored for job seekers)
+    company_name: str | None = None
+
+
+class JobSeekerProfileResponse(BaseModel):
+    experience_level: str | None
+    work_style: str | None
+    job_types: list | None
+    preferred_locations: list | None
+    min_salary: int | None
+    desired_roles: list | None
+
+    model_config = {"from_attributes": True}
+
+
+class JobProviderProfileResponse(BaseModel):
+    company_name: str | None
+    company_size: str | None
+    industry: str | None
+    website: str | None
+
+    model_config = {"from_attributes": True}
+
+
+class ProviderProfileUpdateRequest(BaseModel):
+    company_name: str | None = None
+    company_size: str | None = None
+    industry: str | None = None
+    website: str | None = None

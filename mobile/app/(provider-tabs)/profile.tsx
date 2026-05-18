@@ -1,10 +1,27 @@
 import { View, Text, StyleSheet, TouchableOpacity, Alert, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useQuery } from '@tanstack/react-query';
 import { useAuthStore } from '@/stores/authStore';
+import { api } from '@/services/api';
 import { Colors, Typography, Spacing, Radius, Shadow } from '@/constants/theme';
+
+interface ProviderProfile {
+  company_name: string | null;
+  company_size: string | null;
+  industry: string | null;
+  website: string | null;
+}
 
 export default function ProviderProfileScreen() {
   const { user, logout } = useAuthStore();
+
+  const { data: profile } = useQuery<ProviderProfile>({
+    queryKey: ['provider-profile'],
+    queryFn: async () => {
+      const { data } = await api.get('/users/me/provider-profile');
+      return data;
+    },
+  });
 
   const handleLogout = () => {
     Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
@@ -26,13 +43,22 @@ export default function ProviderProfileScreen() {
           </View>
           <Text style={styles.name}>{user?.name ?? 'Provider'}</Text>
           <Text style={styles.email}>{user?.email}</Text>
+          {profile?.company_name ? (
+            <Text style={styles.company}>{profile.company_name}</Text>
+          ) : null}
           <View style={styles.roleBadge}>
             <Text style={styles.roleBadgeText}>🏢 JOB PROVIDER</Text>
           </View>
         </View>
 
         <View style={[styles.infoCard, Shadow.sm]}>
-          <View style={styles.infoRow}>
+          {profile?.company_name ? (
+            <View style={styles.infoRow}>
+              <Text style={styles.infoLabel}>Company</Text>
+              <Text style={styles.infoValue}>{profile.company_name}</Text>
+            </View>
+          ) : null}
+          <View style={[styles.infoRow, profile?.company_name ? styles.rowBorder : null]}>
             <Text style={styles.infoLabel}>Account type</Text>
             <Text style={styles.infoValue}>Job Provider</Text>
           </View>
@@ -73,6 +99,7 @@ const styles = StyleSheet.create({
   avatarText: { fontSize: 28, fontWeight: '700', color: Colors.textInverse },
   name: { ...Typography.h3, color: Colors.text, marginBottom: 4 },
   email: { ...Typography.body, color: Colors.textSecondary },
+  company: { ...Typography.label, color: Colors.textSecondary, marginTop: 2 },
   roleBadge: {
     backgroundColor: Colors.primary + '15', borderRadius: Radius.full,
     borderWidth: 1, borderColor: Colors.primary + '30',

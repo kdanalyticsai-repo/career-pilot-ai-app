@@ -1,10 +1,16 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
 
 from app.dependencies import get_db, get_current_active_user
 from app.models.user import User
-from app.schemas.user import UserResponse, UserUpdate, OnboardingCompleteRequest
+from app.models.profiles import JobSeekerProfile, JobProviderProfile
+from app.schemas.user import (
+    UserResponse, UserUpdate, OnboardingCompleteRequest,
+    JobProviderProfileResponse, ProviderProfileUpdateRequest,
+)
 from fastapi import status
+import uuid
 
 router = APIRouter(prefix="/users", tags=["users"])
 
@@ -41,9 +47,76 @@ async def complete_onboarding(
     if data.phone:
         current_user.phone = data.phone
     current_user.onboarded = True
+
+    if current_user.role == "job_provider":
+        result = await db.execute(
+            select(JobProviderProfile).where(JobProviderProfile.user_id == current_user.id)
+        )
+        profile = result.scalar_one_or_none()
+        if profile is None:
+            profile = JobProviderProfile(id=uuid.uuid4(), user_id=current_user.id)
+            db.add(profile)
+        if data.company_name is not None:
+            profile.company_name = data.company_name
+    else:
+        result = await db.execute(
+            select(JobSeekerProfile).where(JobSeekerProfile.user_id == current_user.id)
+        )
+        profile = result.scalar_one_or_none()
+        if profile is None:
+            profile = JobSeekerProfile(id=uuid.uuid4(), user_id=current_user.id)
+            db.add(profile)
+        prefs = data.preferences
+        profile.experience_level = prefs.experience_level
+        profile.work_style = prefs.remote_preference
+        profile.job_types = prefs.job_types
+        profile.preferred_locations = prefs.preferred_locations
+        profile.min_salary = prefs.min_salary
+        profile.desired_roles = prefs.desired_roles
+
     await db.commit()
     await db.refresh(current_user)
     return current_user
+
+
+@router.get("/me/provider-profile", response_model=JobProviderProfileResponse)
+async def get_provider_profile(
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(
+        select(JobProviderProfile).where(JobProviderProfile.user_id == current_user.id)
+    )
+    profile = result.scalar_one_or_none()
+    if profile is None:
+        return JobProviderProfileResponse(company_name=None, company_size=None, industry=None, website=None)
+    return profile
+
+
+@router.patch("/me/provider-profile", response_model=JobProviderProfileResponse)
+async def update_provider_profile(
+    data: ProviderProfileUpdateRequest,
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(
+        select(JobProviderProfile).where(JobProviderProfile.user_id == current_user.id)
+    )
+    profile = result.scalar_one_or_none()
+    if profile is None:
+        profile = JobProviderProfile(id=uuid.uuid4(), user_id=current_user.id)
+        db.add(profile)
+    if data.company_name is not None:
+        profile.company_name = data.company_name
+    if data.company_size is not None:
+        profile.company_size = data.company_size
+    if data.industry is not None:
+        profile.industry = data.industry
+    if data.website is not None:
+        profile.website = data.website
+    await db.commit()
+    await db.refresh(profile)
+    return profile
 
 
 @router.delete("/me", status_code=status.HTTP_204_NO_CONTENT)
