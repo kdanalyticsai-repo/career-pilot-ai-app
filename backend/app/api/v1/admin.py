@@ -134,7 +134,7 @@ async def list_pending_jobs(
 ):
     result = await db.execute(
         select(Job, User)
-        .join(User, Job.posted_by == User.id)
+        .outerjoin(User, Job.posted_by == User.id)
         .where(Job.source == "provider", Job.review_status == "pending")
         .order_by(Job.posted_at.desc())
     )
@@ -154,8 +154,8 @@ async def list_pending_jobs(
             "experience_level": job.experience_level,
             "remote_type": job.remote_type,
             "posted_at": job.posted_at.isoformat() if job.posted_at else None,
-            "provider_name": user.name,
-            "provider_email": user.email,
+            "provider_name": user.name if user else "(deleted user)",
+            "provider_email": user.email if user else None,
         }
         for job, user in rows
     ]
@@ -168,7 +168,7 @@ async def list_provider_jobs(
 ):
     result = await db.execute(
         select(Job, User)
-        .join(User, Job.posted_by == User.id)
+        .outerjoin(User, Job.posted_by == User.id)
         .where(Job.source == "provider")
         .order_by(Job.posted_at.desc())
     )
@@ -185,8 +185,8 @@ async def list_provider_jobs(
             "experience_level": job.experience_level,
             "remote_type": job.remote_type,
             "posted_at": job.posted_at.isoformat() if job.posted_at else None,
-            "provider_name": user.name,
-            "provider_email": user.email,
+            "provider_name": user.name if user else "(deleted user)",
+            "provider_email": user.email if user else None,
         }
         for job, user in rows
     ]
