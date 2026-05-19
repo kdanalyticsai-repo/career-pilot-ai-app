@@ -189,6 +189,7 @@ export default function AdminScreen() {
   const u = stats?.users ?? {};
   const rev = stats?.revenue ?? {};
   const jobs = stats?.jobs ?? {};
+  const listed = stats?.listed_jobs ?? {};
   const applications = stats?.applications ?? {};
   const resumes = stats?.resumes ?? {};
   const recentUsers: any[] = usersData?.users ?? [];
@@ -223,9 +224,18 @@ export default function AdminScreen() {
           <StatCard label="Free" value={u.free ?? 0} color={Colors.textSecondary} />
           <StatCard label="Pro" value={u.pro ?? 0} color={Colors.primary} />
         </View>
+        <View style={styles.row}>
+          <StatCard label="Listed Jobs" value={listed.total ?? 0} />
+          <StatCard label="Approved" value={listed.approved ?? 0} color={Colors.tertiary} />
+          <StatCard label="Pending" value={listed.pending ?? 0} color={Colors.warning} />
+        </View>
         <View style={[styles.singleCard, Shadow.sm]}>
           <Text style={styles.singleLabel}>New Signups (last 7 days)</Text>
           <Text style={[styles.singleValue, { color: Colors.tertiary }]}>+{u.signups_last_7d ?? 0}</Text>
+        </View>
+        <View style={[styles.singleCard, Shadow.sm]}>
+          <Text style={styles.singleLabel}>New Listed Jobs (last 7 days)</Text>
+          <Text style={[styles.singleValue, { color: Colors.primary }]}>+{listed.last_7d ?? 0}</Text>
         </View>
 
         {/* Revenue */}

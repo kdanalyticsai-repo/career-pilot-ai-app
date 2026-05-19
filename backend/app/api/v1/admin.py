@@ -78,6 +78,21 @@ async def get_stats(
     )
     pending_provider_jobs = pending_result.scalar() or 0
 
+    # Provider listed jobs — total + by status
+    listed_result = await db.execute(
+        select(Job.review_status, func.count(Job.id))
+        .where(Job.source == "provider")
+        .group_by(Job.review_status)
+    )
+    listed_by_status = {row[0]: row[1] for row in listed_result.all()}
+    total_listed = sum(listed_by_status.values())
+
+    # New listed jobs (last 7 days)
+    new_listed_result = await db.execute(
+        select(func.count(Job.id)).where(Job.source == "provider", Job.posted_at >= week_ago)
+    )
+    listed_last_7d = new_listed_result.scalar() or 0
+
     return {
         "users": {
             "total": total_users,
@@ -86,6 +101,13 @@ async def get_stats(
             "signups_last_7d": signups_last_7d,
         },
         "pending_provider_jobs": pending_provider_jobs,
+        "listed_jobs": {
+            "total": total_listed,
+            "approved": listed_by_status.get("approved", 0),
+            "pending": listed_by_status.get("pending", 0),
+            "rejected": listed_by_status.get("rejected", 0),
+            "last_7d": listed_last_7d,
+        },
         "revenue": {
             "monthly_inr": monthly_revenue_inr,
             "monthly_usd": round(monthly_revenue_inr / 83, 2),
