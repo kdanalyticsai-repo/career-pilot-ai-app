@@ -11,6 +11,8 @@ interface User {
   subscription: string;
   onboarded: boolean;
   avatar_url: string | null;
+  trial_ends_at: string | null;
+  created_at: string;
 }
 
 interface AuthState {

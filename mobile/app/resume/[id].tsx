@@ -8,14 +8,21 @@ import { API_URL } from '@/constants/config';
 import { ATSScoreRing } from '@/components/resume/ATSScoreRing';
 import { ScoreBreakdown } from '@/components/resume/ScoreBreakdown';
 import { QuickWins } from '@/components/resume/QuickWins';
+import { storage } from '@/services/storage';
 
 export default function ResumeDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
 
-  const handleExportPDF = () => {
-    const baseUrl = API_URL.replace('/api/v1', '');
-    const url = `${baseUrl}/api/v1/resumes/${id}/export-pdf`;
-    Linking.openURL(url).catch(() => Alert.alert('Error', 'Could not open download link.'));
+  const handleExportPDF = async () => {
+    try {
+      const token = await storage.getAccessToken();
+      if (!token) { Alert.alert('Error', 'Please sign in again to export.'); return; }
+      const baseUrl = API_URL.replace('/api/v1', '');
+      const url = `${baseUrl}/api/v1/resumes/${id}/export-pdf?token=${encodeURIComponent(token)}`;
+      Linking.openURL(url).catch(() => Alert.alert('Error', 'Could not open download link.'));
+    } catch {
+      Alert.alert('Error', 'Could not prepare download link.');
+    }
   };
 
   const { data: resume, isLoading } = useQuery({

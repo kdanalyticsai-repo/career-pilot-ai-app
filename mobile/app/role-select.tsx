@@ -19,7 +19,7 @@ export default function RoleSelectScreen() {
         {/* Logo */}
         <View style={styles.logoWrap}>
           <Text style={styles.logo}>CVProAI</Text>
-          <Text style={styles.tagline}>Apply smarter. Get hired faster.</Text>
+          <Text style={styles.tagline}>Hire smarter. Get hired faster.</Text>
         </View>
 
         {/* Role selection */}
@@ -31,7 +31,7 @@ export default function RoleSelectScreen() {
             onPress={() => router.push('/(auth)/admin-login' as any)}
             activeOpacity={0.7}
           >
-            <Text style={styles.adminBtnText}>🔐 Admin Access</Text>
+            <Text style={styles.adminBtnText}>🔐 Admin</Text>
           </TouchableOpacity>
         ) : null}
 
@@ -81,7 +81,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center', gap: Spacing.lg,
   },
 
-  logoWrap: { alignItems: 'center', marginBottom: Spacing.sm },
+  logoWrap: { alignItems: 'center', marginBottom: Spacing.sm, marginTop: 48 },
   logo: { ...Typography.h1, color: Colors.primary, fontSize: 32, letterSpacing: -0.5 },
   tagline: { ...Typography.body, color: Colors.textSecondary, marginTop: 4 },
 

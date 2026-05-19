@@ -38,6 +38,13 @@ const PRO_FEATURES = [
   { label: '24h email support' },
 ];
 
+function getTrialDaysLeft(trialEndsAt: string | null | undefined): number | null {
+  if (!trialEndsAt) return null;
+  const diff = new Date(trialEndsAt).getTime() - Date.now();
+  if (diff <= 0) return 0;
+  return Math.ceil(diff / (1000 * 60 * 60 * 24));
+}
+
 export default function PaywallScreen() {
   const { user, setUser } = useAuthStore();
   const [selectedPlan, setSelectedPlan] = useState<PlanId>('quarterly');
@@ -45,6 +52,7 @@ export default function PaywallScreen() {
   const [verifyingPayment, setVerifyingPayment] = useState(false);
 
   const isPro = user?.subscription === 'pro';
+  const trialDaysLeft = getTrialDaysLeft(user?.trial_ends_at);
   const activePlan = PLANS.find((p) => p.id === selectedPlan)!;
 
   async function pollForProUpgrade(): Promise<boolean> {
@@ -100,6 +108,22 @@ export default function PaywallScreen() {
             <Text style={styles.backBtnText}>✕</Text>
           </TouchableOpacity>
         </View>
+
+        {/* Trial banner */}
+        {trialDaysLeft !== null && trialDaysLeft > 0 && (
+          <View style={styles.trialBanner}>
+            <Text style={styles.trialBannerText}>
+              🎉 You have <Text style={{ fontWeight: '800' }}>{trialDaysLeft} day{trialDaysLeft !== 1 ? 's' : ''}</Text> left on your free trial
+            </Text>
+          </View>
+        )}
+        {trialDaysLeft === 0 && (
+          <View style={[styles.trialBanner, styles.trialBannerExpired]}>
+            <Text style={[styles.trialBannerText, { color: Colors.danger }]}>
+              ⏰ Your free trial has ended — upgrade to keep full access
+            </Text>
+          </View>
+        )}
 
         {/* Hero */}
         <View style={styles.hero}>
@@ -300,4 +324,14 @@ const styles = StyleSheet.create({
   alreadyProText: { ...Typography.label, color: Colors.tertiary },
 
   disclaimer: { ...Typography.caption, color: Colors.textMuted, textAlign: 'center', lineHeight: 18 },
+
+  trialBanner: {
+    backgroundColor: Colors.primary + '15', borderRadius: Radius.md,
+    paddingHorizontal: Spacing.md, paddingVertical: 10,
+    marginBottom: Spacing.md, borderWidth: 1, borderColor: Colors.primary + '30',
+  },
+  trialBannerExpired: {
+    backgroundColor: Colors.danger + '10', borderColor: Colors.danger + '30',
+  },
+  trialBannerText: { ...Typography.body, color: Colors.primary, textAlign: 'center' },
 });

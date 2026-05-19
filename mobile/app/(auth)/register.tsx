@@ -48,7 +48,9 @@ export default function RegisterScreen() {
       if (!status) {
         setErrorMsg('No internet connection. Please check your network and try again.');
       } else if (status === 400 || status === 409) {
-        setErrorMsg('An account with this email already exists. Try signing in instead.');
+        setErrorMsg('This email is already registered. Try signing in instead.');
+      } else if (status === 403) {
+        setErrorMsg('This email address is not available for registration. Please use a different email.');
       } else if (status === 422) {
         setErrorMsg('Please check your details — all fields are required and password must be at least 8 characters.');
       } else if (status >= 500) {
