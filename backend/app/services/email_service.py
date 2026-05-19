@@ -1,82 +1,229 @@
+"""SendGrid email service for CVProAI transactional emails."""
+from __future__ import annotations
+import logging
 import httpx
 from app.config import settings
 
+logger = logging.getLogger(__name__)
 
-async def _send_via_sendgrid(to_email: str, to_name: str, subject: str, html_body: str) -> bool:
+_PRIMARY = "#4361EE"
+_DARK = "#1a1a2e"
+_MUTED = "#6b7280"
+_BG = "#f9fafb"
+
+
+def _wrap(title: str, body: str) -> str:
+    return f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>{title}</title>
+<style>
+*{{box-sizing:border-box;margin:0;padding:0}}
+body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:{_BG};color:{_DARK};padding:24px}}
+.wrap{{max-width:560px;margin:0 auto;background:#fff;border-radius:16px;padding:40px 36px;box-shadow:0 2px 12px rgba(0,0,0,.06)}}
+.logo{{font-size:24px;font-weight:800;color:{_PRIMARY};margin-bottom:24px}}
+.logo span{{color:{_DARK}}}
+h1{{font-size:22px;font-weight:700;margin-bottom:12px}}
+p{{font-size:15px;line-height:1.65;color:#374151;margin-bottom:12px}}
+.badge{{display:inline-block;padding:3px 10px;border-radius:20px;font-size:13px;font-weight:600;margin-bottom:16px}}
+.badge-seeker{{background:#4361EE18;color:{_PRIMARY}}}
+.badge-provider{{background:#2ec4b618;color:#2ec4b6}}
+.divider{{height:1px;background:#f0f0f0;margin:20px 0}}
+.detail-row{{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #f0f0f0;font-size:14px}}
+.detail-label{{color:{_MUTED}}}
+.otp{{font-size:36px;font-weight:800;letter-spacing:8px;color:{_PRIMARY};text-align:center;padding:24px;background:{_BG};border-radius:12px;margin:20px 0}}
+.footer{{margin-top:32px;font-size:12px;color:{_MUTED};text-align:center;line-height:1.6}}
+@media(max-width:600px){{.wrap{{padding:24px 18px}}}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="logo">CVPro<span>AI</span></div>
+  {body}
+  <div class="footer">
+    &copy; 2026 KDAA ANALYTICS (OPC) PRIVATE LIMITED<br/>
+    <a href="https://kdaanalytics.com" style="color:{_MUTED}">kdaanalytics.com</a> &middot;
+    <a href="mailto:info@kdaanalytics.com" style="color:{_MUTED}">info@kdaanalytics.com</a>
+  </div>
+</div>
+</body>
+</html>"""
+
+
+async def _send(to_email: str, subject: str, html: str) -> None:
+    """Send via SendGrid REST API. Never raises — logs failures silently."""
     if not settings.has_sendgrid_key:
-        return False
-
+        logger.info("SendGrid not configured — skipping email to %s: %s", to_email, subject)
+        return
     payload = {
-        "personalizations": [{"to": [{"email": to_email, "name": to_name}]}],
+        "personalizations": [{"to": [{"email": to_email}]}],
         "from": {"email": settings.SENDGRID_FROM_EMAIL, "name": settings.SENDGRID_FROM_NAME},
         "subject": subject,
-        "content": [{"type": "text/html", "value": html_body}],
+        "content": [{"type": "text/html", "value": html}],
     }
-
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
             resp = await client.post(
                 "https://api.sendgrid.com/v3/mail/send",
                 json=payload,
-                headers={
-                    "Authorization": f"Bearer {settings.SENDGRID_API_KEY}",
-                    "Content-Type": "application/json",
-                },
+                headers={"Authorization": f"Bearer {settings.SENDGRID_API_KEY}"},
             )
-            return resp.status_code in (200, 202)
-    except Exception:
-        return False
+            if resp.status_code not in (200, 202):
+                logger.error("SendGrid error %s for %s: %s", resp.status_code, to_email, resp.text)
+            else:
+                logger.info("Email sent to %s: %s", to_email, subject)
+    except Exception as exc:
+        logger.error("Failed to send email to %s: %s", to_email, exc)
 
 
-async def send_welcome_email(email: str, name: str) -> None:
-    html = f"""
-    <div style="font-family:sans-serif;max-width:600px;margin:0 auto">
-      <h2 style="color:#6366f1">Welcome to CVPilot, {name}!</h2>
-      <p>Your AI-powered career coach is ready. Here's what you can do:</p>
-      <ul>
-        <li><strong>Upload your resume</strong> — get an instant ATS score and improvement tips</li>
-        <li><strong>Browse jobs</strong> — see your match score for every listing</li>
-        <li><strong>Use AI tools</strong> — tailor your resume, prep for interviews, generate cover letters</li>
-        <li><strong>Track applications</strong> — stay on top of every stage</li>
-      </ul>
-      <p>Get started by uploading your resume!</p>
-      <p style="color:#6b7280;font-size:13px">CVPilot — Powered by Claude AI</p>
-    </div>
-    """
-    await _send_via_sendgrid(email, name, "Welcome to CVPilot!", html)
+# ── 1. Welcome on registration ────────────────────────────────────────────────
+async def send_welcome_email(to_email: str, name: str, role: str) -> None:
+    display = name or "there"
+    badge = (
+        '<span class="badge badge-seeker">Job Seeker</span>'
+        if role == "job_seeker"
+        else '<span class="badge badge-provider">Job Provider</span>'
+    )
+    if role == "job_provider":
+        bullets = "<li>Post job listings for admin review</li><li>Manage applicants from one dashboard</li><li>Get notified when your listing goes live</li>"
+    else:
+        bullets = "<li>Upload your resume &amp; get an ATS score</li><li>Discover AI-matched jobs daily</li><li>Generate cover letters &amp; prep for interviews</li>"
+    body = f"""
+<h1>Welcome to CVProAI, {display}! 🎉</h1>
+{badge}
+<p>Your account is ready. Here's what you can do right away:</p>
+<ul style="padding-left:20px;margin-bottom:16px;font-size:15px;line-height:1.8;color:#374151">{bullets}</ul>
+<p>You have <strong>7 days of full Pro access</strong> from today — explore every feature free.</p>
+<div class="divider"></div>
+<p style="color:{_MUTED};font-size:13px">If you didn't create this account, contact <a href="mailto:info@kdaanalytics.com">info@kdaanalytics.com</a>.</p>"""
+    await _send(to_email, "Welcome to CVProAI — your account is ready", _wrap("Welcome", body))
 
 
-async def send_weekly_digest(email: str, name: str, new_jobs: int, active_applications: int, ats_score: int | None) -> None:
-    score_section = f"<p>Your ATS score: <strong>{ats_score}/100</strong></p>" if ats_score else ""
-    html = f"""
-    <div style="font-family:sans-serif;max-width:600px;margin:0 auto">
-      <h2 style="color:#6366f1">Your weekly career update, {name}</h2>
-      {score_section}
-      <p><strong>{new_jobs}</strong> new jobs matching your profile this week.</p>
-      <p>You have <strong>{active_applications}</strong> active applications in progress.</p>
-      <p>Open the CVPilot app to review your matches and update your applications.</p>
-      <p style="color:#6b7280;font-size:13px">CVPilot — Powered by Claude AI</p>
-    </div>
-    """
-    await _send_via_sendgrid(email, name, "Your weekly CVPilot update", html)
+# ── 2a. Job seeker: application submitted ─────────────────────────────────────
+async def send_application_submitted_email(to_email: str, name: str, job_title: str, company: str) -> None:
+    display = name or "there"
+    body = f"""
+<h1>Application submitted ✅</h1>
+<span class="badge badge-seeker">Job Seeker</span>
+<p>Hi {display}, your application has been recorded successfully.</p>
+<div class="divider"></div>
+<div class="detail-row"><span class="detail-label">Role</span><span><strong>{job_title}</strong></span></div>
+<div class="detail-row"><span class="detail-label">Company</span><span>{company}</span></div>
+<div class="divider"></div>
+<p>Track all your applications in the <strong>Applications</strong> tab inside CVProAI.</p>"""
+    await _send(to_email, f"Application submitted — {job_title} at {company}", _wrap("Application submitted", body))
 
 
-async def send_application_status_email(email: str, name: str, job_title: str, company: str, new_status: str) -> None:
-    status_labels = {
-        "screening": "Screening",
-        "interview": "Interview",
-        "offer": "Offer received",
-        "rejected": "Not selected",
-        "withdrawn": "Withdrawn",
-    }
-    label = status_labels.get(new_status, new_status.title())
-    html = f"""
-    <div style="font-family:sans-serif;max-width:600px;margin:0 auto">
-      <h2 style="color:#6366f1">Application update: {job_title} at {company}</h2>
-      <p>Hi {name},</p>
-      <p>Your application status has been updated to <strong>{label}</strong>.</p>
-      <p>Open CVPilot to view details and next steps.</p>
-      <p style="color:#6b7280;font-size:13px">CVPilot — Powered by Claude AI</p>
-    </div>
-    """
-    await _send_via_sendgrid(email, name, f"Application update: {job_title}", html)
+# ── 2b. Job seeker: application status changed ────────────────────────────────
+_STATUS_LABELS = {
+    "screening": "You're in screening 📋",
+    "interview": "Interview scheduled! 🗓",
+    "offer": "You received an offer! 🎉",
+    "rejected": "Application not selected",
+    "withdrawn": "Application withdrawn",
+}
+
+async def send_application_status_email(
+    to_email: str, name: str, job_title: str, company: str, new_status: str
+) -> None:
+    display = name or "there"
+    label = _STATUS_LABELS.get(new_status, new_status.replace("_", " ").title())
+    body = f"""
+<h1>Application update: {label}</h1>
+<span class="badge badge-seeker">Job Seeker</span>
+<p>Hi {display}, the status of your application has been updated.</p>
+<div class="divider"></div>
+<div class="detail-row"><span class="detail-label">Role</span><span><strong>{job_title}</strong></span></div>
+<div class="detail-row"><span class="detail-label">Company</span><span>{company}</span></div>
+<div class="detail-row"><span class="detail-label">New status</span><span><strong>{label}</strong></span></div>
+<div class="divider"></div>
+<p>Open CVProAI to view full details and next steps.</p>"""
+    await _send(to_email, f"Application update: {label} — {job_title}", _wrap("Application update", body))
+
+
+# ── 3. Job provider: listing submitted for review ─────────────────────────────
+async def send_listing_submitted_email(to_email: str, name: str, job_title: str, company: str) -> None:
+    display = name or "there"
+    body = f"""
+<h1>Job listing submitted for review 📝</h1>
+<span class="badge badge-provider">Job Provider</span>
+<p>Hi {display}, your listing has been submitted and is now pending admin review.</p>
+<div class="divider"></div>
+<div class="detail-row"><span class="detail-label">Title</span><span><strong>{job_title}</strong></span></div>
+<div class="detail-row"><span class="detail-label">Company</span><span>{company}</span></div>
+<div class="detail-row"><span class="detail-label">Status</span><span>⏳ Pending Review</span></div>
+<div class="divider"></div>
+<p>You'll receive another email once your listing is reviewed. This usually takes less than 24 hours.</p>"""
+    await _send(to_email, f"Listing submitted for review — {job_title}", _wrap("Listing submitted", body))
+
+
+# ── 4. Job provider: listing approved / rejected ──────────────────────────────
+async def send_listing_decision_email(
+    to_email: str, name: str, job_title: str, company: str, decision: str
+) -> None:
+    display = name or "there"
+    if decision == "approved":
+        status_line, headline = "✅ Live", "Your listing is now live! 🚀"
+        note = "Job seekers can now discover and apply to your listing in the CVProAI app."
+    else:
+        status_line, headline = "❌ Rejected", "Your listing was not approved"
+        note = ("Your listing did not meet our content guidelines. Please review and resubmit with accurate information. "
+                "Contact <a href='mailto:info@kdaanalytics.com'>info@kdaanalytics.com</a> if you need help.")
+    body = f"""
+<h1>{headline}</h1>
+<span class="badge badge-provider">Job Provider</span>
+<p>Hi {display}, the admin has reviewed your job listing.</p>
+<div class="divider"></div>
+<div class="detail-row"><span class="detail-label">Title</span><span><strong>{job_title}</strong></span></div>
+<div class="detail-row"><span class="detail-label">Company</span><span>{company}</span></div>
+<div class="detail-row"><span class="detail-label">Status</span><span><strong>{status_line}</strong></span></div>
+<div class="divider"></div>
+<p>{note}</p>"""
+    subject = f"Your listing is live — {job_title}" if decision == "approved" else f"Listing not approved — {job_title}"
+    await _send(to_email, subject, _wrap("Listing decision", body))
+
+
+# ── 5. Profile updated ────────────────────────────────────────────────────────
+async def send_profile_updated_email(to_email: str, name: str) -> None:
+    display = name or "there"
+    body = f"""
+<h1>Profile updated ✏️</h1>
+<p>Hi {display}, your CVProAI profile was updated successfully.</p>
+<p>If you didn't make this change, please contact us immediately at
+<a href="mailto:info@kdaanalytics.com">info@kdaanalytics.com</a>.</p>"""
+    await _send(to_email, "Your CVProAI profile was updated", _wrap("Profile updated", body))
+
+
+# ── 6. Forgot password OTP ────────────────────────────────────────────────────
+async def send_password_reset_otp_email(to_email: str, name: str, otp: str) -> None:
+    display = name or "there"
+    body = f"""
+<h1>Reset your password 🔐</h1>
+<p>Hi {display}, use the code below to reset your CVProAI password.
+The code expires in <strong>15 minutes</strong>.</p>
+<div class="otp">{otp}</div>
+<p>Enter this code in the app when prompted. Do <strong>not</strong> share it with anyone.</p>
+<div class="divider"></div>
+<p style="color:{_MUTED};font-size:13px">If you didn't request a password reset, you can safely ignore this email.</p>"""
+    await _send(to_email, "Your CVProAI password reset code", _wrap("Reset password", body))
+
+
+# ── Trial ending reminder ─────────────────────────────────────────────────────
+async def send_trial_ending_email(to_email: str, name: str) -> None:
+    display = name or "there"
+    body = f"""
+<h1>Your free trial ends today ⏰</h1>
+<p>Hi {display}, your 7-day free trial of CVProAI is coming to an end.</p>
+<p>Upgrade to <strong>Pro</strong> to keep access to:</p>
+<ul style="padding-left:20px;margin-bottom:16px;font-size:15px;line-height:1.8;color:#374151">
+  <li>Unlimited AI Career Coach chats</li>
+  <li>Unlimited interview prep &amp; cover letters</li>
+  <li>Up to 5 resume uploads</li>
+  <li>Unlimited application tracking</li>
+</ul>
+<p>Only <strong>&#8377;199/month</strong> — cancel anytime.</p>
+<div class="divider"></div>
+<p style="color:{_MUTED};font-size:13px">Open CVProAI and tap <em>Upgrade</em> to continue without interruption.</p>"""
+    await _send(to_email, "Your CVProAI free trial ends today — upgrade to Pro", _wrap("Trial ending", body))

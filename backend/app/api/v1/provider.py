@@ -7,6 +7,7 @@ from pydantic import BaseModel
 from app.dependencies import get_db, require_role
 from app.models.user import User
 from app.models.job import Job, Application
+from app.services.email_service import send_listing_submitted_email
 
 router = APIRouter(prefix="/provider", tags=["provider"])
 
@@ -87,6 +88,7 @@ async def create_job(
     db.add(job)
     await db.commit()
     await db.refresh(job)
+    await send_listing_submitted_email(current_user.email, current_user.name or "", job.title, job.company or "")
     return _job_to_dict(job)
 
 

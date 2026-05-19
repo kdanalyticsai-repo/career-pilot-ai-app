@@ -5,8 +5,10 @@ from sqlalchemy import select
 from fastapi import HTTPException, status
 
 from app.models.job import Application, Job
+from app.models.user import User
 from app.schemas.job import ApplicationCreate, ApplicationUpdate, ApplicationResponse, ApplicationJobInfo
 from app.services.notification_service import get_user_push_tokens, send_push_notifications
+from app.services.email_service import send_application_submitted_email, send_application_status_email
 
 STATUS_LABELS = {
     "applied": "Application submitted",
@@ -53,6 +55,14 @@ class ApplicationService:
         self.db.add(app)
         await self.db.commit()
         await self.db.refresh(app)
+
+        # Email: notify job seeker of submission
+        user_result = await self.db.execute(select(User).where(User.id == user_id))
+        user = user_result.scalar_one_or_none()
+        if user:
+            await send_application_submitted_email(
+                user.email, user.name or "", job.title, job.company or ""
+            )
 
         return self._to_response(app, job)
 
@@ -105,15 +115,23 @@ class ApplicationService:
         job = job_result.scalar_one_or_none()
 
         if status_changed and data.status:
+            job_title = job.title if job else "your application"
+            job_company = job.company if job else ""
+            label = STATUS_LABELS.get(data.status, data.status.replace("_", " ").title())
             tokens = await get_user_push_tokens(self.db, app.user_id)
             if tokens:
-                job_title = job.title if job else "your application"
-                label = STATUS_LABELS.get(data.status, data.status.replace("_", " ").title())
                 await send_push_notifications(
                     tokens,
                     title=f"Application Update — {job_title}",
                     body=label,
                     data={"type": "application_status", "application_id": str(app.id), "status": data.status},
+                )
+            # Email: notify job seeker of status change
+            user_result = await self.db.execute(select(User).where(User.id == app.user_id))
+            seeker = user_result.scalar_one_or_none()
+            if seeker:
+                await send_application_status_email(
+                    seeker.email, seeker.name or "", job_title, job_company, data.status
                 )
 
         return self._to_response(app, job)

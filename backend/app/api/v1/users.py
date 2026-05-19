@@ -9,6 +9,9 @@ from app.schemas.user import (
     UserResponse, UserUpdate, OnboardingCompleteRequest,
     JobProviderProfileResponse, ProviderProfileUpdateRequest,
 )
+from app.services.email_service import send_profile_updated_email
+from app.services.subscription_service import is_in_trial
+from datetime import timedelta, timezone
 from fastapi import status
 import uuid
 
@@ -17,7 +20,13 @@ router = APIRouter(prefix="/users", tags=["users"])
 
 @router.get("/me", response_model=UserResponse)
 async def get_me(current_user: User = Depends(get_current_active_user)):
-    return current_user
+    data = UserResponse.model_validate(current_user)
+    if is_in_trial(current_user):
+        created = current_user.created_at
+        if created.tzinfo is None:
+            created = created.replace(tzinfo=timezone.utc)
+        data.trial_ends_at = created + timedelta(days=7)
+    return data
 
 
 @router.patch("/me", response_model=UserResponse)
@@ -34,6 +43,7 @@ async def update_me(
         current_user.avatar_url = data.avatar_url
     await db.commit()
     await db.refresh(current_user)
+    await send_profile_updated_email(current_user.email, current_user.name or "")
     return current_user
 
 

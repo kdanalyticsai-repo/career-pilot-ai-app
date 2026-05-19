@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
@@ -128,9 +128,22 @@ async def get_all_usage(db: AsyncSession, user_id) -> dict[str, int]:
     return {row[0]: row[1] for row in result.all()}
 
 
+def is_in_trial(user: User) -> bool:
+    """True if user registered within the last 7 days."""
+    if not user.created_at:
+        return False
+    created = user.created_at
+    if created.tzinfo is None:
+        created = created.replace(tzinfo=timezone.utc)
+    return datetime.now(timezone.utc) - created < timedelta(days=7)
+
+
 def check_feature_access(user: User, feature: str) -> tuple[bool, str]:
     """Returns (allowed, reason). reason is empty when allowed."""
     if user.subscription == "pro":
+        return True, ""
+    # 7-day trial: unlimited access from registration date
+    if is_in_trial(user):
         return True, ""
 
     limit = FREE_LIMITS.get(feature)

@@ -1,4 +1,10 @@
-from fastapi import APIRouter, Depends
+import random
+import string
+from datetime import datetime, timedelta, timezone
+
+from fastapi import APIRouter, Depends, HTTPException, status
+from pydantic import BaseModel, EmailStr
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from google.oauth2 import id_token as google_id_token
 from google.auth.transport import requests as google_requests
@@ -9,11 +15,22 @@ from app.schemas.auth import (
     RefreshRequest, TokenResponse, MessageResponse, AdminLoginRequest,
 )
 from app.services.auth_service import AuthService
-from app.core.security import decode_refresh_token, create_access_token, create_refresh_token
+from app.services.email_service import send_welcome_email, send_password_reset_otp_email
+from app.core.security import decode_refresh_token, create_access_token, create_refresh_token, hash_password
 from app.config import settings
-from fastapi import HTTPException, status
+from app.models.user import User
 
 router = APIRouter(prefix="/auth", tags=["auth"])
+
+
+class ForgotPasswordRequest(BaseModel):
+    email: EmailStr
+
+
+class ResetPasswordRequest(BaseModel):
+    email: EmailStr
+    otp: str
+    new_password: str
 
 
 @router.post("/register", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
@@ -24,7 +41,8 @@ async def register(data: RegisterRequest, db: AsyncSession = Depends(get_db)):
             detail="This email address is reserved for admin use only. Please use a different email.",
         )
     service = AuthService(db)
-    _, access_token, refresh_token = await service.register(data)
+    user, access_token, refresh_token = await service.register(data)
+    await send_welcome_email(user.email, user.name or "", user.role)
     return TokenResponse(access_token=access_token, refresh_token=refresh_token)
 
 
@@ -86,5 +104,45 @@ async def refresh(data: RefreshRequest, db: AsyncSession = Depends(get_db)):
 
 @router.post("/logout", response_model=MessageResponse)
 async def logout():
-    # Token invalidation via blocklist can be added with Redis in a later phase
     return MessageResponse(message="Logged out successfully")
+
+
+@router.post("/forgot-password", response_model=MessageResponse)
+async def forgot_password(data: ForgotPasswordRequest, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(User).where(User.email == data.email))
+    user = result.scalar_one_or_none()
+    # Always return success to prevent email enumeration
+    if not user or not user.hashed_password:
+        return MessageResponse(message="If that email exists, a reset code has been sent.")
+
+    otp = "".join(random.choices(string.digits, k=6))
+    user.reset_otp = otp
+    user.reset_otp_expires_at = datetime.now(timezone.utc) + timedelta(minutes=15)
+    await db.commit()
+    await send_password_reset_otp_email(user.email, user.name or "", otp)
+    return MessageResponse(message="If that email exists, a reset code has been sent.")
+
+
+@router.post("/reset-password", response_model=MessageResponse)
+async def reset_password(data: ResetPasswordRequest, db: AsyncSession = Depends(get_db)):
+    if len(data.new_password) < 8:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Password must be at least 8 characters.")
+
+    result = await db.execute(select(User).where(User.email == data.email))
+    user = result.scalar_one_or_none()
+    if not user or not user.reset_otp:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid or expired reset code.")
+
+    now = datetime.now(timezone.utc)
+    expires = user.reset_otp_expires_at
+    if expires and expires.tzinfo is None:
+        expires = expires.replace(tzinfo=timezone.utc)
+
+    if user.reset_otp != data.otp or not expires or now > expires:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid or expired reset code.")
+
+    user.hashed_password = hash_password(data.new_password)
+    user.reset_otp = None
+    user.reset_otp_expires_at = None
+    await db.commit()
+    return MessageResponse(message="Password updated successfully.")

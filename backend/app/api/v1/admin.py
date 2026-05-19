@@ -8,6 +8,7 @@ from app.models.user import User
 from app.models.job import Job, Application
 from app.models.resume import Resume, ResumeSection
 from app.config import settings
+from app.services.email_service import send_listing_decision_email
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
@@ -220,6 +221,12 @@ async def approve_job(
     job.is_active = True
     job.review_status = "approved"
     await db.commit()
+    # Notify the job provider
+    if job.posted_by:
+        provider_result = await db.execute(select(User).where(User.id == job.posted_by))
+        provider = provider_result.scalar_one_or_none()
+        if provider:
+            await send_listing_decision_email(provider.email, provider.name or "", job.title, job.company or "", "approved")
     return {"status": "approved", "job_id": str(job_id)}
 
 
@@ -236,6 +243,12 @@ async def reject_job(
     job.review_status = "rejected"
     job.is_active = False
     await db.commit()
+    # Notify the job provider
+    if job.posted_by:
+        provider_result = await db.execute(select(User).where(User.id == job.posted_by))
+        provider = provider_result.scalar_one_or_none()
+        if provider:
+            await send_listing_decision_email(provider.email, provider.name or "", job.title, job.company or "", "rejected")
     return {"status": "rejected", "job_id": str(job_id)}
 
 

@@ -13,6 +13,7 @@ class UserResponse(BaseModel):
     subscription: str
     onboarded: bool
     created_at: datetime
+    trial_ends_at: datetime | None = None  # populated by the endpoint, not a DB column
 
     model_config = {"from_attributes": True}
 
