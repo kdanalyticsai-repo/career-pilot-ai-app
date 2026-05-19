@@ -139,6 +139,52 @@ async def list_pending_jobs(
     ]
 
 
+@router.get("/provider-jobs")
+async def list_provider_jobs(
+    _: User = Depends(_require_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(
+        select(Job, User)
+        .join(User, Job.posted_by == User.id)
+        .where(Job.source == "provider")
+        .order_by(Job.posted_at.desc())
+    )
+    rows = result.all()
+    return [
+        {
+            "id": str(job.id),
+            "title": job.title,
+            "company": job.company,
+            "location": job.location,
+            "review_status": job.review_status,
+            "is_active": job.is_active,
+            "job_type": job.job_type,
+            "experience_level": job.experience_level,
+            "remote_type": job.remote_type,
+            "posted_at": job.posted_at.isoformat() if job.posted_at else None,
+            "provider_name": user.name,
+            "provider_email": user.email,
+        }
+        for job, user in rows
+    ]
+
+
+@router.delete("/jobs/{job_id}", status_code=200)
+async def delete_job(
+    job_id: uuid.UUID,
+    _: User = Depends(_require_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(select(Job).where(Job.id == job_id))
+    job = result.scalar_one_or_none()
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    await db.execute(delete(Job).where(Job.id == job_id))
+    await db.commit()
+    return {"status": "deleted", "job_id": str(job_id)}
+
+
 @router.post("/jobs/{job_id}/approve", status_code=200)
 async def approve_job(
     job_id: uuid.UUID,

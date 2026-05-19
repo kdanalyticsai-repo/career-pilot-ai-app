@@ -56,6 +56,12 @@ export default function AdminScreen() {
     retry: false,
   });
 
+  const { data: providerJobsData, isLoading: providerJobsLoading, refetch: refetchProviderJobs } = useQuery({
+    queryKey: ['admin-provider-jobs'],
+    queryFn: () => api.get('/admin/provider-jobs').then(r => r.data),
+    retry: false,
+  });
+
   const { mutate: approveJob } = useMutation({
     mutationFn: (jobId: string) => api.post(`/admin/jobs/${jobId}/approve`),
     onSuccess: () => {
@@ -73,6 +79,18 @@ export default function AdminScreen() {
       qc.invalidateQueries({ queryKey: ['admin-stats'] });
       setSelectedJob(null);
       Alert.alert('Rejected', 'The listing has been rejected.');
+    },
+  });
+
+  const { mutate: deleteJob, isPending: deletingJob } = useMutation({
+    mutationFn: (jobId: string) => api.delete(`/admin/jobs/${jobId}`),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin-provider-jobs'] });
+      qc.invalidateQueries({ queryKey: ['admin-pending-jobs'] });
+      qc.invalidateQueries({ queryKey: ['admin-stats'] });
+    },
+    onError: (err: any) => {
+      Alert.alert('Error', err?.response?.data?.detail ?? 'Failed to delete listing.');
     },
   });
 
@@ -103,6 +121,17 @@ export default function AdminScreen() {
     },
   });
 
+  const confirmDeleteJob = (job: any) => {
+    Alert.alert(
+      'Delete Listing',
+      `Permanently delete "${job.title}" by ${job.provider_name ?? job.provider_email}?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Delete', style: 'destructive', onPress: () => deleteJob(job.id) },
+      ],
+    );
+  };
+
   const confirmDeleteUser = (user: any) => {
     Alert.alert(
       'Delete User',
@@ -127,11 +156,12 @@ export default function AdminScreen() {
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await Promise.all([refetchStats(), refetchUsers(), refetchPending()]);
+    await Promise.all([refetchStats(), refetchUsers(), refetchPending(), refetchProviderJobs()]);
     setRefreshing(false);
   };
 
   const pendingJobs: any[] = pendingJobsData ?? [];
+  const providerJobs: any[] = providerJobsData ?? [];
 
   if (statsLoading) {
     return (
@@ -242,6 +272,52 @@ export default function AdminScreen() {
                 </View>
               </TouchableOpacity>
             ))
+          )}
+        </View>
+
+        {/* Listed Jobs */}
+        <Text style={styles.sectionLabel}>LISTED JOBS ({providerJobs.length})</Text>
+        <View style={[styles.listCard, Shadow.sm]}>
+          {providerJobsLoading ? (
+            <ActivityIndicator color={Colors.primary} style={{ padding: Spacing.md }} />
+          ) : providerJobs.length === 0 ? (
+            <Text style={styles.emptyText}>No provider listings yet</Text>
+          ) : (
+            providerJobs.map((job: any, i: number) => {
+              const status = job.review_status ?? 'pending';
+              const statusColor =
+                status === 'approved' ? Colors.tertiary :
+                status === 'rejected' ? Colors.danger :
+                Colors.warning;
+              const statusLabel =
+                status === 'approved' ? 'LIVE' :
+                status === 'rejected' ? 'REJECTED' :
+                'PENDING';
+              return (
+                <View
+                  key={job.id}
+                  style={[styles.userRow, i < providerJobs.length - 1 && styles.userRowBorder]}
+                >
+                  <View style={styles.userInfo}>
+                    <Text style={styles.userName} numberOfLines={1}>{job.title}</Text>
+                    <Text style={styles.userEmail} numberOfLines={1}>{job.company} · {job.location}</Text>
+                    <Text style={styles.userDate}>By {job.provider_name ?? job.provider_email}</Text>
+                  </View>
+                  <View style={styles.userRowActions}>
+                    <View style={[styles.planChip, { backgroundColor: statusColor + '18' }]}>
+                      <Text style={[styles.planChipText, { color: statusColor, fontWeight: '700' }]}>{statusLabel}</Text>
+                    </View>
+                    <TouchableOpacity
+                      style={styles.deleteBtn}
+                      onPress={() => confirmDeleteJob(job)}
+                      disabled={deletingJob}
+                    >
+                      <Text style={styles.deleteBtnText}>🗑</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              );
+            })
           )}
         </View>
 
