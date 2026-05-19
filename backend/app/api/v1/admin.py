@@ -1,12 +1,12 @@
 import uuid
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
+from sqlalchemy import select, func, delete
 
 from app.dependencies import get_db, get_current_user
 from app.models.user import User
 from app.models.job import Job, Application
-from app.models.resume import Resume
+from app.models.resume import Resume, ResumeSection
 from app.config import settings
 
 router = APIRouter(prefix="/admin", tags=["admin"])
@@ -169,6 +169,50 @@ async def reject_job(
     job.is_active = False
     await db.commit()
     return {"status": "rejected", "job_id": str(job_id)}
+
+
+@router.delete("/purge-test-data", status_code=200)
+async def purge_test_data(
+    confirm: str = Query(default="", description="Must be 'yes' to proceed"),
+    _: User = Depends(_require_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Delete all non-admin users and their associated data. Irreversible."""
+    if confirm.lower() != "yes":
+        raise HTTPException(
+            status_code=400,
+            detail="Pass ?confirm=yes to confirm. This action permanently deletes all non-admin users and their data.",
+        )
+
+    # Count before deletion for the response
+    user_count_result = await db.execute(
+        select(func.count(User.id)).where(User.role != "admin")
+    )
+    users_to_delete = user_count_result.scalar() or 0
+
+    resume_count_result = await db.execute(
+        select(func.count(Resume.id)).join(User, Resume.user_id == User.id).where(User.role != "admin")
+    )
+    resumes_to_delete = resume_count_result.scalar() or 0
+
+    app_count_result = await db.execute(
+        select(func.count(Application.id)).join(User, Application.user_id == User.id).where(User.role != "admin")
+    )
+    apps_to_delete = app_count_result.scalar() or 0
+
+    # Delete — CASCADE handles resumes, resume_sections, job_matches, saved_jobs, applications
+    await db.execute(delete(User).where(User.role != "admin"))
+    await db.commit()
+
+    return {
+        "status": "purged",
+        "deleted": {
+            "users": users_to_delete,
+            "resumes": resumes_to_delete,
+            "applications": apps_to_delete,
+        },
+        "note": "Provider-posted jobs retained with posted_by set to NULL.",
+    }
 
 
 @router.get("/users")
