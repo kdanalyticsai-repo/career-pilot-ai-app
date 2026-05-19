@@ -40,7 +40,7 @@ class Settings(BaseSettings):
 
     # SendGrid email service
     SENDGRID_API_KEY: str = ""
-    SENDGRID_FROM_EMAIL: str = "noreply@kdaanalytics.com"
+    SENDGRID_FROM_EMAIL: str = "info@kdaanalytics.com"
     SENDGRID_FROM_NAME: str = "CVProAI"
 
     # Expo push notifications
