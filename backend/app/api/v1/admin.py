@@ -171,6 +171,26 @@ async def reject_job(
     return {"status": "rejected", "job_id": str(job_id)}
 
 
+@router.delete("/users/{user_id}", status_code=200)
+async def delete_user(
+    user_id: uuid.UUID,
+    current_admin: User = Depends(_require_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Delete a single user and all their associated data."""
+    if user_id == current_admin.id:
+        raise HTTPException(status_code=400, detail="You cannot delete your own admin account.")
+    result = await db.execute(select(User).where(User.id == user_id))
+    user = result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found.")
+    if user.role == "admin":
+        raise HTTPException(status_code=403, detail="Cannot delete another admin account.")
+    await db.execute(delete(User).where(User.id == user_id))
+    await db.commit()
+    return {"status": "deleted", "user_id": str(user_id)}
+
+
 @router.delete("/purge-test-data", status_code=200)
 async def purge_test_data(
     confirm: str = Query(default="", description="Must be 'yes' to proceed"),

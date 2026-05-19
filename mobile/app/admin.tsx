@@ -33,6 +33,11 @@ export default function AdminScreen() {
   const [selectedJob, setSelectedJob] = useState<any>(null);
   const qc = useQueryClient();
 
+  const handleSignOut = async () => {
+    await logout();
+    router.replace('/role-select' as any);
+  };
+
   const { data: stats, isLoading: statsLoading, refetch: refetchStats, error: statsError } = useQuery({
     queryKey: ['admin-stats'],
     queryFn: () => api.get('/admin/stats').then(r => r.data),
@@ -41,7 +46,7 @@ export default function AdminScreen() {
 
   const { data: usersData, isLoading: usersLoading, refetch: refetchUsers } = useQuery({
     queryKey: ['admin-users'],
-    queryFn: () => api.get('/admin/users?limit=20').then(r => r.data),
+    queryFn: () => api.get('/admin/users?limit=50').then(r => r.data),
     retry: false,
   });
 
@@ -70,6 +75,55 @@ export default function AdminScreen() {
       Alert.alert('Rejected', 'The listing has been rejected.');
     },
   });
+
+  const { mutate: deleteUser, isPending: deletingUser } = useMutation({
+    mutationFn: (userId: string) => api.delete(`/admin/users/${userId}`),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin-users'] });
+      qc.invalidateQueries({ queryKey: ['admin-stats'] });
+    },
+    onError: (err: any) => {
+      Alert.alert('Error', err?.response?.data?.detail ?? 'Failed to delete user.');
+    },
+  });
+
+  const { mutate: purgeAll, isPending: purging } = useMutation({
+    mutationFn: () => api.delete('/admin/purge-test-data?confirm=yes'),
+    onSuccess: (res) => {
+      qc.invalidateQueries({ queryKey: ['admin-users'] });
+      qc.invalidateQueries({ queryKey: ['admin-stats'] });
+      const d = res.data.deleted;
+      Alert.alert(
+        'Purge Complete',
+        `Deleted ${d.users} users, ${d.resumes} resumes, ${d.applications} applications.`,
+      );
+    },
+    onError: (err: any) => {
+      Alert.alert('Error', err?.response?.data?.detail ?? 'Purge failed.');
+    },
+  });
+
+  const confirmDeleteUser = (user: any) => {
+    Alert.alert(
+      'Delete User',
+      `Permanently delete ${user.name ?? user.email}?\n\nThis will also remove their resumes, applications, and all associated data.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Delete', style: 'destructive', onPress: () => deleteUser(user.id) },
+      ],
+    );
+  };
+
+  const confirmPurgeAll = () => {
+    Alert.alert(
+      '⚠️ Purge All Test Data',
+      'This will permanently delete ALL non-admin users and their resumes, applications, and saved jobs.\n\nThis cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Delete Everything', style: 'destructive', onPress: () => purgeAll() },
+      ],
+    );
+  };
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -107,7 +161,6 @@ export default function AdminScreen() {
   const jobs = stats?.jobs ?? {};
   const applications = stats?.applications ?? {};
   const resumes = stats?.resumes ?? {};
-
   const recentUsers: any[] = usersData?.users ?? [];
 
   return (
@@ -119,13 +172,18 @@ export default function AdminScreen() {
       >
         {/* Header */}
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backRow}>
+          <TouchableOpacity onPress={handleSignOut} style={styles.headerBtn}>
             <Text style={styles.backArrow}>‹</Text>
           </TouchableOpacity>
-          <View>
+          <View style={styles.headerCenter}>
             <Text style={styles.title}>Admin Dashboard</Text>
             <Text style={styles.subtitle}>Internal — do not share</Text>
           </View>
+          <TouchableOpacity onPress={onRefresh} style={styles.headerBtn} disabled={refreshing}>
+            {refreshing
+              ? <ActivityIndicator size="small" color={Colors.primary} />
+              : <Text style={styles.refreshIcon}>↻</Text>}
+          </TouchableOpacity>
         </View>
 
         {/* Users */}
@@ -148,11 +206,7 @@ export default function AdminScreen() {
             value={`₹${(rev.monthly_inr ?? 0).toLocaleString('en-IN')}`}
             sub="Based on pro users × ₹199"
           />
-          <StatCard
-            label="Pro Subs"
-            value={rev.pro_subscribers ?? 0}
-            color={Colors.primary}
-          />
+          <StatCard label="Pro Subs" value={rev.pro_subscribers ?? 0} color={Colors.primary} />
         </View>
 
         {/* Activity */}
@@ -165,10 +219,7 @@ export default function AdminScreen() {
 
         {/* Pending Jobs */}
         <Text style={styles.sectionLabel}>
-          PENDING JOB LISTINGS
-          {stats?.pending_provider_jobs > 0
-            ? ` (${stats.pending_provider_jobs})`
-            : ''}
+          PENDING JOB LISTINGS{stats?.pending_provider_jobs > 0 ? ` (${stats.pending_provider_jobs})` : ''}
         </Text>
         <View style={[styles.listCard, Shadow.sm]}>
           {pendingJobs.length === 0 ? (
@@ -202,31 +253,60 @@ export default function AdminScreen() {
           ) : recentUsers.length === 0 ? (
             <Text style={styles.emptyText}>No users yet</Text>
           ) : (
-            recentUsers.map((u: any, i: number) => (
+            recentUsers.map((user: any, i: number) => (
               <View
-                key={u.id}
+                key={user.id}
                 style={[styles.userRow, i < recentUsers.length - 1 && styles.userRowBorder]}
               >
                 <View style={styles.userAvatar}>
                   <Text style={styles.userAvatarText}>
-                    {(u.name ?? u.email ?? '?')[0].toUpperCase()}
+                    {(user.name ?? user.email ?? '?')[0].toUpperCase()}
                   </Text>
                 </View>
                 <View style={styles.userInfo}>
-                  <Text style={styles.userName} numberOfLines={1}>{u.name ?? '(no name)'}</Text>
-                  <Text style={styles.userEmail} numberOfLines={1}>{u.email}</Text>
+                  <Text style={styles.userName} numberOfLines={1}>{user.name ?? '(no name)'}</Text>
+                  <Text style={styles.userEmail} numberOfLines={1}>{user.email}</Text>
                   <Text style={styles.userDate}>
-                    Joined {new Date(u.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                    Joined {new Date(user.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
                   </Text>
                 </View>
-                <View style={[styles.planChip, u.subscription === 'pro' && styles.planChipPro]}>
-                  <Text style={[styles.planChipText, u.subscription === 'pro' && styles.planChipTextPro]}>
-                    {u.subscription === 'pro' ? 'PRO' : 'FREE'}
-                  </Text>
+                <View style={styles.userRowActions}>
+                  <View style={[styles.planChip, user.subscription === 'pro' && styles.planChipPro]}>
+                    <Text style={[styles.planChipText, user.subscription === 'pro' && styles.planChipTextPro]}>
+                      {user.subscription === 'pro' ? 'PRO' : 'FREE'}
+                    </Text>
+                  </View>
+                  <TouchableOpacity
+                    style={styles.deleteBtn}
+                    onPress={() => confirmDeleteUser(user)}
+                    disabled={deletingUser}
+                  >
+                    <Text style={styles.deleteBtnText}>🗑</Text>
+                  </TouchableOpacity>
                 </View>
               </View>
             ))
           )}
+        </View>
+
+        {/* Danger Zone */}
+        <Text style={[styles.sectionLabel, { color: Colors.danger }]}>DANGER ZONE</Text>
+        <View style={[styles.dangerCard, Shadow.sm]}>
+          <View style={styles.dangerRow}>
+            <View style={styles.userInfo}>
+              <Text style={styles.dangerTitle}>Purge All Test Data</Text>
+              <Text style={styles.dangerDesc}>Permanently delete all non-admin users and their resumes, applications, and saved jobs.</Text>
+            </View>
+          </View>
+          <TouchableOpacity
+            style={[styles.dangerActionBtn, purging && { opacity: 0.6 }]}
+            onPress={confirmPurgeAll}
+            disabled={purging}
+          >
+            {purging
+              ? <ActivityIndicator size="small" color={Colors.danger} />
+              : <Text style={styles.dangerActionText}>Delete All Users</Text>}
+          </TouchableOpacity>
         </View>
 
         <Text style={styles.footer}>Pull to refresh · Data is live from backend</Text>
@@ -300,9 +380,11 @@ const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: Colors.background },
   container: { padding: Spacing.lg, paddingBottom: Spacing.xxl, gap: Spacing.md },
 
-  header: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, marginBottom: Spacing.sm },
-  backRow: { padding: 4 },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: Spacing.sm },
+  headerCenter: { flex: 1, alignItems: 'center' },
+  headerBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
   backArrow: { fontSize: 28, color: Colors.primary, fontWeight: '300', lineHeight: 32 },
+  refreshIcon: { fontSize: 22, color: Colors.primary, fontWeight: '400' },
   title: { ...Typography.h3, color: Colors.text },
   subtitle: { ...Typography.caption, color: Colors.danger, marginTop: 2, letterSpacing: 0.3 },
 
@@ -327,7 +409,7 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: Colors.borderSubtle, overflow: 'hidden',
   },
   emptyText: { ...Typography.body, color: Colors.textMuted, padding: Spacing.lg, textAlign: 'center' },
-  userRow: { flexDirection: 'row', alignItems: 'center', padding: Spacing.md, gap: Spacing.md },
+  userRow: { flexDirection: 'row', alignItems: 'center', padding: Spacing.md, gap: Spacing.sm },
   userRowBorder: { borderBottomWidth: 1, borderBottomColor: Colors.border },
   userAvatar: {
     width: 36, height: 36, borderRadius: 18,
@@ -339,6 +421,7 @@ const styles = StyleSheet.create({
   userName: { ...Typography.label, color: Colors.text },
   userEmail: { ...Typography.bodySmall, color: Colors.textSecondary },
   userDate: { ...Typography.caption, color: Colors.textMuted, marginTop: 1 },
+  userRowActions: { flexDirection: 'row', alignItems: 'center', gap: Spacing.xs },
   planChip: {
     backgroundColor: Colors.surfaceSecondary,
     borderRadius: Radius.full, paddingHorizontal: 8, paddingVertical: 3,
@@ -346,6 +429,27 @@ const styles = StyleSheet.create({
   planChipPro: { backgroundColor: Colors.primary + '15' },
   planChipText: { ...Typography.caption, color: Colors.textMuted, letterSpacing: 0.3 },
   planChipTextPro: { color: Colors.primary },
+  deleteBtn: {
+    width: 32, height: 32, borderRadius: Radius.sm,
+    backgroundColor: Colors.danger + '10',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  deleteBtnText: { fontSize: 14 },
+
+  dangerCard: {
+    backgroundColor: Colors.surface, borderRadius: Radius.lg,
+    borderWidth: 1.5, borderColor: Colors.danger + '40', overflow: 'hidden',
+    padding: Spacing.md, gap: Spacing.md,
+  },
+  dangerRow: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.sm },
+  dangerTitle: { ...Typography.label, color: Colors.danger },
+  dangerDesc: { ...Typography.bodySmall, color: Colors.textSecondary, marginTop: 2, lineHeight: 18 },
+  dangerActionBtn: {
+    borderWidth: 1.5, borderColor: Colors.danger + '60',
+    borderRadius: Radius.md, paddingVertical: 12,
+    alignItems: 'center', backgroundColor: Colors.danger + '08',
+  },
+  dangerActionText: { ...Typography.label, color: Colors.danger },
 
   errorWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: Spacing.xl, gap: Spacing.md },
   errorIcon: { fontSize: 48 },
