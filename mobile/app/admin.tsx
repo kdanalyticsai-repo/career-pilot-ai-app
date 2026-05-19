@@ -105,22 +105,6 @@ export default function AdminScreen() {
     },
   });
 
-  const { mutate: purgeAll, isPending: purging } = useMutation({
-    mutationFn: () => api.delete('/admin/purge-test-data?confirm=yes'),
-    onSuccess: (res) => {
-      qc.invalidateQueries({ queryKey: ['admin-users'] });
-      qc.invalidateQueries({ queryKey: ['admin-stats'] });
-      const d = res.data.deleted;
-      Alert.alert(
-        'Purge Complete',
-        `Deleted ${d.users} users, ${d.resumes} resumes, ${d.applications} applications.`,
-      );
-    },
-    onError: (err: any) => {
-      Alert.alert('Error', err?.response?.data?.detail ?? 'Purge failed.');
-    },
-  });
-
   const confirmDeleteJob = (job: any) => {
     Alert.alert(
       'Delete Listing',
@@ -139,17 +123,6 @@ export default function AdminScreen() {
       [
         { text: 'Cancel', style: 'cancel' },
         { text: 'Delete', style: 'destructive', onPress: () => deleteUser(user.id) },
-      ],
-    );
-  };
-
-  const confirmPurgeAll = () => {
-    Alert.alert(
-      '⚠️ Purge All Test Data',
-      'This will permanently delete ALL non-admin users and their resumes, applications, and saved jobs.\n\nThis cannot be undone.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Delete Everything', style: 'destructive', onPress: () => purgeAll() },
       ],
     );
   };
@@ -375,27 +348,7 @@ export default function AdminScreen() {
           )}
         </View>
 
-        {/* Danger Zone */}
-        <Text style={[styles.sectionLabel, { color: Colors.danger }]}>DANGER ZONE</Text>
-        <View style={[styles.dangerCard, Shadow.sm]}>
-          <View style={styles.dangerRow}>
-            <View style={styles.userInfo}>
-              <Text style={styles.dangerTitle}>Purge All Test Data</Text>
-              <Text style={styles.dangerDesc}>Permanently delete all non-admin users and their resumes, applications, and saved jobs.</Text>
-            </View>
-          </View>
-          <TouchableOpacity
-            style={[styles.dangerActionBtn, purging && { opacity: 0.6 }]}
-            onPress={confirmPurgeAll}
-            disabled={purging}
-          >
-            {purging
-              ? <ActivityIndicator size="small" color={Colors.danger} />
-              : <Text style={styles.dangerActionText}>Delete All Users</Text>}
-          </TouchableOpacity>
-        </View>
-
-        <Text style={styles.footer}>Pull to refresh · Data is live from backend</Text>
+        <Text style={styles.footer}>Tap ↻ on the top right to refresh</Text>
       </ScrollView>
 
       {/* Job Review Modal */}
@@ -521,21 +474,6 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
   },
   deleteBtnText: { fontSize: 14 },
-
-  dangerCard: {
-    backgroundColor: Colors.surface, borderRadius: Radius.lg,
-    borderWidth: 1.5, borderColor: Colors.danger + '40', overflow: 'hidden',
-    padding: Spacing.md, gap: Spacing.md,
-  },
-  dangerRow: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.sm },
-  dangerTitle: { ...Typography.label, color: Colors.danger },
-  dangerDesc: { ...Typography.bodySmall, color: Colors.textSecondary, marginTop: 2, lineHeight: 18 },
-  dangerActionBtn: {
-    borderWidth: 1.5, borderColor: Colors.danger + '60',
-    borderRadius: Radius.md, paddingVertical: 12,
-    alignItems: 'center', backgroundColor: Colors.danger + '08',
-  },
-  dangerActionText: { ...Typography.label, color: Colors.danger },
 
   errorWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: Spacing.xl, gap: Spacing.md },
   errorIcon: { fontSize: 48 },
