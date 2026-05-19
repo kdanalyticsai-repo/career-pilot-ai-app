@@ -1,5 +1,5 @@
 import uuid
-from fastapi import APIRouter, Depends, Request, HTTPException
+from fastapi import APIRouter, Depends, Request, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.dependencies import get_db, get_current_active_user
@@ -103,16 +103,39 @@ async def local_upload(
 @router.get("/{resume_id}/export-pdf")
 async def export_resume_pdf(
     resume_id: uuid.UUID,
-    current_user: User = Depends(get_current_active_user),
+    token: str | None = Query(None),
     db: AsyncSession = Depends(get_db),
+    request: Request = None,
 ):
     from fastapi.responses import Response
     from app.services.pdf_service import generate_resume_pdf
-    resume = await ResumeService(db).get_resume(resume_id, current_user.id)
-    # get_resume returns ResumeResponse schema; we need the ORM object
     from sqlalchemy import select as sa_select
     from app.models.resume import Resume as ResumeModel
-    result = await db.execute(sa_select(ResumeModel).where(ResumeModel.id == resume_id))
+    from app.core.security import decode_access_token
+
+    # Accept token from query param (browser download) or Authorization header (API calls)
+    access_token = token
+    if not access_token:
+        auth_header = (request.headers.get("Authorization") or "") if request else ""
+        if auth_header.startswith("Bearer "):
+            access_token = auth_header[7:]
+
+    if not access_token:
+        raise HTTPException(status_code=401, detail="Authentication required")
+
+    payload = decode_access_token(access_token)
+    if payload is None:
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
+
+    user_id = payload.get("sub")
+    user_result = await db.execute(sa_select(User).where(User.id == user_id))
+    current_user = user_result.scalar_one_or_none()
+    if not current_user:
+        raise HTTPException(status_code=401, detail="User not found")
+
+    result = await db.execute(sa_select(ResumeModel).where(
+        ResumeModel.id == resume_id, ResumeModel.user_id == current_user.id
+    ))
     resume_obj = result.scalar_one_or_none()
     if not resume_obj:
         raise HTTPException(status_code=404, detail="Resume not found")
