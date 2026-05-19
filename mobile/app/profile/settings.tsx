@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import {
-  View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, ActivityIndicator,
+  View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, ActivityIndicator, Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
@@ -109,8 +109,7 @@ export default function SettingsScreen() {
           label: 'Privacy Policy',
           icon: '🔒',
           sub: 'How we handle your data',
-          onPress: () =>
-            Alert.alert('Privacy Policy', 'CVProAI collects only the data required to provide resume matching and career coaching. Your resume data is stored securely and never shared with third parties without your consent.'),
+          onPress: () => Linking.openURL('https://kdaanalytics.com/cvproai/privacy/'),
         },
         {
           label: 'Terms of Service',
