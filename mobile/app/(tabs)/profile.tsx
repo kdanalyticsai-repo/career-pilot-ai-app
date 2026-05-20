@@ -250,11 +250,12 @@ const styles = StyleSheet.create({
   upgradeInlineText: { ...Typography.caption, color: Colors.primary, fontWeight: '600' },
 
   proBanner: {
-    backgroundColor: Colors.primaryLight + '30',
-    borderRadius: Radius.lg, borderWidth: 1, borderColor: Colors.primary + '25',
+    backgroundColor: HeroColors.base,
+    borderRadius: Radius.lg, borderWidth: 1, borderColor: 'rgba(91,46,255,0.5)',
     flexDirection: 'row', alignItems: 'center',
     padding: Spacing.md, gap: Spacing.md,
     marginHorizontal: Spacing.sm,
+    overflow: 'hidden',
   },
   proBannerIconWrap: {
     width: 40, height: 40, borderRadius: 20,
@@ -263,8 +264,8 @@ const styles = StyleSheet.create({
   },
   proBannerIcon: { fontSize: 18, color: Colors.textInverse },
   proBannerText: { flex: 1 },
-  proBannerTitle: { ...Typography.label, color: Colors.primaryDark, fontWeight: '700' },
-  proBannerSub: { ...Typography.caption, color: Colors.textSecondary, marginTop: 2 },
+  proBannerTitle: { ...Typography.label, color: HeroColors.text, fontWeight: '700' },
+  proBannerSub: { ...Typography.caption, color: HeroColors.textDim, marginTop: 2 },
 
   menuCard: {
     backgroundColor: Colors.surface,
@@ -295,10 +296,10 @@ const styles = StyleSheet.create({
   menuChevron: { fontSize: 16, color: Colors.textMuted },
 
   logoutBtn: {
-    borderWidth: 1.5, borderColor: Colors.danger + '50',
+    borderWidth: 1, borderColor: 'rgba(91,46,255,0.3)',
     borderRadius: Radius.lg, padding: Spacing.md, alignItems: 'center',
-    backgroundColor: Colors.danger + '08',
+    backgroundColor: HeroColors.base,
     marginHorizontal: Spacing.sm,
   },
-  logoutText: { ...Typography.label, color: Colors.danger, fontWeight: '700' },
+  logoutText: { ...Typography.label, color: Colors.textInverse, fontWeight: '700' },
 });

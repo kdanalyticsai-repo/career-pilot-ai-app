@@ -85,6 +85,7 @@ export default function RoleSelectScreen() {
               source={{ uri: SEEKER_IMAGE }}
               style={styles.cardImage}
               contentFit="cover"
+              contentPosition="top"
               placeholder={{ color: Colors.primary + '30' }}
               transition={400}
             />
@@ -244,7 +245,7 @@ const styles = StyleSheet.create({
     borderColor: Colors.borderSubtle,
   },
 
-  imageWrap: { height: 188, position: 'relative' },
+  imageWrap: { height: 210, position: 'relative' },
   cardImage: { width: '100%', height: '100%' },
   imageOverlay: {
     ...StyleSheet.absoluteFillObject,
