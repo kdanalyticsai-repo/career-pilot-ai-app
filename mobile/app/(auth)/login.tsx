@@ -69,7 +69,7 @@ export default function LoginScreen() {
             </View>
 
             {/* Glass form card */}
-            <View style={[styles.card, Shadow.md]}>
+            <View style={styles.card}>
               <Text style={styles.title}>Welcome back</Text>
               <Text style={styles.subtitle}>Sign in to continue your career journey</Text>
 
@@ -180,11 +180,9 @@ const styles = StyleSheet.create({
   tagline: { ...Typography.body, color: Colors.textMuted },
 
   card: {
-    backgroundColor: Colors.surfaceGlass,
+    backgroundColor: 'transparent',
     borderRadius: Radius.xl,
     padding: Spacing.lg,
-    borderWidth: 1,
-    borderColor: Colors.borderGlass,
   },
   title: { ...Typography.h2, color: Colors.text, marginBottom: 4 },
   subtitle: { ...Typography.body, color: Colors.textMuted, marginBottom: Spacing.lg },

@@ -9,7 +9,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQueryClient } from '@tanstack/react-query';
 import { api } from '@/services/api';
 import { uploadResumePdf } from '@/services/upload';
-import { Colors, Typography, Spacing, Radius, Shadow, HeroColors } from '@/constants/theme';
+import { Colors, Typography, Spacing, Radius, Shadow } from '@/constants/theme';
 
 export default function UploadResumeScreen() {
   const [fileName, setFileName] = useState<string | null>(null);
@@ -74,7 +74,7 @@ export default function UploadResumeScreen() {
 
         {/* Drop Zone */}
         <TouchableOpacity
-          style={[styles.pickArea, fileName && styles.pickAreaSelected, Shadow.sm]}
+          style={[styles.pickArea, fileName && styles.pickAreaSelected]}
           onPress={pickFile}
           disabled={isUploading}
           activeOpacity={0.85}

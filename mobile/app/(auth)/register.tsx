@@ -81,7 +81,7 @@ export default function RegisterScreen() {
               <Text style={styles.tagline}>{tagline}</Text>
             </View>
 
-            <View style={[styles.card, Shadow.md]}>
+            <View style={styles.card}>
               <Text style={styles.title}>{subtitle}</Text>
 
               {errorMsg ? (
