@@ -54,6 +54,7 @@ async def _create_order(uid: str, plan: str, amount: int) -> dict:
 @router.get("/payment-url")
 async def get_payment_url(
     plan: str = "monthly",
+    return_url: str = "cvpilot://payment-success",
     current_user: User = Depends(get_current_user),
 ):
     """Create a Razorpay Order and return the checkout URL."""
@@ -78,6 +79,7 @@ async def get_payment_url(
         "name": current_user.name or "",
         "amount": config["amount"],
         "plan": plan,
+        "return_url": return_url,
     })
     return {"url": f"https://kdaanalytics.com/cvproai/subscribe?{params}"}
 

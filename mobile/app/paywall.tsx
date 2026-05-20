@@ -6,6 +6,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
+import * as Linking from 'expo-linking';
 import { api } from '@/services/api';
 import { useAuthStore } from '@/stores/authStore';
 import { authService } from '@/services/auth';
@@ -58,44 +59,29 @@ export default function PaywallScreen() {
   async function handleUpgrade() {
     setIsLoading(true);
     try {
-      const { data } = await api.get(`/subscriptions/payment-url?plan=${selectedPlan}`);
+      // createURL returns exp:// in Expo Go, cvpilot:// in production — works in both environments
+      const returnUrl = Linking.createURL('payment-success');
+      const { data } = await api.get(
+        `/subscriptions/payment-url?plan=${selectedPlan}&return_url=${encodeURIComponent(returnUrl)}`
+      );
       setIsLoading(false);
 
+      // Open browser — resolves when page redirects to returnUrl or user closes manually
+      await WebBrowser.openAuthSessionAsync(data.url, returnUrl);
+
+      // Browser closed — poll for Pro upgrade (webhook fires within seconds of payment)
+      setVerifyingPayment(true);
       let upgraded = false;
-      let browserClosed = false;
-
-      // Poll every 3s while the browser is open — dismisses browser the moment Pro is confirmed
-      const backgroundPoll = (async () => {
-        for (let i = 0; i < 60 && !browserClosed; i++) {
-          await new Promise(r => setTimeout(r, 3000));
-          if (browserClosed) break;
-          const me = await authService.getMe().catch(() => null);
-          if (me?.subscription === 'pro') {
-            setUser(me);
-            upgraded = true;
-            WebBrowser.dismissAuthSession();
-            return;
-          }
+      for (let i = 0; i < 8; i++) {
+        await new Promise(r => setTimeout(r, 3000));
+        const me = await authService.getMe().catch(() => null);
+        if (me?.subscription === 'pro') {
+          setUser(me);
+          upgraded = true;
+          break;
         }
-      })();
-
-      // Open browser — resolves when closed (by dismissAuthSession or user action)
-      await WebBrowser.openAuthSessionAsync(data.url, 'cvpilot://');
-      browserClosed = true;
-
-      // If webhook hasn't confirmed Pro yet, poll 6 more times (18s) after browser closes
-      if (!upgraded) {
-        setVerifyingPayment(true);
-        for (let i = 0; i < 6 && !upgraded; i++) {
-          await new Promise(r => setTimeout(r, 3000));
-          const me = await authService.getMe().catch(() => null);
-          if (me?.subscription === 'pro') {
-            setUser(me);
-            upgraded = true;
-          }
-        }
-        setVerifyingPayment(false);
       }
+      setVerifyingPayment(false);
 
       if (upgraded) {
         router.replace('/(tabs)/profile');
