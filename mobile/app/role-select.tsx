@@ -5,7 +5,7 @@ import { router } from 'expo-router';
 import { useAuthStore } from '@/stores/authStore';
 import { Colors, Typography, Spacing, Radius, Shadow, HeroColors } from '@/constants/theme';
 
-const SEEKER_IMAGE = 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=700&h=360&fit=crop&q=80';
+const SEEKER_IMAGE = 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=700&h=600&fit=crop&crop=top&q=80';
 const PROVIDER_IMAGE = 'https://images.unsplash.com/photo-1600880292203-757bb62b4baf?w=700&h=360&fit=crop&q=80';
 
 const SEEKER_FEATURES = [

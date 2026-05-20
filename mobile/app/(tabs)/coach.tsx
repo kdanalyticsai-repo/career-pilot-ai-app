@@ -427,14 +427,15 @@ const styles = StyleSheet.create({
 
   histHeader: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    backgroundColor: Colors.surface, padding: Spacing.md,
-    borderBottomWidth: 1, borderBottomColor: Colors.border,
+    backgroundColor: HeroColors.base,
+    paddingHorizontal: Spacing.md, paddingBottom: Spacing.md, paddingTop: Spacing.xxl,
+    borderBottomWidth: 1, borderBottomColor: 'rgba(91,46,255,0.3)',
   },
   backBtnWrap: { minWidth: 60 },
-  backBtn: { ...Typography.label, color: Colors.primary },
-  histTitle: { ...Typography.h4, color: Colors.text },
+  backBtn: { ...Typography.label, color: HeroColors.textDim },
+  histTitle: { ...Typography.h4, color: HeroColors.text },
   newChatWrap: { minWidth: 60, alignItems: 'flex-end' },
-  newChatBtn: { ...Typography.label, color: Colors.primary },
+  newChatBtn: { ...Typography.label, color: Colors.tertiaryBright },
   histList: { padding: Spacing.md, paddingBottom: Spacing.xxl },
   histGroup: {
     ...Typography.caption, color: Colors.textMuted,

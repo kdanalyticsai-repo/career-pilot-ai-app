@@ -146,7 +146,7 @@ const styles = StyleSheet.create({
     borderWidth: 1.5, borderColor: Colors.border, borderStyle: 'dashed',
     borderRadius: Radius.xl, paddingVertical: Spacing.xl, paddingHorizontal: Spacing.lg,
     alignItems: 'center', marginBottom: Spacing.md,
-    backgroundColor: Colors.surface, gap: Spacing.sm,
+    backgroundColor: 'transparent', gap: Spacing.sm,
   },
   pickAreaSelected: {
     borderColor: Colors.primary, borderStyle: 'solid',

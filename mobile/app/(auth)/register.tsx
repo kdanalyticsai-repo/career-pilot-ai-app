@@ -171,11 +171,9 @@ const styles = StyleSheet.create({
   tagline: { ...Typography.body, color: Colors.textMuted, marginTop: 4 },
 
   card: {
-    backgroundColor: Colors.surfaceGlass,
+    backgroundColor: 'transparent',
     borderRadius: Radius.xl,
     padding: Spacing.lg,
-    borderWidth: 1,
-    borderColor: Colors.borderGlass,
   },
   title: { ...Typography.h3, color: Colors.text, marginBottom: Spacing.md },
 
