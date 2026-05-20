@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, ActivityIndicator, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Colors, Typography, Spacing, Radius, Shadow } from '@/constants/theme';
+import { Colors, Typography, Spacing, Radius, Shadow, HeroColors } from '@/constants/theme';
 import { apiClient } from '@/services/api';
 
 interface DashboardData {
@@ -279,8 +279,8 @@ const styles = StyleSheet.create({
 
   refreshBtn: {
     alignItems: 'center', padding: Spacing.md,
-    borderWidth: 1, borderColor: Colors.primary + '30',
-    borderRadius: Radius.lg, backgroundColor: Colors.primaryLight + '25',
+    borderWidth: 1, borderColor: 'rgba(91,46,255,0.3)',
+    borderRadius: Radius.lg, backgroundColor: HeroColors.base,
   },
-  refreshText: { ...Typography.label, color: Colors.primary, fontWeight: '700' },
+  refreshText: { ...Typography.label, color: Colors.textInverse, fontWeight: '700' },
 });
