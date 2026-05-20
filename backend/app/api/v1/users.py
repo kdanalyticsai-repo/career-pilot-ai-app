@@ -68,6 +68,19 @@ async def complete_onboarding(
             db.add(profile)
         if data.company_name is not None:
             profile.company_name = data.company_name
+        if data.company_size is not None:
+            profile.company_size = data.company_size
+        if data.preferences.industries:
+            profile.industry = data.preferences.industries[0]
+        # Store verification fields directly on User
+        if data.company_pan is not None:
+            current_user.company_pan = data.company_pan.upper()
+        if data.company_reg_no is not None:
+            current_user.company_reg_no = data.company_reg_no
+        if data.gstin is not None:
+            current_user.gstin = data.gstin.upper()
+        if data.total_vacancies is not None:
+            current_user.total_vacancies = data.total_vacancies
     else:
         result = await db.execute(
             select(JobSeekerProfile).where(JobSeekerProfile.user_id == current_user.id)
@@ -83,6 +96,8 @@ async def complete_onboarding(
         profile.preferred_locations = prefs.preferred_locations
         profile.min_salary = prefs.min_salary
         profile.desired_roles = prefs.desired_roles
+        if prefs.industries:
+            profile.industry = prefs.industries[0]
 
     await db.commit()
     await db.refresh(current_user)

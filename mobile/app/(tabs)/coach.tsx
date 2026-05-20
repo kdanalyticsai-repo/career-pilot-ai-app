@@ -9,6 +9,7 @@ import { router } from 'expo-router';
 import { api } from '@/services/api';
 import { useAuthStore } from '@/stores/authStore';
 import { Colors, Typography, Spacing, Radius, Shadow, HeroColors } from '@/constants/theme';
+import { formatTrialEnd } from '@/utils/subscription';
 
 const FREE_CHAT_LIMIT = 5;
 
@@ -107,6 +108,41 @@ export default function CoachTab() {
     setInput('');
     setShowHistory(false);
   };
+
+  const trialEnded = !isPro && usageData != null && !isTrial && usageData?.usage?.chat?.blocked;
+  if (trialEnded) {
+    return (
+      <SafeAreaView style={styles.safe} edges={['bottom']}>
+        <View style={styles.chatHeader}>
+          <View style={styles.aiAvatarLarge}>
+            <Text style={styles.aiAvatarText}>✦</Text>
+          </View>
+          <View style={styles.chatHeaderText}>
+            <Text style={styles.chatHeaderTitle}>AI Career Coach</Text>
+            <Text style={styles.chatHeaderSub}>Powered by AI · Always available</Text>
+          </View>
+        </View>
+        <View style={styles.trialWall}>
+          <View style={styles.trialIconWrap}>
+            <Text style={styles.trialIcon}>✦</Text>
+          </View>
+          <Text style={styles.trialTitle}>Your 7-day free trial has ended</Text>
+          {usageData?.trial_ends_at ? (
+            <Text style={styles.trialDate}>Ended on {formatTrialEnd(usageData)}</Text>
+          ) : null}
+          <Text style={styles.trialBody}>
+            Upgrade to Pro for unlimited AI coaching, cover letters, interview prep and more.
+          </Text>
+          <TouchableOpacity style={[styles.trialUpgradeBtn, Shadow.md]} onPress={() => router.push('/paywall')} activeOpacity={0.85}>
+            <Text style={styles.trialUpgradeBtnText}>Upgrade to Pro — ₹199/month</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.trialMaybeLater} onPress={() => router.push('/(tabs)' as any)} activeOpacity={0.7}>
+            <Text style={styles.trialMaybeLaterText}>Maybe Later</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   if (showHistory) {
     const groupedSessions = (sessions as Session[] ?? []).reduce<Record<string, Session[]>>((acc, s) => {
@@ -425,6 +461,35 @@ const styles = StyleSheet.create({
   },
   sendBtnDisabled: { backgroundColor: Colors.backgroundDim },
   sendBtnText: { color: Colors.textInverse, fontWeight: '700', fontSize: 18 },
+
+  trialWall: {
+    flex: 1, alignItems: 'center', justifyContent: 'center',
+    paddingHorizontal: Spacing.xl, gap: Spacing.md,
+  },
+  trialIconWrap: {
+    width: 72, height: 72, borderRadius: 36,
+    backgroundColor: HeroColors.base,
+    alignItems: 'center', justifyContent: 'center',
+    marginBottom: Spacing.sm,
+    borderWidth: 1, borderColor: Colors.primary + '40',
+    ...Shadow.md,
+  },
+  trialIcon: { fontSize: 32, color: Colors.tertiaryBright },
+  trialTitle: { fontSize: 20, fontWeight: '800', color: Colors.text, textAlign: 'center', letterSpacing: -0.3 },
+  trialDate: { ...Typography.caption, color: Colors.textMuted },
+  trialBody: {
+    ...Typography.body, color: Colors.textSecondary,
+    textAlign: 'center', lineHeight: 22,
+  },
+  trialUpgradeBtn: {
+    backgroundColor: Colors.primary, borderRadius: Radius.md,
+    paddingVertical: 15, paddingHorizontal: Spacing.xl,
+    alignItems: 'center', marginTop: Spacing.sm,
+    width: '100%',
+  },
+  trialUpgradeBtnText: { ...Typography.label, color: Colors.textInverse, fontSize: 16, fontWeight: '700' },
+  trialMaybeLater: { paddingVertical: Spacing.sm },
+  trialMaybeLaterText: { ...Typography.body, color: Colors.textMuted },
 
   histHeader: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',

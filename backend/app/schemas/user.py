@@ -12,6 +12,12 @@ class UserResponse(BaseModel):
     role: str
     subscription: str
     onboarded: bool
+    phone_verified: bool = False
+    company_pan: str | None = None
+    company_reg_no: str | None = None
+    gstin: str | None = None
+    total_vacancies: int | None = None
+    pan_verified: bool = False
     created_at: datetime
     trial_ends_at: datetime | None = None  # populated by the endpoint, not a DB column
 
@@ -40,6 +46,11 @@ class OnboardingCompleteRequest(BaseModel):
     preferences: UserPreferences
     # provider-only fields (ignored for job seekers)
     company_name: str | None = None
+    company_pan: str | None = None
+    company_reg_no: str | None = None
+    gstin: str | None = None
+    total_vacancies: int | None = None
+    company_size: str | None = None
 
 
 class JobSeekerProfileResponse(BaseModel):

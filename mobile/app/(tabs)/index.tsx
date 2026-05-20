@@ -2,11 +2,13 @@ import { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, StatusBar } from 'react-native';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useQuery } from '@tanstack/react-query';
 import { useAuthStore } from '@/stores/authStore';
 import { useResumeStore } from '@/stores/resumeStore';
 import { useResumes } from '@/hooks/useResumes';
 import { Colors, Typography, Spacing, Radius, Shadow, HeroColors } from '@/constants/theme';
 import { apiClient } from '@/services/api';
+import { isTrialEnded } from '@/utils/subscription';
 
 interface AnalyticsSummary {
   total: number;
@@ -45,6 +47,14 @@ export default function HomeScreen() {
   const scoreColor = getScoreColor(atsScore);
   const isPro = user?.subscription === 'pro';
 
+  const { data: usageData } = useQuery({
+    queryKey: ['my-usage'],
+    queryFn: () => apiClient.get('/subscriptions/my-usage').then((r) => r.data),
+    enabled: !isPro,
+    staleTime: 60_000,
+  });
+  const trialEnded = isTrialEnded(usageData);
+
   return (
     <View style={styles.root}>
       <StatusBar barStyle="light-content" backgroundColor={HeroColors.base} />
@@ -70,6 +80,17 @@ export default function HomeScreen() {
       </View>
 
       <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
+
+        {/* Trial-ended upgrade banner */}
+        {trialEnded && (
+          <TouchableOpacity style={[styles.trialBanner, Shadow.sm]} onPress={() => router.push('/paywall')} activeOpacity={0.85}>
+            <Text style={styles.trialBannerIcon}>⏰</Text>
+            <View style={styles.trialBannerText}>
+              <Text style={styles.trialBannerTitle}>Your free trial has ended</Text>
+              <Text style={styles.trialBannerSub}>Upgrade to Pro to unlock all AI features →</Text>
+            </View>
+          </TouchableOpacity>
+        )}
 
         {/* ATS Score + Quick Stats */}
         <View style={styles.scoreRow}>
@@ -233,6 +254,17 @@ const styles = StyleSheet.create({
   proBadgeText: { fontSize: 10, fontWeight: '800', color: '#ffd700', letterSpacing: 1.2 },
 
   container: { paddingHorizontal: Spacing.md, paddingTop: Spacing.md, paddingBottom: Spacing.xxl },
+
+  trialBanner: {
+    flexDirection: 'row', alignItems: 'center', gap: Spacing.md,
+    backgroundColor: '#FEF3C7', borderRadius: Radius.lg,
+    borderWidth: 1, borderColor: '#FDE68A',
+    padding: Spacing.md, marginBottom: Spacing.sm,
+  },
+  trialBannerIcon: { fontSize: 22 },
+  trialBannerText: { flex: 1 },
+  trialBannerTitle: { ...Typography.label, color: '#92400E', fontWeight: '700' },
+  trialBannerSub: { ...Typography.caption, color: '#B45309', marginTop: 2 },
 
   /* ── ATS + Stats row ── */
   scoreRow: { flexDirection: 'row', gap: Spacing.sm, marginBottom: Spacing.sm },

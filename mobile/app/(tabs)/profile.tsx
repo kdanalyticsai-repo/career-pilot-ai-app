@@ -7,6 +7,7 @@ import { useAuthStore } from '@/stores/authStore';
 import { authService } from '@/services/auth';
 import { api } from '@/services/api';
 import { Colors, Typography, Spacing, Radius, Shadow, HeroColors } from '@/constants/theme';
+import { isTrialEnded, formatTrialEnd } from '@/utils/subscription';
 
 function UsageBar({ used, limit, label }: { used: number; limit: number | null; label: string }) {
   const pct = limit == null || limit <= 0 ? 1 : Math.min(used / limit, 1);
@@ -74,6 +75,8 @@ export default function ProfileTab() {
     .toUpperCase() ?? '?';
 
   const usage = usageData?.usage ?? {};
+  const trialEnded = isTrialEnded(usageData);
+  const trialEndDate = formatTrialEnd(usageData);
 
   return (
     <SafeAreaView style={styles.safe} edges={['bottom']}>
@@ -101,18 +104,36 @@ export default function ProfileTab() {
           </TouchableOpacity>
         </View>
 
-        {/* Usage (free only) */}
+        {/* Usage / Trial-ended */}
         {!isPro && usageData && (
-          <View style={[styles.menuCard, Shadow.sm, { padding: Spacing.md }]}>
-            <Text style={styles.sectionLabel}>This Month's Usage</Text>
-            {usage.chat && <UsageBar label="AI Coach Chats" used={usage.chat.used ?? 0} limit={usage.chat.limit} />}
-            {usage.interview_prep && <UsageBar label="Interview Prep" used={usage.interview_prep.used ?? 0} limit={usage.interview_prep.limit} />}
-            {usage.cover_letter && <UsageBar label="Cover Letters" used={usage.cover_letter.used ?? 0} limit={usage.cover_letter.limit} />}
-            {usage.tailor && <UsageBar label="Resume Tailoring" used={usage.tailor.used ?? 0} limit={usage.tailor.limit} />}
-            <TouchableOpacity style={styles.upgradeInline} onPress={() => router.push('/paywall')} activeOpacity={0.8}>
-              <Text style={styles.upgradeInlineText}>Upgrade to Pro for unlimited access →</Text>
-            </TouchableOpacity>
-          </View>
+          trialEnded ? (
+            <View style={[styles.menuCard, Shadow.sm, { padding: Spacing.md }]}>
+              <View style={styles.trialEndedCard}>
+                <Text style={styles.trialEndedIcon}>⏰</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.trialEndedTitle}>Free trial ended</Text>
+                  {trialEndDate ? (
+                    <Text style={styles.trialEndedDate}>on {trialEndDate}</Text>
+                  ) : null}
+                  <Text style={styles.trialEndedBody}>Upgrade to Pro to continue using AI features.</Text>
+                </View>
+              </View>
+              <TouchableOpacity style={[styles.trialUpgradeBtn, Shadow.sm]} onPress={() => router.push('/paywall')} activeOpacity={0.85}>
+                <Text style={styles.trialUpgradeBtnText}>Upgrade to Pro →</Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <View style={[styles.menuCard, Shadow.sm, { padding: Spacing.md }]}>
+              <Text style={styles.sectionLabel}>This Month's Usage</Text>
+              {usage.chat && <UsageBar label="AI Coach Chats" used={usage.chat.used ?? 0} limit={usage.chat.limit} />}
+              {usage.interview_prep && <UsageBar label="Interview Prep" used={usage.interview_prep.used ?? 0} limit={usage.interview_prep.limit} />}
+              {usage.cover_letter && <UsageBar label="Cover Letters" used={usage.cover_letter.used ?? 0} limit={usage.cover_letter.limit} />}
+              {usage.tailor && <UsageBar label="Resume Tailoring" used={usage.tailor.used ?? 0} limit={usage.tailor.limit} />}
+              <TouchableOpacity style={styles.upgradeInline} onPress={() => router.push('/paywall')} activeOpacity={0.8}>
+                <Text style={styles.upgradeInlineText}>Upgrade to Pro for unlimited access →</Text>
+              </TouchableOpacity>
+            </View>
+          )
         )}
 
         {/* Pro banner */}
@@ -248,6 +269,17 @@ const styles = StyleSheet.create({
   },
   upgradeInline: { marginTop: Spacing.sm },
   upgradeInlineText: { ...Typography.caption, color: Colors.primary, fontWeight: '600' },
+
+  trialEndedCard: { flexDirection: 'row', gap: Spacing.md, alignItems: 'flex-start', marginBottom: Spacing.md },
+  trialEndedIcon: { fontSize: 22, marginTop: 2 },
+  trialEndedTitle: { ...Typography.label, color: Colors.text, fontWeight: '700' },
+  trialEndedDate: { ...Typography.caption, color: Colors.textMuted, marginTop: 1 },
+  trialEndedBody: { ...Typography.caption, color: Colors.textSecondary, marginTop: 4, lineHeight: 17 },
+  trialUpgradeBtn: {
+    backgroundColor: Colors.primary, borderRadius: Radius.md,
+    paddingVertical: 13, alignItems: 'center',
+  },
+  trialUpgradeBtnText: { ...Typography.label, color: Colors.textInverse, fontWeight: '700' },
 
   proBanner: {
     backgroundColor: HeroColors.base,

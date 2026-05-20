@@ -10,9 +10,16 @@ interface User {
   role: string;
   subscription: string;
   onboarded: boolean;
+  phone_verified: boolean;
   avatar_url: string | null;
   trial_ends_at: string | null;
   created_at: string;
+  // Provider company verification
+  company_pan: string | null;
+  company_reg_no: string | null;
+  gstin: string | null;
+  total_vacancies: number | null;
+  pan_verified: boolean;
 }
 
 interface AuthState {

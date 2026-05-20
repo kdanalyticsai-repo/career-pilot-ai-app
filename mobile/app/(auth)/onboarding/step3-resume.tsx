@@ -43,6 +43,7 @@ export default function OnboardingStep3() {
           experience_level: params.experienceLevel,
           remote_preference: params.remotePreference,
           job_types: String(params.jobTypes || '').split(',').map((t: string) => t.toLowerCase()),
+          industries: params.industry ? [String(params.industry)] : [],
         },
       });
 

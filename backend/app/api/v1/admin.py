@@ -344,3 +344,23 @@ async def list_users(
         "limit": limit,
         "offset": offset,
     }
+
+
+@router.post("/users/{user_id}/verify-pan", status_code=200)
+async def verify_provider_pan(
+    user_id: uuid.UUID,
+    _: User = Depends(_require_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Mark a job provider's company PAN as verified (admin only)."""
+    result = await db.execute(select(User).where(User.id == user_id))
+    user = result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    if user.role != "job_provider":
+        raise HTTPException(status_code=400, detail="User is not a job provider")
+    if not user.company_pan:
+        raise HTTPException(status_code=400, detail="Provider has not submitted a company PAN")
+    user.pan_verified = True
+    await db.commit()
+    return {"verified": True, "user_id": str(user_id), "company_pan": user.company_pan}

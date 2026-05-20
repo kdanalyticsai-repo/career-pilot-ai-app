@@ -9,13 +9,16 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from google.oauth2 import id_token as google_id_token
 from google.auth.transport import requests as google_requests
 
-from app.dependencies import get_db
+from app.dependencies import get_db, get_current_user
 from app.schemas.auth import (
     RegisterRequest, LoginRequest, GoogleAuthRequest,
     RefreshRequest, TokenResponse, MessageResponse, AdminLoginRequest,
 )
+from app.schemas.user import UserResponse
 from app.services.auth_service import AuthService
 from app.services.email_service import send_welcome_email, send_password_reset_otp_email
+from app.services.sms_service import send_otp_sms
+from app.services.subscription_service import is_in_trial
 from app.core.security import decode_refresh_token, create_access_token, create_refresh_token, hash_password
 from app.config import settings
 from app.models.user import User
@@ -121,6 +124,69 @@ async def forgot_password(data: ForgotPasswordRequest, db: AsyncSession = Depend
     await db.commit()
     await send_password_reset_otp_email(user.email, user.name or "", otp)
     return MessageResponse(message="If that email exists, a reset code has been sent.")
+
+
+class SendPhoneOtpRequest(BaseModel):
+    phone: str
+
+
+class VerifyPhoneOtpRequest(BaseModel):
+    otp: str
+
+
+@router.post("/send-phone-otp", response_model=MessageResponse)
+async def send_phone_otp(
+    data: SendPhoneOtpRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Send a 6-digit OTP to the user's phone number for verification."""
+    phone = data.phone.strip()
+    if not phone:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Phone number is required.")
+
+    otp = "".join(random.choices(string.digits, k=6))
+    current_user.phone = phone
+    current_user.phone_otp = otp
+    current_user.phone_otp_expires_at = datetime.now(timezone.utc) + timedelta(minutes=15)
+    await db.commit()
+
+    await send_otp_sms(phone, otp)
+    return MessageResponse(message="OTP sent to your mobile number.")
+
+
+@router.post("/verify-phone-otp", response_model=UserResponse)
+async def verify_phone_otp(
+    data: VerifyPhoneOtpRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Verify the phone OTP and mark the user's phone as verified."""
+    if not current_user.phone_otp:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No OTP pending. Please request a new code.")
+
+    now = datetime.now(timezone.utc)
+    expires = current_user.phone_otp_expires_at
+    if expires and expires.tzinfo is None:
+        expires = expires.replace(tzinfo=timezone.utc)
+
+    if current_user.phone_otp != data.otp or not expires or now > expires:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid or expired OTP.")
+
+    current_user.phone_verified = True
+    current_user.phone_otp = None
+    current_user.phone_otp_expires_at = None
+    await db.commit()
+    await db.refresh(current_user)
+
+    user_data = UserResponse.model_validate(current_user)
+    if is_in_trial(current_user):
+        from datetime import timedelta
+        created = current_user.created_at
+        if created.tzinfo is None:
+            created = created.replace(tzinfo=timezone.utc)
+        user_data.trial_ends_at = created + timedelta(days=7)
+    return user_data
 
 
 @router.post("/reset-password", response_model=MessageResponse)

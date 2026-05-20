@@ -42,6 +42,8 @@ export default function RootLayout() {
       router.replace('/role-select' as any);
     } else if (user?.role === 'admin') {
       router.replace('/admin' as any);
+    } else if (!user?.phone_verified) {
+      router.replace('/(auth)/verify-phone' as any);
     } else if (!user?.onboarded) {
       if (user?.role === 'job_provider') {
         router.replace('/(auth)/onboarding/provider-setup' as any);
@@ -56,7 +58,7 @@ export default function RootLayout() {
         registerForPushNotifications().catch(() => {});
       }
     }
-  }, [hydrated, isAuthenticated, user?.onboarded, user?.role]);
+  }, [hydrated, isAuthenticated, user?.phone_verified, user?.onboarded, user?.role]);
 
   return (
     <GestureHandlerRootView style={styles.root}>

@@ -136,24 +136,31 @@ async def get_my_usage(
     plan_data = PLANS.get(plan, PLANS["free"])
     features = plan_data["features"]
     trial = is_in_trial(current_user)
-    result = {}
 
-    for feature, monthly_limit in FREE_LIMITS.items():
+    # All AI features tracked
+    ai_features = ["chat", "interview_prep", "cover_letter", "tailor"]
+    result = {}
+    for feature in ai_features:
         used = usage.get(feature, 0)
         if plan == "pro":
-            result[feature] = {"used": used, "limit": None, "blocked": False}
+            result[feature] = {"used": used, "limit": None, "blocked": False, "reason": None}
         elif trial:
-            result[feature] = {"used": used, "limit": None, "blocked": False}
+            result[feature] = {"used": used, "limit": None, "blocked": False, "reason": None}
         else:
-            # Cap displayed used at the limit to avoid confusing "9/5" when
-            # usage accumulated during the trial period within the same month.
-            display_used = min(used, monthly_limit) if monthly_limit is not None else used
-            blocked = monthly_limit is None
-            result[feature] = {"used": display_used, "limit": monthly_limit, "blocked": blocked}
+            result[feature] = {"used": used, "limit": None, "blocked": True, "reason": "trial_ended"}
+
+    # Compute trial_ends_at
+    trial_ends_at = None
+    if current_user.created_at:
+        created = current_user.created_at
+        if created.tzinfo is None:
+            created = created.replace(tzinfo=timezone.utc)
+        trial_ends_at = (created + timedelta(days=7)).isoformat()
 
     return {
         "plan": plan,
         "is_trial": trial,
+        "trial_ends_at": trial_ends_at,
         "usage": result,
         "resume_uploads": features.get("resume_uploads"),
         "application_tracking": features.get("application_tracking"),

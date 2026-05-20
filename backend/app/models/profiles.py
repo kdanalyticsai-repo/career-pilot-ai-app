@@ -18,6 +18,7 @@ class JobSeekerProfile(Base):
     preferred_locations: Mapped[list | None] = mapped_column(JSON, nullable=True)
     min_salary: Mapped[int | None] = mapped_column(Integer, nullable=True)
     desired_roles: Mapped[list | None] = mapped_column(JSON, nullable=True)
+    industry: Mapped[str | None] = mapped_column(String(100), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 

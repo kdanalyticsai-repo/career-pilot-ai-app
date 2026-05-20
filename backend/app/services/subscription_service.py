@@ -57,13 +57,8 @@ PLANS = {
     },
 }
 
-# Monthly free-tier limits per feature (None = blocked entirely)
-FREE_LIMITS: dict[str, int | None] = {
-    "chat": 5,               # 5 messages/month on free plan
-    "interview_prep": 1,
-    "cover_letter": 1,
-    "tailor": 1,
-}
+# No partial free access — after trial, all AI features are blocked until Pro
+FREE_LIMITS: dict[str, int | None] = {}
 
 
 def _this_month() -> str:
@@ -142,31 +137,17 @@ def check_feature_access(user: User, feature: str) -> tuple[bool, str]:
     """Returns (allowed, reason). reason is empty when allowed."""
     if user.subscription == "pro":
         return True, ""
-    # 7-day trial: unlimited access from registration date
     if is_in_trial(user):
         return True, ""
-
-    limit = FREE_LIMITS.get(feature)
-    if limit is None:
-        return False, "upgrade_required"
-    return True, ""
+    # After trial: all AI features are blocked — upgrade to Pro required
+    return False, "trial_ended"
 
 
 async def check_usage_limit(
     db: AsyncSession, user: User, feature: str
 ) -> tuple[bool, str]:
-    """Returns (allowed, reason). Checks plan access then monthly limits."""
+    """Returns (allowed, reason). Checks plan access then usage limits."""
     allowed, reason = check_feature_access(user, feature)
     if not allowed:
         return False, reason
-
-    if user.subscription == "pro" or is_in_trial(user):
-        return True, ""
-
-    limit = FREE_LIMITS.get(feature)
-    if limit is not None:
-        used = await get_usage(db, user.id, feature)
-        if used >= limit:
-            return False, "monthly_limit_reached"
-
     return True, ""

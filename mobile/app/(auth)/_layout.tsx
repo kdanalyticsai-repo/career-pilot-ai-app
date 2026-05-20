@@ -10,6 +10,7 @@ export default function AuthLayout() {
       <Stack.Screen name="onboarding/step3-resume" />
       <Stack.Screen name="onboarding/provider-setup" />
       <Stack.Screen name="admin-login" />
+      <Stack.Screen name="verify-phone" />
     </Stack>
   );
 }

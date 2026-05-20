@@ -7,12 +7,14 @@ import { Colors, Typography, Spacing, Radius, Shadow } from '@/constants/theme';
 const EXPERIENCE_LEVELS = ['Entry', 'Mid', 'Senior', 'Lead', 'Executive'];
 const REMOTE_PREFS = ['Remote', 'Hybrid', 'On-site', 'Any'];
 const JOB_TYPES = ['Full-time', 'Part-time', 'Contract', 'Internship'];
+const INDUSTRIES = ['IT / Software', 'Finance', 'Healthcare', 'Marketing', 'Education', 'Manufacturing', 'Media', 'Other'];
 
 export default function OnboardingStep2() {
   const params = useLocalSearchParams();
   const [experienceLevel, setExperienceLevel] = useState('Mid');
   const [remotePreference, setRemotePreference] = useState('Any');
   const [selectedJobTypes, setSelectedJobTypes] = useState<string[]>(['Full-time']);
+  const [industry, setIndustry] = useState('');
 
   const toggleJobType = (type: string) => {
     setSelectedJobTypes((prev) =>
@@ -28,6 +30,7 @@ export default function OnboardingStep2() {
         experienceLevel: experienceLevel.toLowerCase(),
         remotePreference: remotePreference.toLowerCase().replace('-', ''),
         jobTypes: selectedJobTypes.join(','),
+        industry,
       },
     });
   };
@@ -88,6 +91,22 @@ export default function OnboardingStep2() {
             >
               <Text style={[styles.chipText, selectedJobTypes.includes(type) && styles.chipTextSelected]}>
                 {type}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        <Text style={styles.sectionLabel}>Industry</Text>
+        <View style={styles.chipRow}>
+          {INDUSTRIES.map((ind) => (
+            <TouchableOpacity
+              key={ind}
+              style={[styles.chip, industry === ind && styles.chipSelected]}
+              onPress={() => setIndustry(ind)}
+              activeOpacity={0.8}
+            >
+              <Text style={[styles.chipText, industry === ind && styles.chipTextSelected]}>
+                {ind}
               </Text>
             </TouchableOpacity>
           ))}

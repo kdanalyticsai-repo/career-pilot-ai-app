@@ -46,6 +46,16 @@ class User(Base):
     onboarded: Mapped[bool] = mapped_column(Boolean, default=False)
     reset_otp: Mapped[str | None] = mapped_column(String(6), nullable=True)
     reset_otp_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    # Phone verification
+    phone_otp: Mapped[str | None] = mapped_column(String(6), nullable=True)
+    phone_otp_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    phone_verified: Mapped[bool] = mapped_column(Boolean, default=False)
+    # Provider company verification
+    company_pan: Mapped[str | None] = mapped_column(String(10), nullable=True)
+    company_reg_no: Mapped[str | None] = mapped_column(String(30), nullable=True)
+    gstin: Mapped[str | None] = mapped_column(String(15), nullable=True)
+    total_vacancies: Mapped[int | None] = mapped_column(nullable=True)
+    pan_verified: Mapped[bool] = mapped_column(Boolean, default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
