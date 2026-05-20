@@ -160,7 +160,7 @@ async def check_usage_limit(
     if not allowed:
         return False, reason
 
-    if user.subscription == "pro":
+    if user.subscription == "pro" or is_in_trial(user):
         return True, ""
 
     limit = FREE_LIMITS.get(feature)

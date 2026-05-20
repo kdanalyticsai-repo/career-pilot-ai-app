@@ -91,7 +91,9 @@ class ApplicationService:
         now = datetime.now(timezone.utc)
         timeline = list(app.timeline or [])
 
-        if data.status and data.status != app.status:
+        status_changed = bool(data.status and data.status != app.status)
+
+        if status_changed:
             timeline.append({"status": data.status, "timestamp": now.isoformat(), "note": f"Status changed to {data.status}"})
             app.status = data.status
 
@@ -102,9 +104,6 @@ class ApplicationService:
         if data.next_action_date is not None:
             app.next_action_date = data.next_action_date
 
-        status_changed = data.status and data.status != app.status
-        old_status = app.status
-
         app.timeline = timeline
         app.updated_at = now
 
@@ -114,7 +113,7 @@ class ApplicationService:
         job_result = await self.db.execute(select(Job).where(Job.id == app.job_id))
         job = job_result.scalar_one_or_none()
 
-        if status_changed and data.status:
+        if status_changed:
             job_title = job.title if job else "your application"
             job_company = job.company if job else ""
             label = STATUS_LABELS.get(data.status, data.status.replace("_", " ").title())
