@@ -55,28 +55,47 @@ export default function PaywallScreen() {
   const trialDaysLeft = getTrialDaysLeft(user?.trial_ends_at);
   const activePlan = PLANS.find((p) => p.id === selectedPlan)!;
 
-  async function pollForProUpgrade(): Promise<boolean> {
-    for (let i = 0; i < 6; i++) {
-      await new Promise(r => setTimeout(r, 3000));
-      const updated = await authService.getMe().catch(() => null);
-      if (updated?.subscription === 'pro') {
-        setUser(updated);
-        return true;
-      }
-    }
-    return false;
-  }
-
   async function handleUpgrade() {
     setIsLoading(true);
     try {
       const { data } = await api.get(`/subscriptions/payment-url?plan=${selectedPlan}`);
-      await WebBrowser.openAuthSessionAsync(data.url, 'cvpilot://');
-
       setIsLoading(false);
-      setVerifyingPayment(true);
-      const upgraded = await pollForProUpgrade();
-      setVerifyingPayment(false);
+
+      let upgraded = false;
+      let browserClosed = false;
+
+      // Poll every 3s while the browser is open — dismisses browser the moment Pro is confirmed
+      const backgroundPoll = (async () => {
+        for (let i = 0; i < 60 && !browserClosed; i++) {
+          await new Promise(r => setTimeout(r, 3000));
+          if (browserClosed) break;
+          const me = await authService.getMe().catch(() => null);
+          if (me?.subscription === 'pro') {
+            setUser(me);
+            upgraded = true;
+            WebBrowser.dismissAuthSession();
+            return;
+          }
+        }
+      })();
+
+      // Open browser — resolves when closed (by dismissAuthSession or user action)
+      await WebBrowser.openAuthSessionAsync(data.url, 'cvpilot://');
+      browserClosed = true;
+
+      // If webhook hasn't confirmed Pro yet, poll 6 more times (18s) after browser closes
+      if (!upgraded) {
+        setVerifyingPayment(true);
+        for (let i = 0; i < 6 && !upgraded; i++) {
+          await new Promise(r => setTimeout(r, 3000));
+          const me = await authService.getMe().catch(() => null);
+          if (me?.subscription === 'pro') {
+            setUser(me);
+            upgraded = true;
+          }
+        }
+        setVerifyingPayment(false);
+      }
 
       if (upgraded) {
         router.replace('/(tabs)/profile');
