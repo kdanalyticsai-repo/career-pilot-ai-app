@@ -16,7 +16,7 @@ from app.schemas.auth import (
 )
 from app.schemas.user import UserResponse
 from app.services.auth_service import AuthService
-from app.services.email_service import send_welcome_email, send_password_reset_otp_email
+from app.services.email_service import send_welcome_email, send_password_reset_otp_email, send_phone_otp_email
 from app.services.sms_service import send_otp_sms
 from app.services.subscription_service import is_in_trial
 from app.core.security import decode_refresh_token, create_access_token, create_refresh_token, hash_password
@@ -151,8 +151,10 @@ async def send_phone_otp(
     current_user.phone_otp_expires_at = datetime.now(timezone.utc) + timedelta(minutes=15)
     await db.commit()
 
+    # Always send via email (reliable fallback); also attempt SMS when API key is configured
+    await send_phone_otp_email(current_user.email, current_user.name or "", otp, phone)
     await send_otp_sms(phone, otp)
-    return MessageResponse(message="OTP sent to your mobile number.")
+    return MessageResponse(message="OTP sent to your mobile number and email.")
 
 
 @router.post("/verify-phone-otp", response_model=UserResponse)

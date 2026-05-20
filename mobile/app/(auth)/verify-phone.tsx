@@ -168,7 +168,7 @@ export default function VerifyPhoneScreen() {
               ) : (
                 <>
                   <Text style={styles.title}>Enter verification code</Text>
-                  <Text style={styles.subtitle}>Sent to +91 {phone}</Text>
+                  <Text style={styles.subtitle}>Sent to +91 {phone} and your email</Text>
 
                   {errorMsg ? (
                     <View style={styles.errorBox}>

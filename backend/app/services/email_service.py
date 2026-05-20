@@ -238,3 +238,17 @@ async def send_trial_ending_email(to_email: str, name: str) -> None:
 <div class="divider"></div>
 <p style="color:{_MUTED};font-size:13px">Open CVProAI and tap <em>Upgrade</em> to continue without interruption.</p>"""
     await _send(to_email, "Your CVProAI free trial ends today — upgrade to Pro", _wrap("Trial ending", body))
+
+
+# ── Phone verification OTP ────────────────────────────────────────────────────
+async def send_phone_otp_email(to_email: str, name: str, otp: str, phone: str) -> None:
+    display = name or "there"
+    body = f"""
+<h1>Verify your mobile number 📱</h1>
+<p>Hi {display}, use the code below to verify your mobile number <strong>{phone}</strong> on CVProAI.
+The code expires in <strong>15 minutes</strong>.</p>
+<div class="otp">{otp}</div>
+<p>Enter this code in the app when prompted. Do <strong>not</strong> share it with anyone.</p>
+<div class="divider"></div>
+<p style="color:{_MUTED};font-size:13px">If you didn't request this, you can safely ignore this email.</p>"""
+    await _send(to_email, f"CVProAI verification code: {otp}", _wrap("Verify mobile", body))
