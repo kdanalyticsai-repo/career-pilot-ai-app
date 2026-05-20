@@ -79,7 +79,7 @@ async def get_payment_url(
         "amount": config["amount"],
         "plan": plan,
     })
-    return {"url": f"https://kdaanalytics.com/cvpilot/subscribe?{params}"}
+    return {"url": f"https://kdaanalytics.com/cvproai/subscribe?{params}"}
 
 
 # ── Webhook ───────────────────────────────────────────────────────────────────
