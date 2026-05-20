@@ -1,1 +1,1 @@
-# CVPilot — AI-Powered Career Coach
+# CVProAI — AI-Powered Career Platform
