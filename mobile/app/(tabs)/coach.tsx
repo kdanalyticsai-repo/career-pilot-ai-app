@@ -3,7 +3,7 @@ import {
   View, Text, StyleSheet, FlatList, TextInput, TouchableOpacity,
   ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, Alert,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { router } from 'expo-router';
 import { api } from '@/services/api';
@@ -27,6 +27,7 @@ const STARTER_PROMPTS = [
 export default function CoachTab() {
   const { user } = useAuthStore();
   const isPro = user?.subscription === 'pro';
+  const insets = useSafeAreaInsets();
   const [input, setInput] = useState('');
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -113,7 +114,7 @@ export default function CoachTab() {
   if (trialEnded) {
     return (
       <SafeAreaView style={styles.safe} edges={['bottom']}>
-        <View style={styles.chatHeader}>
+        <View style={[styles.chatHeader, { paddingTop: (Spacing.sm + 2) + insets.top }]}>
           <View style={styles.aiAvatarLarge}>
             <Text style={styles.aiAvatarText}>✦</Text>
           </View>
@@ -160,7 +161,7 @@ export default function CoachTab() {
 
     return (
       <SafeAreaView style={styles.safe} edges={['bottom']}>
-        <View style={styles.histHeader}>
+        <View style={[styles.histHeader, { paddingTop: Spacing.md + insets.top }]}>
           <TouchableOpacity onPress={() => setShowHistory(false)} style={styles.backBtnWrap}>
             <Text style={styles.backBtn}>← Back</Text>
           </TouchableOpacity>
@@ -206,7 +207,7 @@ export default function CoachTab() {
       <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
 
         {/* Header — dark glass style */}
-        <View style={styles.chatHeader}>
+        <View style={[styles.chatHeader, { paddingTop: (Spacing.sm + 2) + insets.top }]}>
           <View style={styles.aiAvatarLarge}>
             <Text style={styles.aiAvatarText}>✦</Text>
           </View>
@@ -494,7 +495,7 @@ const styles = StyleSheet.create({
   histHeader: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
     backgroundColor: HeroColors.base,
-    paddingHorizontal: Spacing.md, paddingBottom: Spacing.md, paddingTop: Spacing.xxl,
+    paddingHorizontal: Spacing.md, paddingBottom: Spacing.md,
     borderBottomWidth: 1, borderBottomColor: 'rgba(91,46,255,0.3)',
   },
   backBtnWrap: { minWidth: 60 },

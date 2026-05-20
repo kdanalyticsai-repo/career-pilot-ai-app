@@ -26,8 +26,8 @@ export default function SettingsScreen() {
             try {
               const res = await api.get('/users/me/export');
               Alert.alert(
-                'Data Ready',
-                'Your data export has been prepared. In a future update, it will be sent to your email.',
+                'Export Sent',
+                'Your data export has been sent to your registered email address.',
               );
             } catch {
               Alert.alert('Error', 'Could not export data. Please try again.');

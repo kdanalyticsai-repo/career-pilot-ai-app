@@ -241,6 +241,20 @@ async def send_trial_ending_email(to_email: str, name: str) -> None:
 
 
 # ── Phone verification OTP ────────────────────────────────────────────────────
+async def send_data_export_email(to_email: str, name: str, rows: list[tuple[str, str]]) -> None:
+    display = name or "there"
+    table_rows = "".join(_dr(label, value) for label, value in rows)
+    body = f"""
+<h1>Your CVProAI data export 📦</h1>
+<p>Hi {display}, here is a copy of the data we hold for your account.
+If anything looks wrong, please contact us at <a href="mailto:info@kdaanalytics.com">info@kdaanalytics.com</a>.</p>
+<div class="divider"></div>
+{table_rows}
+<div class="divider"></div>
+<p style="color:{_MUTED};font-size:13px">To delete your account and all data, use the Delete Account option in Settings.</p>"""
+    await _send(to_email, "Your CVProAI data export", _wrap("Data export", body))
+
+
 async def send_phone_otp_email(to_email: str, name: str, otp: str, phone: str) -> None:
     display = name or "there"
     body = f"""
