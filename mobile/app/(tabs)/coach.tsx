@@ -8,7 +8,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { router } from 'expo-router';
 import { api } from '@/services/api';
 import { useAuthStore } from '@/stores/authStore';
-import { Colors, Typography, Spacing, Radius, Shadow } from '@/constants/theme';
+import { Colors, Typography, Spacing, Radius, Shadow, HeroColors } from '@/constants/theme';
 
 const FREE_CHAT_LIMIT = 5;
 
@@ -139,7 +139,7 @@ export default function CoachTab() {
               {items.map((s) => (
                 <TouchableOpacity key={s.id} style={[styles.histItem, Shadow.sm]} onPress={() => loadSession(s.id)}>
                   <View style={styles.histItemIcon}>
-                    <Text style={{ fontSize: 14 }}>✦</Text>
+                    <Text style={{ fontSize: 14, color: Colors.primary }}>✦</Text>
                   </View>
                   <View style={styles.histItemContent}>
                     <Text style={styles.histItemTitle} numberOfLines={1}>{s.title}</Text>
@@ -167,26 +167,27 @@ export default function CoachTab() {
   return (
     <SafeAreaView style={styles.safe} edges={['bottom']}>
       <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-        {/* Header */}
+
+        {/* Header — dark glass style */}
         <View style={styles.chatHeader}>
           <View style={styles.aiAvatarLarge}>
             <Text style={styles.aiAvatarText}>✦</Text>
           </View>
           <View style={styles.chatHeaderText}>
             <Text style={styles.chatHeaderTitle}>AI Career Coach</Text>
-            <Text style={styles.chatHeaderSub}>Powered by LLMs</Text>
+            <Text style={styles.chatHeaderSub}>Powered by AI · Always available</Text>
           </View>
           <View style={styles.headerActions}>
             <TouchableOpacity onPress={() => setShowHistory(true)} style={styles.headerBtn}>
               <Text style={styles.headerBtnText}>History</Text>
             </TouchableOpacity>
             <TouchableOpacity onPress={newChat} style={[styles.headerBtn, styles.headerBtnPrimary]}>
-              <Text style={[styles.headerBtnText, { color: Colors.primary }]}>New</Text>
+              <Text style={[styles.headerBtnText, { color: Colors.primary }]}>+ New</Text>
             </TouchableOpacity>
           </View>
         </View>
 
-        {/* Free plan usage banner */}
+        {/* Usage banner */}
         {!isPro && (
           <TouchableOpacity
             style={[styles.usageBanner, limitReached && styles.usageBannerLimit]}
@@ -195,8 +196,8 @@ export default function CoachTab() {
           >
             <Text style={[styles.usageBannerText, limitReached && { color: Colors.danger }]}>
               {limitReached
-                ? `Monthly limit reached (${FREE_CHAT_LIMIT}/${FREE_CHAT_LIMIT} chats used) · Tap to upgrade`
-                : `${chatsRemaining} free chat${chatsRemaining !== 1 ? 's' : ''} remaining this month · Upgrade for unlimited`}
+                ? `Monthly limit reached (${FREE_CHAT_LIMIT}/${FREE_CHAT_LIMIT}) · Tap to upgrade`
+                : `${chatsRemaining} free chat${chatsRemaining !== 1 ? 's' : ''} remaining · Upgrade for unlimited`}
             </Text>
           </TouchableOpacity>
         )}
@@ -204,18 +205,26 @@ export default function CoachTab() {
         {/* Messages or Starter */}
         {messages.length === 0 ? (
           <ScrollView contentContainerStyle={styles.starterContainer} showsVerticalScrollIndicator={false}>
-            <Text style={styles.starterHeading}>How can I help you?</Text>
-            <Text style={styles.starterSubheading}>Ask me anything about your career journey</Text>
+            <View style={styles.starterHeroWrap}>
+              <View style={styles.starterHeroIcon}>
+                <Text style={styles.starterHeroIconText}>✦</Text>
+              </View>
+              <Text style={styles.starterHeading}>How can I help you?</Text>
+              <Text style={styles.starterSubheading}>Ask me anything about your career journey</Text>
+            </View>
             <View style={styles.starterGrid}>
               {STARTER_PROMPTS.map((p) => (
                 <TouchableOpacity
                   key={p.text}
                   style={[styles.starterCard, Shadow.sm]}
-                  onPress={() => { setInput(p.text); sendMessage(p.text); setInput(''); }}
+                  onPress={() => { sendMessage(p.text); }}
                   activeOpacity={0.85}
                 >
-                  <Text style={styles.starterEmoji}>{p.emoji}</Text>
+                  <View style={styles.starterEmojiWrap}>
+                    <Text style={styles.starterEmoji}>{p.emoji}</Text>
+                  </View>
                   <Text style={styles.starterText}>{p.text}</Text>
+                  <Text style={styles.starterArrow}>›</Text>
                 </TouchableOpacity>
               ))}
             </View>
@@ -239,7 +248,10 @@ export default function CoachTab() {
                     <Text style={styles.avatarText}>✦</Text>
                   </View>
                 )}
-                <View style={[styles.bubbleContent, item.role === 'user' ? styles.userContent : styles.assistantContent]}>
+                <View style={[
+                  styles.bubbleContent,
+                  item.role === 'user' ? styles.userContent : styles.assistantContent,
+                ]}>
                   <Text style={[styles.bubbleText, item.role === 'user' ? styles.userText : styles.assistantText]}>
                     {item.content}
                   </Text>
@@ -254,7 +266,7 @@ export default function CoachTab() {
                   </View>
                   <View style={[styles.bubbleContent, styles.assistantContent]}>
                     <View style={styles.typingDots}>
-                      <ActivityIndicator size="small" color={Colors.primary} />
+                      <ActivityIndicator size="small" color={Colors.tertiaryBright} />
                       <Text style={styles.typingText}>Thinking…</Text>
                     </View>
                   </View>
@@ -295,13 +307,13 @@ const styles = StyleSheet.create({
   flex: { flex: 1 },
 
   usageBanner: {
-    backgroundColor: Colors.primaryLight + '60',
+    backgroundColor: Colors.primaryLight + '50',
     borderBottomWidth: 1, borderBottomColor: Colors.primary + '20',
     paddingVertical: 8, paddingHorizontal: Spacing.md,
     alignItems: 'center',
   },
   usageBannerLimit: {
-    backgroundColor: Colors.danger + '12',
+    backgroundColor: Colors.danger + '10',
     borderBottomColor: Colors.danger + '30',
   },
   usageBannerText: {
@@ -311,53 +323,81 @@ const styles = StyleSheet.create({
 
   chatHeader: {
     flexDirection: 'row', alignItems: 'center',
-    backgroundColor: Colors.surface, paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm,
-    borderBottomWidth: 1, borderBottomColor: Colors.border, gap: Spacing.sm,
+    backgroundColor: HeroColors.base,
+    paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm + 2,
+    gap: Spacing.sm,
+    borderBottomWidth: 1, borderBottomColor: 'rgba(91,46,255,0.3)',
   },
   aiAvatarLarge: {
-    width: 36, height: 36, borderRadius: 18,
-    backgroundColor: Colors.primary, alignItems: 'center', justifyContent: 'center',
+    width: 38, height: 38, borderRadius: 19,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.25)',
+    alignItems: 'center', justifyContent: 'center',
   },
-  aiAvatarText: { color: Colors.textInverse, fontSize: 16 },
+  aiAvatarText: { color: Colors.tertiaryBright, fontSize: 16 },
   chatHeaderText: { flex: 1 },
-  chatHeaderTitle: { ...Typography.h4, color: Colors.text },
-  chatHeaderSub: { ...Typography.caption, color: Colors.textMuted },
+  chatHeaderTitle: { ...Typography.h4, color: HeroColors.text },
+  chatHeaderSub: { ...Typography.caption, color: HeroColors.textDim },
   headerActions: { flexDirection: 'row', gap: Spacing.xs },
   headerBtn: {
     paddingHorizontal: Spacing.sm, paddingVertical: 6, borderRadius: Radius.full,
-    backgroundColor: Colors.surfaceSecondary, borderWidth: 1, borderColor: Colors.border,
+    backgroundColor: 'rgba(255,255,255,0.1)', borderWidth: 1, borderColor: HeroColors.border,
   },
-  headerBtnPrimary: { backgroundColor: Colors.primaryLight + '50', borderColor: Colors.primary + '40' },
-  headerBtnText: { ...Typography.caption, color: Colors.textSecondary, fontWeight: '600' },
+  headerBtnPrimary: {
+    backgroundColor: Colors.primaryLight + '20', borderColor: Colors.primaryLight + '40',
+  },
+  headerBtnText: { ...Typography.caption, color: HeroColors.textDim, fontWeight: '600' },
 
-  starterContainer: { padding: Spacing.lg },
-  starterHeading: { ...Typography.h2, color: Colors.text, marginBottom: 4 },
-  starterSubheading: { ...Typography.body, color: Colors.textSecondary, marginBottom: Spacing.lg },
+  starterContainer: { padding: Spacing.lg, paddingBottom: Spacing.xxl },
+  starterHeroWrap: { alignItems: 'center', marginBottom: Spacing.xl },
+  starterHeroIcon: {
+    width: 64, height: 64, borderRadius: 32,
+    backgroundColor: HeroColors.base,
+    alignItems: 'center', justifyContent: 'center',
+    marginBottom: Spacing.md,
+    borderWidth: 1, borderColor: Colors.primary + '40',
+    ...Shadow.md,
+  },
+  starterHeroIconText: { fontSize: 28, color: Colors.tertiaryBright },
+  starterHeading: { ...Typography.h2, color: Colors.text, marginBottom: 4, textAlign: 'center' },
+  starterSubheading: { ...Typography.body, color: Colors.textSecondary, textAlign: 'center' },
   starterGrid: { gap: Spacing.sm },
   starterCard: {
     backgroundColor: Colors.surface, borderRadius: Radius.lg, padding: Spacing.md,
     flexDirection: 'row', alignItems: 'center', gap: Spacing.sm,
     borderWidth: 1, borderColor: Colors.borderSubtle,
   },
-  starterEmoji: { fontSize: 20, width: 30 },
+  starterEmojiWrap: {
+    width: 36, height: 36, borderRadius: 10,
+    backgroundColor: Colors.primaryLight,
+    alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+  },
+  starterEmoji: { fontSize: 18 },
   starterText: { ...Typography.label, color: Colors.text, flex: 1 },
+  starterArrow: { fontSize: 20, color: Colors.textMuted, fontWeight: '300' },
 
   messageList: { padding: Spacing.md, gap: Spacing.sm, paddingBottom: Spacing.md },
   bubble: { flexDirection: 'row', gap: Spacing.sm, alignItems: 'flex-end' },
   userBubble: { justifyContent: 'flex-end' },
   assistantBubble: { justifyContent: 'flex-start' },
   assistantAvatar: {
-    width: 28, height: 28, borderRadius: 14,
-    backgroundColor: Colors.primary, justifyContent: 'center', alignItems: 'center',
+    width: 30, height: 30, borderRadius: 15,
+    backgroundColor: HeroColors.base,
+    borderWidth: 1, borderColor: Colors.primary + '40',
+    justifyContent: 'center', alignItems: 'center',
+    flexShrink: 0,
   },
-  avatarText: { color: Colors.textInverse, fontSize: 12 },
+  avatarText: { color: Colors.tertiaryBright, fontSize: 12 },
   bubbleContent: { maxWidth: '80%', borderRadius: Radius.lg, padding: Spacing.md },
   userContent: {
-    backgroundColor: Colors.primary, borderBottomRightRadius: 4,
+    backgroundColor: Colors.primary,
+    borderBottomRightRadius: 4,
+    ...Shadow.sm,
   },
   assistantContent: {
-    backgroundColor: Colors.surface, borderBottomLeftRadius: 4,
-    borderWidth: 1, borderColor: Colors.border,
+    backgroundColor: Colors.surfaceGlass,
+    borderBottomLeftRadius: 4,
+    borderWidth: 1, borderColor: Colors.tertiaryBright + '35',
     ...Shadow.sm,
   },
   bubbleText: { ...Typography.body, lineHeight: 22 },
@@ -372,15 +412,17 @@ const styles = StyleSheet.create({
     padding: Spacing.sm, gap: Spacing.sm, alignItems: 'flex-end',
   },
   textInput: {
-    flex: 1, backgroundColor: Colors.surfaceSecondary, borderRadius: Radius.lg,
+    flex: 1, backgroundColor: Colors.surfaceLow, borderRadius: Radius.lg,
     paddingHorizontal: Spacing.md, paddingVertical: 10, maxHeight: 100,
-    ...Typography.body, color: Colors.text, borderWidth: 1, borderColor: Colors.border,
+    ...Typography.body, color: Colors.text,
+    borderWidth: 1.5, borderColor: Colors.border,
   },
   sendBtn: {
-    width: 40, height: 40, borderRadius: 20,
+    width: 42, height: 42, borderRadius: 21,
     backgroundColor: Colors.primary, justifyContent: 'center', alignItems: 'center',
+    ...Shadow.sm,
   },
-  sendBtnDisabled: { backgroundColor: Colors.surfaceMid },
+  sendBtnDisabled: { backgroundColor: Colors.backgroundDim },
   sendBtnText: { color: Colors.textInverse, fontWeight: '700', fontSize: 18 },
 
   histHeader: {
@@ -406,7 +448,7 @@ const styles = StyleSheet.create({
   },
   histItemIcon: {
     width: 36, height: 36, borderRadius: 18,
-    backgroundColor: Colors.primaryLight + '50', alignItems: 'center', justifyContent: 'center',
+    backgroundColor: Colors.primaryLight, alignItems: 'center', justifyContent: 'center',
   },
   histItemContent: { flex: 1 },
   histItemTitle: { ...Typography.label, color: Colors.text },

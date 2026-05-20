@@ -10,7 +10,7 @@ import * as Linking from 'expo-linking';
 import { api } from '@/services/api';
 import { useAuthStore } from '@/stores/authStore';
 import { authService } from '@/services/auth';
-import { Colors, Typography, Spacing, Radius, Shadow } from '@/constants/theme';
+import { Colors, Typography, Spacing, Radius, Shadow, HeroColors } from '@/constants/theme';
 
 type PlanId = 'monthly' | 'quarterly' | 'yearly';
 
@@ -22,21 +22,21 @@ const PLANS: {
   savings: string | null;
   badge: string | null;
 }[] = [
-  { id: 'monthly',   label: 'Monthly',   price: '₹199',   per: '/month',   savings: null,      badge: null           },
-  { id: 'quarterly', label: 'Quarterly', price: '₹499',   per: '/quarter', savings: 'Save ₹98', badge: 'MOST POPULAR' },
-  { id: 'yearly',    label: 'Yearly',    price: '₹1,499', per: '/year',    savings: 'Save ₹889', badge: 'BEST VALUE'  },
+  { id: 'monthly',   label: 'Monthly',   price: '₹199',   per: '/month',   savings: null,        badge: null           },
+  { id: 'quarterly', label: 'Quarterly', price: '₹499',   per: '/quarter', savings: 'Save ₹98',  badge: 'MOST POPULAR' },
+  { id: 'yearly',    label: 'Yearly',    price: '₹1,499', per: '/year',    savings: 'Save ₹889', badge: 'BEST VALUE'   },
 ];
 
 const PRO_FEATURES = [
-  { label: 'Up to 5 resumes' },
-  { label: 'Unlimited job matches' },
-  { label: 'Full ATS score breakdown' },
-  { label: 'Unlimited interview prep' },
-  { label: 'Unlimited cover letters' },
-  { label: '10 resume tailorings / month' },
-  { label: 'Unlimited application tracking' },
-  { label: 'AI Career Coach (unlimited)', highlight: true },
-  { label: '24h email support' },
+  { label: 'Up to 5 resumes', icon: '📄' },
+  { label: 'Unlimited job matches', icon: '🎯' },
+  { label: 'Full ATS score breakdown', icon: '📊' },
+  { label: 'Unlimited interview prep', icon: '🎤' },
+  { label: 'Unlimited cover letters', icon: '✉️' },
+  { label: '10 resume tailorings / month', icon: '✂️' },
+  { label: 'Unlimited application tracking', icon: '📋' },
+  { label: 'AI Career Coach — unlimited', icon: '🤖', highlight: true },
+  { label: '24h email support', icon: '💬' },
 ];
 
 function getTrialDaysLeft(trialEndsAt: string | null | undefined): number | null {
@@ -59,17 +59,14 @@ export default function PaywallScreen() {
   async function handleUpgrade() {
     setIsLoading(true);
     try {
-      // createURL returns exp:// in Expo Go, cvpilot:// in production — works in both environments
       const returnUrl = Linking.createURL('payment-success');
       const { data } = await api.get(
         `/subscriptions/payment-url?plan=${selectedPlan}&return_url=${encodeURIComponent(returnUrl)}`
       );
       setIsLoading(false);
 
-      // Open browser — resolves when page redirects to returnUrl or user closes manually
       await WebBrowser.openAuthSessionAsync(data.url, returnUrl);
 
-      // Browser closed — poll for Pro upgrade (webhook fires within seconds of payment)
       setVerifyingPayment(true);
       let upgraded = false;
       for (let i = 0; i < 8; i++) {
@@ -107,14 +104,14 @@ export default function PaywallScreen() {
     <SafeAreaView style={styles.safe} edges={['bottom']}>
       <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
 
-        {/* Header */}
+        {/* Close button */}
         <View style={styles.headerWrap}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-            <Text style={styles.backBtnText}>✕</Text>
+          <TouchableOpacity onPress={() => router.back()} style={styles.closeBtn}>
+            <Text style={styles.closeBtnText}>✕</Text>
           </TouchableOpacity>
         </View>
 
-        {/* Trial banner */}
+        {/* Trial banners */}
         {trialDaysLeft !== null && trialDaysLeft > 0 && (
           <View style={styles.trialBanner}>
             <Text style={styles.trialBannerText}>
@@ -132,16 +129,17 @@ export default function PaywallScreen() {
 
         {/* Hero */}
         <View style={styles.hero}>
-          <View style={styles.heroIcon}>
+          <View style={styles.heroOrb} />
+          <View style={styles.heroIconWrap}>
             <Text style={styles.heroIconText}>✦</Text>
           </View>
-          <Text style={styles.heroTitle}>Apply smarter. Get hired faster.</Text>
+          <Text style={styles.heroTitle}>Apply smarter.{'\n'}Get hired faster.</Text>
           <Text style={styles.heroSub}>
-            Upgrade to Pro and get unlimited AI coaching, job matching, and resume tools.
+            Upgrade to Pro and unlock unlimited AI coaching, job matching, and resume tools.
           </Text>
         </View>
 
-        {/* Plan selector */}
+        {/* Plan Selector */}
         <Text style={styles.sectionLabel}>Choose your plan</Text>
         <View style={styles.planList}>
           {PLANS.map((plan) => {
@@ -149,33 +147,24 @@ export default function PaywallScreen() {
             return (
               <TouchableOpacity
                 key={plan.id}
-                style={[styles.planCard, selected && styles.planCardSelected]}
+                style={[styles.planCard, selected && styles.planCardSelected, Shadow.sm]}
                 onPress={() => setSelectedPlan(plan.id)}
                 activeOpacity={0.8}
               >
-                {/* Radio dot */}
                 <View style={[styles.radio, selected && styles.radioSelected]}>
                   {selected && <View style={styles.radioDot} />}
                 </View>
-
-                {/* Plan name + badge */}
                 <View style={styles.planInfo}>
                   <View style={styles.planNameRow}>
-                    <Text style={[styles.planName, selected && styles.planNameSelected]}>
-                      {plan.label}
-                    </Text>
+                    <Text style={[styles.planName, selected && styles.planNameSelected]}>{plan.label}</Text>
                     {plan.badge && (
                       <View style={[styles.planBadge, plan.badge === 'MOST POPULAR' ? styles.planBadgePopular : styles.planBadgeBest]}>
                         <Text style={styles.planBadgeText}>{plan.badge}</Text>
                       </View>
                     )}
                   </View>
-                  {plan.savings && (
-                    <Text style={styles.planSavings}>{plan.savings}</Text>
-                  )}
+                  {plan.savings && <Text style={styles.planSavings}>{plan.savings}</Text>}
                 </View>
-
-                {/* Price */}
                 <View style={styles.planPriceWrap}>
                   <Text style={[styles.planPrice, selected && styles.planPriceSelected]}>{plan.price}</Text>
                   <Text style={styles.planPer}>{plan.per}</Text>
@@ -185,15 +174,15 @@ export default function PaywallScreen() {
           })}
         </View>
 
-        {/* Pro features */}
+        {/* Features */}
         <View style={[styles.featuresCard, Shadow.sm]}>
           <Text style={styles.featuresTitle}>Everything in Pro</Text>
           {PRO_FEATURES.map((f) => (
             <View key={f.label} style={styles.featureRow}>
-              <Text style={[styles.featureCheck, f.highlight && { color: Colors.tertiary }]}>✓</Text>
-              <Text style={[styles.featureLabel, f.highlight && styles.featureLabelHighlight]}>
-                {f.label}
-              </Text>
+              <View style={[styles.featureIconWrap, f.highlight && { backgroundColor: Colors.tertiaryBright + '20' }]}>
+                <Text style={styles.featureIcon}>{f.icon}</Text>
+              </View>
+              <Text style={[styles.featureLabel, f.highlight && styles.featureLabelHighlight]}>{f.label}</Text>
             </View>
           ))}
         </View>
@@ -206,7 +195,7 @@ export default function PaywallScreen() {
           </View>
         ) : (
           <TouchableOpacity
-            style={[styles.upgradeBtn, (isLoading || verifyingPayment) && { opacity: 0.7 }]}
+            style={[styles.upgradeBtn, Shadow.lg, (isLoading || verifyingPayment) && { opacity: 0.7 }]}
             onPress={handleUpgrade}
             disabled={isLoading || verifyingPayment}
             activeOpacity={0.85}
@@ -244,26 +233,47 @@ const styles = StyleSheet.create({
   container: { padding: Spacing.lg, paddingBottom: Spacing.xxl },
 
   headerWrap: { alignItems: 'flex-end', marginBottom: Spacing.sm },
-  backBtn: {
+  closeBtn: {
     width: 32, height: 32, borderRadius: 16,
-    backgroundColor: Colors.surfaceSecondary,
+    backgroundColor: Colors.backgroundDim,
     alignItems: 'center', justifyContent: 'center',
   },
-  backBtnText: { fontSize: 14, color: Colors.textSecondary, fontWeight: '700' },
+  closeBtnText: { fontSize: 14, color: Colors.textSecondary, fontWeight: '700' },
 
-  hero: { alignItems: 'center', marginBottom: Spacing.xl },
-  heroIcon: {
+  trialBanner: {
+    backgroundColor: Colors.primaryLight + '50', borderRadius: Radius.md,
+    paddingHorizontal: Spacing.md, paddingVertical: 10,
+    marginBottom: Spacing.md, borderWidth: 1, borderColor: Colors.primary + '25',
+  },
+  trialBannerExpired: {
+    backgroundColor: Colors.danger + '10', borderColor: Colors.danger + '30',
+  },
+  trialBannerText: { ...Typography.body, color: Colors.primary, textAlign: 'center' },
+
+  /* Hero */
+  hero: {
+    backgroundColor: HeroColors.base,
+    borderRadius: Radius.xl, padding: Spacing.xl,
+    alignItems: 'center', marginBottom: Spacing.lg,
+    overflow: 'hidden',
+    borderWidth: 1, borderColor: 'rgba(91,46,255,0.3)',
+  },
+  heroOrb: {
+    position: 'absolute', width: 200, height: 200, borderRadius: 100,
+    backgroundColor: Colors.primary, opacity: 0.3, top: -80, right: -40,
+  },
+  heroIconWrap: {
     width: 72, height: 72, borderRadius: 36,
-    backgroundColor: Colors.primary,
+    backgroundColor: 'rgba(255,255,255,0.12)',
+    borderWidth: 1, borderColor: HeroColors.border,
     alignItems: 'center', justifyContent: 'center',
     marginBottom: Spacing.md,
-    ...Shadow.md,
   },
-  heroIconText: { fontSize: 32, color: Colors.textInverse },
-  heroTitle: { ...Typography.h2, color: Colors.text, textAlign: 'center', marginBottom: Spacing.sm },
-  heroSub: { ...Typography.body, color: Colors.textSecondary, textAlign: 'center', lineHeight: 22 },
+  heroIconText: { fontSize: 32, color: Colors.tertiaryBright },
+  heroTitle: { fontSize: 26, fontWeight: '800', color: HeroColors.text, textAlign: 'center', marginBottom: Spacing.sm, letterSpacing: -0.4, lineHeight: 34 },
+  heroSub: { ...Typography.body, color: HeroColors.textDim, textAlign: 'center', lineHeight: 22 },
 
-  sectionLabel: { ...Typography.label, color: Colors.textSecondary, fontWeight: '600', marginBottom: Spacing.sm },
+  sectionLabel: { ...Typography.label, color: Colors.textSecondary, fontWeight: '700', marginBottom: Spacing.sm },
 
   planList: { gap: Spacing.sm, marginBottom: Spacing.lg },
   planCard: {
@@ -273,11 +283,11 @@ const styles = StyleSheet.create({
   },
   planCardSelected: {
     borderColor: Colors.primary,
-    backgroundColor: Colors.primary + '08',
+    backgroundColor: Colors.primaryLight + '12',
   },
 
   radio: {
-    width: 20, height: 20, borderRadius: 10,
+    width: 22, height: 22, borderRadius: 11,
     borderWidth: 2, borderColor: Colors.border,
     alignItems: 'center', justifyContent: 'center',
   },
@@ -288,11 +298,11 @@ const styles = StyleSheet.create({
   planNameRow: { flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' },
   planName: { ...Typography.label, color: Colors.text, fontWeight: '600' },
   planNameSelected: { color: Colors.primary },
-  planBadge: { borderRadius: Radius.full, paddingHorizontal: 6, paddingVertical: 2 },
-  planBadgePopular: { backgroundColor: Colors.primary + '20' },
-  planBadgeBest: { backgroundColor: Colors.tertiary + '30' },
-  planBadgeText: { fontSize: 9, fontWeight: '800', color: Colors.primary, letterSpacing: 0.4 },
-  planSavings: { ...Typography.caption, color: Colors.success, fontWeight: '600', marginTop: 2 },
+  planBadge: { borderRadius: Radius.full, paddingHorizontal: 7, paddingVertical: 3 },
+  planBadgePopular: { backgroundColor: Colors.primaryLight },
+  planBadgeBest: { backgroundColor: Colors.tertiaryBright + '20' },
+  planBadgeText: { fontSize: 9, fontWeight: '800', color: Colors.primaryDark, letterSpacing: 0.5 },
+  planSavings: { ...Typography.caption, color: Colors.matchHigh, fontWeight: '600', marginTop: 2 },
 
   planPriceWrap: { alignItems: 'flex-end' },
   planPrice: { ...Typography.label, color: Colors.text, fontWeight: '700', fontSize: 16 },
@@ -301,42 +311,37 @@ const styles = StyleSheet.create({
 
   featuresCard: {
     backgroundColor: Colors.surface, borderRadius: Radius.lg,
-    padding: Spacing.lg, marginBottom: Spacing.lg,
+    padding: Spacing.md, marginBottom: Spacing.lg,
     borderWidth: 1, borderColor: Colors.borderSubtle,
   },
   featuresTitle: { ...Typography.h4, color: Colors.text, marginBottom: Spacing.md },
-  featureRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, marginBottom: 8 },
-  featureCheck: { fontSize: 13, fontWeight: '700', color: Colors.success, marginTop: 1, width: 16 },
+  featureRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 10 },
+  featureIconWrap: {
+    width: 30, height: 30, borderRadius: 8,
+    backgroundColor: Colors.primaryLight + '60',
+    alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+  },
+  featureIcon: { fontSize: 14 },
   featureLabel: { ...Typography.body, color: Colors.text, flex: 1, lineHeight: 20 },
-  featureLabelHighlight: { fontWeight: '700', color: Colors.tertiary },
+  featureLabelHighlight: { fontWeight: '700', color: Colors.primaryDark },
 
   upgradeBtn: {
     backgroundColor: Colors.primary, borderRadius: Radius.lg,
     padding: Spacing.lg, alignItems: 'center',
-    marginBottom: Spacing.md, ...Shadow.md,
-  },
-  upgradeBtnText: { ...Typography.label, color: Colors.textInverse, fontSize: 16 },
-  upgradeBtnSub: { ...Typography.caption, color: Colors.textInverse + 'cc', marginTop: 4 },
-
-  alreadyPro: {
-    backgroundColor: Colors.tertiary + '20', borderRadius: Radius.lg,
-    padding: Spacing.lg, alignItems: 'center', flexDirection: 'row',
-    justifyContent: 'center', gap: Spacing.sm,
-    borderWidth: 1, borderColor: Colors.tertiary + '40',
     marginBottom: Spacing.md,
   },
-  alreadyProIcon: { fontSize: 20, color: Colors.tertiary },
-  alreadyProText: { ...Typography.label, color: Colors.tertiary },
+  upgradeBtnText: { ...Typography.label, color: Colors.textInverse, fontSize: 16, fontWeight: '700' },
+  upgradeBtnSub: { ...Typography.caption, color: 'rgba(255,255,255,0.75)', marginTop: 4 },
+
+  alreadyPro: {
+    backgroundColor: Colors.primaryLight + '30', borderRadius: Radius.lg,
+    padding: Spacing.lg, alignItems: 'center', flexDirection: 'row',
+    justifyContent: 'center', gap: Spacing.sm,
+    borderWidth: 1, borderColor: Colors.primary + '30',
+    marginBottom: Spacing.md,
+  },
+  alreadyProIcon: { fontSize: 20, color: Colors.primary },
+  alreadyProText: { ...Typography.label, color: Colors.primaryDark },
 
   disclaimer: { ...Typography.caption, color: Colors.textMuted, textAlign: 'center', lineHeight: 18 },
-
-  trialBanner: {
-    backgroundColor: Colors.primary + '15', borderRadius: Radius.md,
-    paddingHorizontal: Spacing.md, paddingVertical: 10,
-    marginBottom: Spacing.md, borderWidth: 1, borderColor: Colors.primary + '30',
-  },
-  trialBannerExpired: {
-    backgroundColor: Colors.danger + '10', borderColor: Colors.danger + '30',
-  },
-  trialBannerText: { ...Typography.body, color: Colors.primary, textAlign: 'center' },
 });

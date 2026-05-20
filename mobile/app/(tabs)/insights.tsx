@@ -24,8 +24,8 @@ interface DashboardData {
 const STATUS_CONFIG = [
   { key: 'applied',   label: 'Applied',    color: Colors.primary },
   { key: 'screening', label: 'Screening',  color: Colors.warning },
-  { key: 'interview', label: 'Interview',  color: '#8B5CF6' },
-  { key: 'offer',     label: 'Offer',      color: Colors.tertiary },
+  { key: 'interview', label: 'Interview',  color: '#7c3aed' },
+  { key: 'offer',     label: 'Offer',      color: Colors.matchHigh },
   { key: 'rejected',  label: 'Rejected',   color: Colors.danger },
 ];
 
@@ -67,6 +67,19 @@ export default function InsightsTab() {
     );
   }
 
+  if (error) {
+    return (
+      <SafeAreaView style={styles.safe} edges={['bottom']}>
+        <View style={styles.center}>
+          <Text style={styles.emptyText}>Could not load insights. Please try again.</Text>
+          <TouchableOpacity style={[styles.refreshBtn, { marginTop: Spacing.md }]} onPress={fetchData}>
+            <Text style={styles.refreshText}>Retry</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   const apps = data?.applications;
   const resume = data?.resume;
   const jobs = data?.jobs;
@@ -80,15 +93,17 @@ export default function InsightsTab() {
         {/* Application Funnel */}
         <View style={[styles.card, Shadow.sm]}>
           <View style={styles.cardHeader}>
-            <Text style={styles.cardIcon}>◈</Text>
-            <View>
+            <View style={styles.cardIconWrap}>
+              <Text style={styles.cardIcon}>◈</Text>
+            </View>
+            <View style={styles.cardHeaderText}>
               <Text style={styles.cardTitle}>Application Funnel</Text>
               <Text style={styles.cardSub}>{total} total applications</Text>
             </View>
           </View>
           {total === 0 ? (
             <View style={styles.emptyState}>
-              <Text style={styles.emptyIcon}>📊</Text>
+              <Text style={{ fontSize: 32, marginBottom: 8 }}>📊</Text>
               <Text style={styles.emptyText}>Start applying to jobs to see your funnel</Text>
             </View>
           ) : (
@@ -114,7 +129,7 @@ export default function InsightsTab() {
         <View style={[styles.card, Shadow.sm]}>
           <Text style={styles.cardTitle}>Response Rate</Text>
           <View style={styles.rateRow}>
-            <View style={[styles.rateCircle, { borderColor: atsColor(apps?.response_rate) + '40' }]}>
+            <View style={[styles.rateCircle, { borderColor: atsColor(apps?.response_rate) }]}>
               <Text style={[styles.rateNumber, { color: atsColor(apps?.response_rate) }]}>
                 {apps?.response_rate ?? 0}%
               </Text>
@@ -137,7 +152,9 @@ export default function InsightsTab() {
         {/* Resume Performance */}
         <View style={[styles.card, Shadow.sm]}>
           <View style={styles.cardHeader}>
-            <Text style={styles.cardIcon}>📄</Text>
+            <View style={styles.cardIconWrap}>
+              <Text style={styles.cardIcon}>📄</Text>
+            </View>
             <Text style={styles.cardTitle}>Resume Performance</Text>
           </View>
           <View style={styles.statsRow}>
@@ -164,7 +181,9 @@ export default function InsightsTab() {
         {/* Job Activity */}
         <View style={[styles.card, Shadow.sm]}>
           <View style={styles.cardHeader}>
-            <Text style={styles.cardIcon}>🎯</Text>
+            <View style={styles.cardIconWrap}>
+              <Text style={styles.cardIcon}>🎯</Text>
+            </View>
             <Text style={styles.cardTitle}>Job Activity</Text>
           </View>
           <View style={styles.statsRow}>
@@ -181,8 +200,8 @@ export default function InsightsTab() {
           </View>
         </View>
 
-        <TouchableOpacity style={styles.refreshBtn} onPress={fetchData}>
-          <Text style={styles.refreshText}>↻ Refresh Insights</Text>
+        <TouchableOpacity style={[styles.refreshBtn, Shadow.sm]} onPress={fetchData}>
+          <Text style={styles.refreshText}>↻  Refresh Insights</Text>
         </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>
@@ -206,57 +225,62 @@ function StatBox({ label, value, suffix, color, note }: {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: Colors.background },
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  container: { padding: Spacing.lg, paddingBottom: Spacing.xxl, gap: Spacing.md },
+  center: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: Spacing.lg },
+  container: { padding: Spacing.md, paddingBottom: Spacing.xxl, gap: Spacing.sm },
 
   card: {
     backgroundColor: Colors.surface, borderRadius: Radius.lg,
-    padding: Spacing.lg, borderWidth: 1, borderColor: Colors.borderSubtle,
+    padding: Spacing.md, borderWidth: 1, borderColor: Colors.borderSubtle,
   },
   cardHeader: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, marginBottom: Spacing.md },
-  cardIcon: { fontSize: 20 },
+  cardIconWrap: {
+    width: 36, height: 36, borderRadius: Radius.sm + 2,
+    backgroundColor: Colors.primaryLight,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  cardHeaderText: { flex: 1 },
+  cardIcon: { fontSize: 18 },
   cardTitle: { ...Typography.h4, color: Colors.text },
   cardSub: { ...Typography.caption, color: Colors.textMuted, marginTop: 1 },
 
   emptyState: { alignItems: 'center', paddingVertical: Spacing.lg },
-  emptyIcon: { fontSize: 36, marginBottom: Spacing.sm },
   emptyText: { ...Typography.body, color: Colors.textMuted, textAlign: 'center' },
 
   funnelBars: { gap: 10 },
   barRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
   barLabel: { ...Typography.caption, color: Colors.textSecondary, width: 72 },
   barTrack: {
-    flex: 1, height: 10, backgroundColor: Colors.surfaceSecondary,
+    flex: 1, height: 10, backgroundColor: Colors.backgroundDim,
     borderRadius: Radius.full, overflow: 'hidden',
   },
   barFill: { height: '100%', borderRadius: Radius.full, minWidth: 4 },
-  barCount: { ...Typography.label, width: 28, textAlign: 'right', fontWeight: '700' },
+  barCount: { ...Typography.label, width: 28, textAlign: 'right', fontWeight: '800' },
 
   rateRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, marginTop: Spacing.sm },
   rateCircle: {
-    width: 72, height: 72, borderRadius: 36,
+    width: 76, height: 76, borderRadius: 38,
     backgroundColor: Colors.primaryLight + '30',
-    borderWidth: 2,
+    borderWidth: 2.5,
     justifyContent: 'center', alignItems: 'center',
   },
-  rateNumber: { fontSize: 20, fontWeight: '700' },
+  rateNumber: { fontSize: 22, fontWeight: '800' },
   rateInfo: { flex: 1, gap: 4 },
   rateDesc: { ...Typography.body, color: Colors.text, lineHeight: 20 },
   rateDetail: { ...Typography.caption, color: Colors.textMuted },
 
   statsRow: { flexDirection: 'row', alignItems: 'center', marginTop: Spacing.sm },
-  statDivider: { width: 1, height: 48, backgroundColor: Colors.border, marginHorizontal: Spacing.sm },
+  statDivider: { width: 1, height: 52, backgroundColor: Colors.borderSubtle, marginHorizontal: Spacing.sm },
   statBox: { flex: 1, alignItems: 'center', gap: 2 },
   statValueRow: { flexDirection: 'row', alignItems: 'baseline', gap: 2 },
-  statValue: { fontSize: 26, fontWeight: '700' },
+  statValue: { fontSize: 28, fontWeight: '800', letterSpacing: -0.5 },
   statSuffix: { ...Typography.caption, color: Colors.textMuted },
   statLabel: { ...Typography.caption, color: Colors.textMuted, textAlign: 'center' },
   statNote: { fontSize: 10, fontWeight: '600', textAlign: 'center' },
 
   refreshBtn: {
     alignItems: 'center', padding: Spacing.md,
-    borderWidth: 1, borderColor: Colors.primary + '40',
-    borderRadius: Radius.lg, backgroundColor: Colors.primaryLight + '20',
+    borderWidth: 1, borderColor: Colors.primary + '30',
+    borderRadius: Radius.lg, backgroundColor: Colors.primaryLight + '25',
   },
-  refreshText: { ...Typography.label, color: Colors.primary },
+  refreshText: { ...Typography.label, color: Colors.primary, fontWeight: '700' },
 });

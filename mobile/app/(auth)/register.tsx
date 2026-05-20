@@ -10,7 +10,7 @@ import { z } from 'zod';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useAuthStore } from '@/stores/authStore';
-import { Colors, Typography, Spacing, Radius } from '@/constants/theme';
+import { Colors, Typography, Spacing, Radius, Shadow } from '@/constants/theme';
 
 const schema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters'),
@@ -24,6 +24,13 @@ const schema = z.object({
 
 type FormData = z.infer<typeof schema>;
 
+const FIELD_CONFIG: { name: keyof FormData; label: string; placeholder: string; keyboard?: any; capitalize?: any; secure?: boolean }[] = [
+  { name: 'name', label: 'Full Name', placeholder: 'Your name', capitalize: 'words' },
+  { name: 'email', label: 'Email address', placeholder: 'you@example.com', keyboard: 'email-address', capitalize: 'none' },
+  { name: 'password', label: 'Password', placeholder: 'Min. 8 characters', secure: true, capitalize: 'none' },
+  { name: 'confirmPassword', label: 'Confirm Password', placeholder: 'Re-enter password', secure: true, capitalize: 'none' },
+];
+
 export default function RegisterScreen() {
   const { register: registerUser, isLoading, pendingRole } = useAuthStore();
   const [errorMsg, setErrorMsg] = useState('');
@@ -32,12 +39,8 @@ export default function RegisterScreen() {
   });
 
   const isProvider = pendingRole === 'job_provider';
-  const tagline = isProvider
-    ? 'List smarter. Hire faster.'
-    : 'Apply smarter. Get hired faster.';
-  const subtitle = isProvider
-    ? 'Create your Job Provider account'
-    : 'Create your free Job Seeker account';
+  const tagline = isProvider ? 'List smarter. Hire faster.' : 'Apply smarter. Get hired faster.';
+  const subtitle = isProvider ? 'Create your Job Provider account' : 'Create your free Job Seeker account';
 
   const onSubmit = async (data: FormData) => {
     setErrorMsg('');
@@ -62,58 +65,68 @@ export default function RegisterScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.safe}>
-      <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
-          <View style={styles.header}>
-            <Text style={styles.logo}>CVProAI</Text>
-            <Text style={styles.tagline}>{tagline}</Text>
-          </View>
+    <View style={styles.root}>
+      <View style={styles.orb1} />
+      <View style={styles.orb2} />
 
-          <View style={styles.form}>
-            <Text style={styles.title}>{subtitle}</Text>
+      <SafeAreaView style={styles.safe}>
+        <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+          <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
 
-            {errorMsg ? (
-              <View style={styles.errorBox}>
-                <Text style={styles.errorBoxText}>{errorMsg}</Text>
+            <View style={styles.header}>
+              <View style={[styles.logoMark, isProvider && { backgroundColor: Colors.tertiaryContainer }]}>
+                <Text style={styles.logoMarkIcon}>{isProvider ? '🏢' : '✦'}</Text>
               </View>
-            ) : null}
+              <Text style={styles.logo}>CVProAI</Text>
+              <Text style={styles.tagline}>{tagline}</Text>
+            </View>
 
-            {(['name', 'email', 'password', 'confirmPassword'] as const).map((field) => (
-              <Controller
-                key={field}
-                control={control}
-                name={field}
-                render={({ field: { onChange, value, onBlur } }) => (
-                  <View style={styles.fieldGroup}>
-                    <Text style={styles.label}>
-                      {field === 'confirmPassword' ? 'Confirm Password' : field.charAt(0).toUpperCase() + field.slice(1)}
-                    </Text>
-                    <TextInput
-                      style={[styles.input, errors[field] && styles.inputError]}
-                      placeholder={field === 'email' ? 'you@example.com' : ''}
-                      keyboardType={field === 'email' ? 'email-address' : 'default'}
-                      autoCapitalize={field === 'name' ? 'words' : 'none'}
-                      secureTextEntry={field === 'password' || field === 'confirmPassword'}
-                      onChangeText={(t) => { onChange(t); setErrorMsg(''); }}
-                      onBlur={onBlur}
-                      value={value}
-                    />
-                    {errors[field] && <Text style={styles.fieldError}>{errors[field]?.message}</Text>}
-                  </View>
-                )}
-              />
-            ))}
+            <View style={[styles.card, Shadow.md]}>
+              <Text style={styles.title}>{subtitle}</Text>
 
-            <TouchableOpacity
-              style={[styles.button, isLoading && styles.buttonDisabled]}
-              onPress={handleSubmit(onSubmit)}
-              disabled={isLoading}
-            >
-              {isLoading
-                ? <ActivityIndicator color={Colors.textInverse} />
-                : <Text style={styles.buttonText}>Create Account</Text>}
-            </TouchableOpacity>
+              {errorMsg ? (
+                <View style={styles.errorBox}>
+                  <Text style={styles.errorIcon}>⚠️</Text>
+                  <Text style={styles.errorBoxText}>{errorMsg}</Text>
+                </View>
+              ) : null}
+
+              {FIELD_CONFIG.map((fc) => (
+                <Controller
+                  key={fc.name}
+                  control={control}
+                  name={fc.name}
+                  render={({ field: { onChange, value, onBlur } }) => (
+                    <View style={styles.fieldGroup}>
+                      <Text style={styles.label}>{fc.label}</Text>
+                      <TextInput
+                        style={[styles.input, errors[fc.name] && styles.inputError]}
+                        placeholder={fc.placeholder}
+                        placeholderTextColor={Colors.textMuted}
+                        keyboardType={fc.keyboard ?? 'default'}
+                        autoCapitalize={fc.capitalize ?? 'none'}
+                        secureTextEntry={fc.secure}
+                        onChangeText={(t) => { onChange(t); setErrorMsg(''); }}
+                        onBlur={onBlur}
+                        value={value}
+                      />
+                      {errors[fc.name] && <Text style={styles.fieldError}>{errors[fc.name]?.message}</Text>}
+                    </View>
+                  )}
+                />
+              ))}
+
+              <TouchableOpacity
+                style={[styles.button, isLoading && styles.buttonDisabled, isProvider && { backgroundColor: Colors.tertiaryContainer }]}
+                onPress={handleSubmit(onSubmit)}
+                disabled={isLoading}
+                activeOpacity={0.85}
+              >
+                {isLoading
+                  ? <ActivityIndicator color={Colors.textInverse} />
+                  : <Text style={styles.buttonText}>Create Account</Text>}
+              </TouchableOpacity>
+            </View>
 
             <View style={styles.footer}>
               <Text style={styles.footerText}>Already have an account? </Text>
@@ -121,52 +134,87 @@ export default function RegisterScreen() {
                 <Text style={styles.link}>Sign In</Text>
               </Link>
             </View>
-          </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+
+          </ScrollView>
+        </KeyboardAvoidingView>
+      </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: Colors.background },
+  root: { flex: 1, backgroundColor: Colors.background },
+  safe: { flex: 1 },
   flex: { flex: 1 },
-  container: { flexGrow: 1, paddingHorizontal: Spacing.lg, paddingTop: Spacing.xl },
-  header: { alignItems: 'center', marginBottom: Spacing.xl },
-  logo: { ...Typography.h1, color: Colors.primary },
-  tagline: { ...Typography.body, color: Colors.textSecondary, marginTop: 4 },
-  form: { backgroundColor: Colors.surface, borderRadius: Radius.lg, padding: Spacing.lg },
-  title: { ...Typography.h3, color: Colors.text, marginBottom: Spacing.md },
-  errorBox: {
-    backgroundColor: Colors.danger + '12', borderRadius: Radius.md,
-    borderWidth: 1, borderColor: Colors.danger + '40',
-    paddingHorizontal: Spacing.md, paddingVertical: 10, marginBottom: Spacing.sm,
+
+  orb1: {
+    position: 'absolute', width: 280, height: 280, borderRadius: 140,
+    backgroundColor: Colors.secondary, opacity: 0.07, top: -100, left: -60,
   },
-  errorBoxText: { ...Typography.body, color: Colors.danger, textAlign: 'center' },
-  fieldGroup: { marginBottom: Spacing.md },
-  label: { ...Typography.label, color: Colors.text, marginBottom: Spacing.xs },
-  input: {
+  orb2: {
+    position: 'absolute', width: 220, height: 220, borderRadius: 110,
+    backgroundColor: Colors.tertiaryBright, opacity: 0.05, bottom: 60, right: -50,
+  },
+
+  container: { flexGrow: 1, paddingHorizontal: Spacing.lg, paddingTop: Spacing.xl, paddingBottom: Spacing.xl },
+
+  header: { alignItems: 'center', marginBottom: Spacing.lg },
+  logoMark: {
+    width: 60, height: 60, borderRadius: 20,
+    backgroundColor: Colors.primary,
+    alignItems: 'center', justifyContent: 'center',
+    marginBottom: Spacing.sm,
+    ...Shadow.lg,
+  },
+  logoMarkIcon: { fontSize: 26, color: Colors.textInverse },
+  logo: { fontSize: 30, fontWeight: '800', color: Colors.primaryDark, letterSpacing: -0.6 },
+  tagline: { ...Typography.body, color: Colors.textMuted, marginTop: 4 },
+
+  card: {
+    backgroundColor: Colors.surfaceGlass,
+    borderRadius: Radius.xl,
+    padding: Spacing.lg,
     borderWidth: 1,
+    borderColor: Colors.borderGlass,
+  },
+  title: { ...Typography.h3, color: Colors.text, marginBottom: Spacing.md },
+
+  errorBox: {
+    backgroundColor: Colors.danger + '10', borderRadius: Radius.md,
+    borderWidth: 1, borderColor: Colors.danger + '35',
+    paddingHorizontal: Spacing.md, paddingVertical: 10, marginBottom: Spacing.sm,
+    flexDirection: 'row', alignItems: 'flex-start', gap: 8,
+  },
+  errorIcon: { fontSize: 14, marginTop: 1 },
+  errorBoxText: { ...Typography.body, color: Colors.danger, flex: 1 },
+
+  fieldGroup: { marginBottom: Spacing.md },
+  label: { ...Typography.label, color: Colors.textSecondary, marginBottom: 6, fontWeight: '600' },
+  input: {
+    borderWidth: 1.5,
     borderColor: Colors.border,
     borderRadius: Radius.md,
     paddingHorizontal: Spacing.md,
-    paddingVertical: 12,
+    paddingVertical: 13,
     ...Typography.body,
     color: Colors.text,
-    backgroundColor: Colors.background,
+    backgroundColor: Colors.surfaceLow,
   },
   inputError: { borderColor: Colors.danger },
   fieldError: { ...Typography.caption, color: Colors.danger, marginTop: 4 },
+
   button: {
     backgroundColor: Colors.primary,
     borderRadius: Radius.md,
-    paddingVertical: 14,
+    paddingVertical: 15,
     alignItems: 'center',
     marginTop: Spacing.sm,
+    ...Shadow.md,
   },
   buttonDisabled: { opacity: 0.6 },
-  buttonText: { ...Typography.label, color: Colors.textInverse, fontSize: 16 },
+  buttonText: { ...Typography.label, color: Colors.textInverse, fontSize: 16, fontWeight: '700' },
+
   footer: { flexDirection: 'row', justifyContent: 'center', marginTop: Spacing.lg },
   footerText: { ...Typography.body, color: Colors.textSecondary },
-  link: { ...Typography.body, color: Colors.primary, fontWeight: '600' },
+  link: { ...Typography.body, color: Colors.primary, fontWeight: '700' },
 });

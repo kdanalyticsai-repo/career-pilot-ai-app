@@ -19,20 +19,20 @@ type Application = {
 };
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
-  applied:   { label: 'Applied',   color: Colors.primary,   bg: Colors.primaryLight + '40' },
-  screening: { label: 'Screening', color: Colors.warning,   bg: Colors.warning + '20' },
-  interview: { label: 'Interview', color: '#8B5CF6',        bg: '#8B5CF620' },
-  offer:     { label: 'Offer',     color: Colors.tertiary,  bg: Colors.tertiary + '20' },
-  rejected:  { label: 'Rejected',  color: Colors.danger,    bg: Colors.danger + '15' },
-  withdrawn: { label: 'Withdrawn', color: Colors.textMuted, bg: Colors.surfaceMid },
+  applied:   { label: 'Applied',   color: Colors.primary,        bg: Colors.primaryLight + '50' },
+  screening: { label: 'Screening', color: Colors.warning,        bg: Colors.warning + '18' },
+  interview: { label: 'Interview', color: '#7c3aed',             bg: '#7c3aed20' },
+  offer:     { label: 'Offer',     color: Colors.matchHigh,      bg: Colors.matchHigh + '18' },
+  rejected:  { label: 'Rejected',  color: Colors.danger,         bg: Colors.danger + '12' },
+  withdrawn: { label: 'Withdrawn', color: Colors.textMuted,      bg: Colors.backgroundDim },
 };
 
 const STATUS_ORDER = ['interview', 'offer', 'screening', 'applied', 'rejected', 'withdrawn'];
 
 function StatusBadge({ status }: { status: string }) {
-  const cfg = STATUS_CONFIG[status] ?? { label: status, color: Colors.textMuted, bg: Colors.surfaceMid };
+  const cfg = STATUS_CONFIG[status] ?? { label: status, color: Colors.textMuted, bg: Colors.backgroundDim };
   return (
-    <View style={[styles.badge, { backgroundColor: cfg.bg }]}>
+    <View style={[styles.badge, { backgroundColor: cfg.bg, borderColor: cfg.color + '30' }]}>
       <Text style={[styles.badgeText, { color: cfg.color }]}>{cfg.label}</Text>
     </View>
   );
@@ -75,13 +75,13 @@ export default function ApplicationsTab() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['bottom']}>
-      {/* Summary Chips */}
+      {/* Summary Row */}
       {apps.length > 0 && (
         <View style={styles.summaryRow}>
-          {STATUS_ORDER.filter((s) => grouped[s]?.length > 0).map((s) => {
+          {STATUS_ORDER.filter((s) => (grouped[s]?.length ?? 0) > 0).map((s) => {
             const cfg = STATUS_CONFIG[s];
             return (
-              <View key={s} style={[styles.summaryChip, { backgroundColor: cfg.bg, borderColor: cfg.color + '30', borderWidth: 1 }]}>
+              <View key={s} style={[styles.summaryChip, { backgroundColor: cfg.bg, borderColor: cfg.color + '30' }]}>
                 <Text style={[styles.summaryCount, { color: cfg.color }]}>{grouped[s].length}</Text>
                 <Text style={[styles.summaryLabel, { color: cfg.color }]}>{cfg.label}</Text>
               </View>
@@ -133,10 +133,12 @@ export default function ApplicationsTab() {
         )}
         ListEmptyComponent={
           <View style={styles.empty}>
-            <Text style={styles.emptyIcon}>📋</Text>
+            <View style={styles.emptyIconWrap}>
+              <Text style={styles.emptyIcon}>📋</Text>
+            </View>
             <Text style={styles.emptyTitle}>No applications yet</Text>
             <Text style={styles.emptySubtitle}>Find jobs in the Jobs tab and tap "Apply & Track"</Text>
-            <TouchableOpacity style={styles.emptyBtn} onPress={() => router.push('/(tabs)/jobs')}>
+            <TouchableOpacity style={[styles.emptyBtn, Shadow.md]} onPress={() => router.push('/(tabs)/jobs')}>
               <Text style={styles.emptyBtnText}>Browse Jobs</Text>
             </TouchableOpacity>
           </View>
@@ -158,9 +160,10 @@ const styles = StyleSheet.create({
   summaryChip: {
     borderRadius: Radius.full, paddingHorizontal: Spacing.sm, paddingVertical: 5,
     flexDirection: 'row', alignItems: 'center', gap: 4,
+    borderWidth: 1,
   },
-  summaryCount: { ...Typography.label, fontWeight: '700' },
-  summaryLabel: { ...Typography.caption },
+  summaryCount: { ...Typography.label, fontWeight: '800' },
+  summaryLabel: { ...Typography.caption, fontWeight: '600' },
 
   list: { padding: Spacing.md, gap: Spacing.sm, paddingBottom: Spacing.xxl },
   card: {
@@ -169,23 +172,26 @@ const styles = StyleSheet.create({
   },
   cardTop: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.sm, marginBottom: 8 },
   companyAvatar: {
-    width: 40, height: 40, borderRadius: Radius.md,
-    backgroundColor: Colors.primaryLight + '50',
+    width: 44, height: 44, borderRadius: Radius.md,
+    backgroundColor: Colors.primaryLight,
     alignItems: 'center', justifyContent: 'center',
   },
-  companyAvatarText: { fontSize: 16, fontWeight: '700', color: Colors.primary },
+  companyAvatarText: { fontSize: 18, fontWeight: '700', color: Colors.primaryDark },
   cardMeta: { flex: 1 },
   jobTitle: { ...Typography.h4, color: Colors.text, marginBottom: 2 },
   company: { ...Typography.label, color: Colors.textSecondary, marginBottom: 2 },
   appliedDate: { ...Typography.caption, color: Colors.textMuted },
 
-  badge: { borderRadius: Radius.full, paddingHorizontal: Spacing.sm, paddingVertical: 4 },
+  badge: {
+    borderRadius: Radius.full, paddingHorizontal: Spacing.sm, paddingVertical: 4,
+    borderWidth: 1,
+  },
   badgeText: { ...Typography.caption, fontWeight: '700' },
 
   nextActionRow: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
     marginTop: 8, paddingTop: 8,
-    borderTopWidth: 1, borderTopColor: Colors.border,
+    borderTopWidth: 1, borderTopColor: Colors.borderSubtle,
   },
   nextActionIcon: { color: Colors.primary, fontWeight: '700', fontSize: 14 },
   nextActionText: { ...Typography.bodySmall, color: Colors.text, flex: 1 },
@@ -193,12 +199,17 @@ const styles = StyleSheet.create({
   notes: { ...Typography.bodySmall, color: Colors.textMuted, marginTop: 6 },
 
   empty: { alignItems: 'center', paddingTop: Spacing.xxl, paddingHorizontal: Spacing.xl },
-  emptyIcon: { fontSize: 48, marginBottom: Spacing.md },
+  emptyIconWrap: {
+    width: 88, height: 88, borderRadius: 44,
+    backgroundColor: Colors.primaryLight,
+    alignItems: 'center', justifyContent: 'center', marginBottom: Spacing.lg,
+  },
+  emptyIcon: { fontSize: 38 },
   emptyTitle: { ...Typography.h3, color: Colors.text, marginBottom: Spacing.sm },
-  emptySubtitle: { ...Typography.body, color: Colors.textSecondary, textAlign: 'center', marginBottom: Spacing.lg },
+  emptySubtitle: { ...Typography.body, color: Colors.textSecondary, textAlign: 'center', marginBottom: Spacing.lg, lineHeight: 22 },
   emptyBtn: {
     backgroundColor: Colors.primary, borderRadius: Radius.full,
-    paddingHorizontal: Spacing.xl, paddingVertical: 12,
+    paddingHorizontal: Spacing.xl, paddingVertical: 13,
   },
   emptyBtnText: { ...Typography.label, color: Colors.textInverse, fontWeight: '700' },
 });

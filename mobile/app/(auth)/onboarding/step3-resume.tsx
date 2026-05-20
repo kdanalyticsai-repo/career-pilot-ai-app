@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, Alert, ActivityIndicator } fr
 import { router, useLocalSearchParams } from 'expo-router';
 import * as DocumentPicker from 'expo-document-picker';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Colors, Typography, Spacing, Radius } from '@/constants/theme';
+import { Colors, Typography, Spacing, Radius, Shadow } from '@/constants/theme';
 import { useAuthStore } from '@/stores/authStore';
 import { api } from '@/services/api';
 import { uploadResumePdf } from '@/services/upload';
@@ -83,51 +83,63 @@ export default function OnboardingStep3() {
     }
   };
 
+  const BENEFITS = [
+    { icon: '✦', text: 'AI-powered resume analysis' },
+    { icon: '📊', text: 'Instant ATS score & breakdown' },
+    { icon: '🎯', text: 'Personalized job matches' },
+  ];
+
   return (
     <SafeAreaView style={styles.safe}>
       <View style={styles.container}>
         <View style={styles.progress}>
-          <View style={[styles.dot, styles.dotDone]} />
-          <View style={[styles.dot, styles.dotDone]} />
-          <View style={[styles.dot, styles.dotActive]} />
+          <View style={[styles.progressStep, styles.progressDone]} />
+          <View style={[styles.progressStep, styles.progressDone]} />
+          <View style={[styles.progressStep, styles.progressActive]} />
         </View>
 
         <Text style={styles.step}>Step 3 of 3</Text>
         <Text style={styles.title}>Upload your resume</Text>
-        <Text style={styles.subtitle}>We'll analyze it and find your best job matches</Text>
+        <Text style={styles.subtitle}>We'll analyze it with AI and find your best matches</Text>
 
         <TouchableOpacity
-          style={styles.uploadBox}
+          style={[styles.uploadBox, fileName && styles.uploadBoxSelected, Shadow.sm]}
           onPress={pickAndUpload}
           disabled={isUploading}
+          activeOpacity={0.85}
         >
           {isUploading ? (
             <>
               <ActivityIndicator size="large" color={Colors.primary} />
-              <Text style={styles.uploadSubtext}>Analyzing with AI...</Text>
+              <Text style={styles.uploadTitle}>Analyzing with AI…</Text>
+              <Text style={styles.uploadSubtext}>This takes about 30 seconds</Text>
             </>
           ) : (
             <>
-              <Text style={styles.uploadIcon}>📄</Text>
-              <Text style={styles.uploadTitle}>
+              <View style={[styles.uploadIconWrap, fileName && { backgroundColor: Colors.primary + '20' }]}>
+                <Text style={styles.uploadIcon}>{fileName ? '✅' : '📄'}</Text>
+              </View>
+              <Text style={[styles.uploadTitle, fileName && { color: Colors.primary }]}>
                 {fileName ?? 'Tap to select your PDF resume'}
               </Text>
-              <Text style={styles.uploadSubtext}>PDF format, max 10MB</Text>
+              <Text style={styles.uploadSubtext}>PDF format · max 10 MB</Text>
             </>
           )}
         </TouchableOpacity>
 
         <View style={styles.benefits}>
-          {['AI-powered resume analysis', 'Instant ATS score', 'Personalized job matches'].map((b) => (
-            <View key={b} style={styles.benefitRow}>
-              <Text style={styles.check}>✓</Text>
-              <Text style={styles.benefitText}>{b}</Text>
+          {BENEFITS.map((b) => (
+            <View key={b.text} style={styles.benefitRow}>
+              <View style={styles.benefitIconWrap}>
+                <Text style={styles.benefitIcon}>{b.icon}</Text>
+              </View>
+              <Text style={styles.benefitText}>{b.text}</Text>
             </View>
           ))}
         </View>
 
-        <TouchableOpacity style={styles.skipButton} onPress={skipForNow}>
-          <Text style={styles.skipText}>Skip for now</Text>
+        <TouchableOpacity style={styles.skipButton} onPress={skipForNow} activeOpacity={0.7}>
+          <Text style={styles.skipText}>Skip for now →</Text>
         </TouchableOpacity>
       </View>
     </SafeAreaView>
@@ -137,26 +149,46 @@ export default function OnboardingStep3() {
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: Colors.background },
   container: { flex: 1, padding: Spacing.lg },
-  progress: { flexDirection: 'row', gap: 8, marginBottom: Spacing.xl },
-  dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: Colors.border },
-  dotActive: { backgroundColor: Colors.primary, width: 24 },
-  dotDone: { backgroundColor: Colors.secondary, width: 24 },
-  step: { ...Typography.caption, color: Colors.textMuted, marginBottom: Spacing.xs },
-  title: { ...Typography.h2, color: Colors.text, marginBottom: Spacing.xs },
-  subtitle: { ...Typography.body, color: Colors.textSecondary, marginBottom: Spacing.xl },
+
+  progress: { flexDirection: 'row', gap: 6, marginBottom: Spacing.xl },
+  progressStep: { height: 4, flex: 1, borderRadius: 2, backgroundColor: Colors.backgroundDim },
+  progressActive: { backgroundColor: Colors.primary },
+  progressDone: { backgroundColor: Colors.secondary },
+
+  step: { ...Typography.caption, color: Colors.primary, fontWeight: '700', marginBottom: Spacing.xs, letterSpacing: 0.5 },
+  title: { fontSize: 26, fontWeight: '800', color: Colors.text, marginBottom: Spacing.xs, letterSpacing: -0.3 },
+  subtitle: { ...Typography.body, color: Colors.textSecondary, marginBottom: Spacing.xl, lineHeight: 22 },
+
   uploadBox: {
-    borderWidth: 2, borderColor: Colors.primary, borderStyle: 'dashed',
-    borderRadius: Radius.lg, padding: Spacing.xl,
-    alignItems: 'center', backgroundColor: Colors.primary + '08',
-    marginBottom: Spacing.xl,
+    borderWidth: 1.5, borderColor: Colors.border, borderStyle: 'dashed',
+    borderRadius: Radius.xl, paddingVertical: Spacing.xl, paddingHorizontal: Spacing.lg,
+    alignItems: 'center', backgroundColor: Colors.surface,
+    marginBottom: Spacing.lg, gap: Spacing.sm,
   },
-  uploadIcon: { fontSize: 40, marginBottom: Spacing.sm },
-  uploadTitle: { ...Typography.h4, color: Colors.text, textAlign: 'center', marginBottom: Spacing.xs },
-  uploadSubtext: { ...Typography.bodySmall, color: Colors.textSecondary },
-  benefits: { gap: Spacing.sm, marginBottom: Spacing.xl },
+  uploadBoxSelected: {
+    borderColor: Colors.primary, borderStyle: 'solid',
+    backgroundColor: Colors.primaryLight + '18',
+  },
+  uploadIconWrap: {
+    width: 72, height: 72, borderRadius: 36,
+    backgroundColor: Colors.primaryLight,
+    alignItems: 'center', justifyContent: 'center',
+    marginBottom: Spacing.xs,
+  },
+  uploadIcon: { fontSize: 30 },
+  uploadTitle: { ...Typography.h4, color: Colors.text, textAlign: 'center' },
+  uploadSubtext: { ...Typography.caption, color: Colors.textMuted },
+
+  benefits: { gap: Spacing.sm, marginBottom: Spacing.lg },
   benefitRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
-  check: { color: Colors.secondary, fontSize: 16, fontWeight: '700' },
+  benefitIconWrap: {
+    width: 32, height: 32, borderRadius: Radius.sm + 2,
+    backgroundColor: Colors.primaryLight,
+    alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+  },
+  benefitIcon: { fontSize: 14, color: Colors.primary },
   benefitText: { ...Typography.body, color: Colors.text },
-  skipButton: { alignItems: 'center', padding: Spacing.md },
-  skipText: { ...Typography.body, color: Colors.textSecondary, textDecorationLine: 'underline' },
+
+  skipButton: { alignItems: 'center', padding: Spacing.md, marginTop: 'auto' },
+  skipText: { ...Typography.label, color: Colors.textMuted, fontWeight: '600' },
 });

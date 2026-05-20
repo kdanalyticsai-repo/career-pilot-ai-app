@@ -2,7 +2,7 @@ import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-nati
 import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Colors, Typography, Spacing, Radius } from '@/constants/theme';
+import { Colors, Typography, Spacing, Radius, Shadow } from '@/constants/theme';
 
 const EXPERIENCE_LEVELS = ['Entry', 'Mid', 'Senior', 'Lead', 'Executive'];
 const REMOTE_PREFS = ['Remote', 'Hybrid', 'On-site', 'Any'];
@@ -36,14 +36,14 @@ export default function OnboardingStep2() {
     <SafeAreaView style={styles.safe}>
       <ScrollView contentContainerStyle={styles.container}>
         <View style={styles.progress}>
-          <View style={[styles.dot, styles.dotDone]} />
-          <View style={[styles.dot, styles.dotActive]} />
-          <View style={styles.dot} />
+          <View style={[styles.progressStep, styles.progressDone]} />
+          <View style={[styles.progressStep, styles.progressActive]} />
+          <View style={styles.progressStep} />
         </View>
 
         <Text style={styles.step}>Step 2 of 3</Text>
         <Text style={styles.title}>Your job preferences</Text>
-        <Text style={styles.subtitle}>Help us find the right opportunities</Text>
+        <Text style={styles.subtitle}>Help us find the right opportunities for you</Text>
 
         <Text style={styles.sectionLabel}>Experience Level</Text>
         <View style={styles.chipRow}>
@@ -52,6 +52,7 @@ export default function OnboardingStep2() {
               key={level}
               style={[styles.chip, experienceLevel === level && styles.chipSelected]}
               onPress={() => setExperienceLevel(level)}
+              activeOpacity={0.8}
             >
               <Text style={[styles.chipText, experienceLevel === level && styles.chipTextSelected]}>
                 {level}
@@ -67,6 +68,7 @@ export default function OnboardingStep2() {
               key={pref}
               style={[styles.chip, remotePreference === pref && styles.chipSelected]}
               onPress={() => setRemotePreference(pref)}
+              activeOpacity={0.8}
             >
               <Text style={[styles.chipText, remotePreference === pref && styles.chipTextSelected]}>
                 {pref}
@@ -75,13 +77,14 @@ export default function OnboardingStep2() {
           ))}
         </View>
 
-        <Text style={styles.sectionLabel}>Job Type</Text>
+        <Text style={styles.sectionLabel}>Job Type <Text style={styles.multiHint}>(select all that apply)</Text></Text>
         <View style={styles.chipRow}>
           {JOB_TYPES.map((type) => (
             <TouchableOpacity
               key={type}
               style={[styles.chip, selectedJobTypes.includes(type) && styles.chipSelected]}
               onPress={() => toggleJobType(type)}
+              activeOpacity={0.8}
             >
               <Text style={[styles.chipText, selectedJobTypes.includes(type) && styles.chipTextSelected]}>
                 {type}
@@ -90,8 +93,8 @@ export default function OnboardingStep2() {
           ))}
         </View>
 
-        <TouchableOpacity style={styles.button} onPress={onNext}>
-          <Text style={styles.buttonText}>Next →</Text>
+        <TouchableOpacity style={[styles.button, Shadow.md]} onPress={onNext} activeOpacity={0.85}>
+          <Text style={styles.buttonText}>Continue →</Text>
         </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>
@@ -101,26 +104,32 @@ export default function OnboardingStep2() {
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: Colors.background },
   container: { flexGrow: 1, padding: Spacing.lg },
-  progress: { flexDirection: 'row', gap: 8, marginBottom: Spacing.xl },
-  dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: Colors.border },
-  dotActive: { backgroundColor: Colors.primary, width: 24 },
-  dotDone: { backgroundColor: Colors.secondary, width: 24 },
-  step: { ...Typography.caption, color: Colors.textMuted, marginBottom: Spacing.xs },
-  title: { ...Typography.h2, color: Colors.text, marginBottom: Spacing.xs },
-  subtitle: { ...Typography.body, color: Colors.textSecondary, marginBottom: Spacing.lg },
-  sectionLabel: { ...Typography.h4, color: Colors.text, marginBottom: Spacing.sm, marginTop: Spacing.md },
+
+  progress: { flexDirection: 'row', gap: 6, marginBottom: Spacing.xl },
+  progressStep: { height: 4, flex: 1, borderRadius: 2, backgroundColor: Colors.backgroundDim },
+  progressActive: { backgroundColor: Colors.primary },
+  progressDone: { backgroundColor: Colors.secondary },
+
+  step: { ...Typography.caption, color: Colors.primary, fontWeight: '700', marginBottom: Spacing.xs, letterSpacing: 0.5 },
+  title: { fontSize: 26, fontWeight: '800', color: Colors.text, marginBottom: Spacing.xs, letterSpacing: -0.3 },
+  subtitle: { ...Typography.body, color: Colors.textSecondary, marginBottom: Spacing.lg, lineHeight: 22 },
+
+  sectionLabel: { ...Typography.h4, color: Colors.text, fontWeight: '700', marginBottom: Spacing.sm, marginTop: Spacing.md },
+  multiHint: { ...Typography.caption, color: Colors.textMuted, fontWeight: '400' },
+
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm },
   chip: {
     borderWidth: 1.5, borderColor: Colors.border, borderRadius: Radius.full,
-    paddingHorizontal: Spacing.md, paddingVertical: 8,
+    paddingHorizontal: Spacing.md, paddingVertical: 9,
     backgroundColor: Colors.surface,
   },
-  chipSelected: { borderColor: Colors.primary, backgroundColor: Colors.primary + '15' },
-  chipText: { ...Typography.label, color: Colors.textSecondary },
-  chipTextSelected: { color: Colors.primary },
+  chipSelected: { borderColor: Colors.primary, backgroundColor: Colors.primaryLight },
+  chipText: { ...Typography.label, color: Colors.textSecondary, fontWeight: '500' },
+  chipTextSelected: { color: Colors.primaryDark, fontWeight: '700' },
+
   button: {
-    backgroundColor: Colors.primary, borderRadius: Radius.md,
-    paddingVertical: 14, alignItems: 'center', marginTop: Spacing.xl,
+    backgroundColor: Colors.primary, borderRadius: Radius.lg,
+    paddingVertical: 15, alignItems: 'center', marginTop: Spacing.xl,
   },
-  buttonText: { ...Typography.label, color: Colors.textInverse, fontSize: 16 },
+  buttonText: { ...Typography.label, color: Colors.textInverse, fontSize: 16, fontWeight: '700' },
 });

@@ -9,7 +9,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQueryClient } from '@tanstack/react-query';
 import { api } from '@/services/api';
 import { uploadResumePdf } from '@/services/upload';
-import { Colors, Typography, Spacing, Radius, Shadow } from '@/constants/theme';
+import { Colors, Typography, Spacing, Radius, Shadow, HeroColors } from '@/constants/theme';
 
 export default function UploadResumeScreen() {
   const [fileName, setFileName] = useState<string | null>(null);
@@ -79,10 +79,10 @@ export default function UploadResumeScreen() {
           disabled={isUploading}
           activeOpacity={0.85}
         >
-          <View style={styles.pickIconWrap}>
-            <Text style={styles.pickIcon}>📄</Text>
+          <View style={[styles.pickIconWrap, fileName && { backgroundColor: Colors.primary + '20' }]}>
+            <Text style={styles.pickIcon}>{fileName ? '✅' : '📄'}</Text>
           </View>
-          <Text style={styles.pickTitle}>
+          <Text style={[styles.pickTitle, fileName && { color: Colors.primary }]}>
             {fileName ?? 'Tap to select PDF'}
           </Text>
           <Text style={styles.pickSub}>
@@ -94,6 +94,14 @@ export default function UploadResumeScreen() {
             </View>
           )}
         </TouchableOpacity>
+
+        {/* Tip box */}
+        {!fileName && (
+          <View style={styles.tipBox}>
+            <Text style={styles.tipIcon}>💡</Text>
+            <Text style={styles.tipText}>Upload your latest PDF resume to get an ATS score and AI-powered job matches.</Text>
+          </View>
+        )}
 
         {/* Resume Name Field */}
         <View style={styles.field}>
@@ -110,7 +118,7 @@ export default function UploadResumeScreen() {
 
         {/* Upload Button */}
         <TouchableOpacity
-          style={[styles.button, (!fileName || isUploading) && styles.buttonDisabled]}
+          style={[styles.button, Shadow.md, (!fileName || isUploading) && styles.buttonDisabled]}
           onPress={upload}
           disabled={!fileName || isUploading}
           activeOpacity={0.85}
@@ -118,10 +126,10 @@ export default function UploadResumeScreen() {
           {isUploading ? (
             <View style={styles.uploadingRow}>
               <ActivityIndicator color={Colors.textInverse} size="small" />
-              <Text style={styles.buttonText}>Uploading…</Text>
+              <Text style={styles.buttonText}>Uploading & Analyzing…</Text>
             </View>
           ) : (
-            <Text style={styles.buttonText}>✦ Upload & Analyze</Text>
+            <Text style={styles.buttonText}>✦  Upload & Analyze</Text>
           )}
         </TouchableOpacity>
 
@@ -136,35 +144,44 @@ const styles = StyleSheet.create({
 
   pickArea: {
     borderWidth: 1.5, borderColor: Colors.border, borderStyle: 'dashed',
-    borderRadius: Radius.xl, padding: Spacing.xl,
-    alignItems: 'center', marginBottom: Spacing.lg,
+    borderRadius: Radius.xl, paddingVertical: Spacing.xl, paddingHorizontal: Spacing.lg,
+    alignItems: 'center', marginBottom: Spacing.md,
     backgroundColor: Colors.surface, gap: Spacing.sm,
   },
   pickAreaSelected: {
     borderColor: Colors.primary, borderStyle: 'solid',
-    backgroundColor: Colors.primaryLight + '15',
+    backgroundColor: Colors.primaryLight + '18',
   },
   pickIconWrap: {
-    width: 64, height: 64, borderRadius: 32,
-    backgroundColor: Colors.primaryLight + '40',
+    width: 72, height: 72, borderRadius: 36,
+    backgroundColor: Colors.primaryLight,
     alignItems: 'center', justifyContent: 'center',
     marginBottom: Spacing.sm,
   },
-  pickIcon: { fontSize: 28 },
+  pickIcon: { fontSize: 30 },
   pickTitle: { ...Typography.h4, color: Colors.text, textAlign: 'center' },
   pickSub: { ...Typography.caption, color: Colors.textMuted, textAlign: 'center' },
   browseChip: {
-    backgroundColor: Colors.primaryLight + '40', borderRadius: Radius.full,
-    paddingHorizontal: Spacing.md, paddingVertical: 8, marginTop: Spacing.sm,
-    borderWidth: 1, borderColor: Colors.primary + '30',
+    backgroundColor: Colors.primaryLight, borderRadius: Radius.full,
+    paddingHorizontal: Spacing.lg, paddingVertical: 9, marginTop: Spacing.sm,
+    borderWidth: 1.5, borderColor: Colors.primary + '40',
   },
-  browseChipText: { ...Typography.label, color: Colors.primary },
+  browseChipText: { ...Typography.label, color: Colors.primary, fontWeight: '700' },
+
+  tipBox: {
+    flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.sm,
+    backgroundColor: Colors.primaryLight + '40', borderRadius: Radius.md,
+    padding: Spacing.md, marginBottom: Spacing.md,
+    borderWidth: 1, borderColor: Colors.primary + '25',
+  },
+  tipIcon: { fontSize: 16, marginTop: 1 },
+  tipText: { ...Typography.bodySmall, color: Colors.primaryDark, flex: 1, lineHeight: 19 },
 
   field: { marginBottom: Spacing.lg },
-  label: { ...Typography.label, color: Colors.text, marginBottom: Spacing.xs },
+  label: { ...Typography.label, color: Colors.text, fontWeight: '600', marginBottom: Spacing.xs },
   input: {
-    borderWidth: 1, borderColor: Colors.border, borderRadius: Radius.lg,
-    paddingHorizontal: Spacing.md, paddingVertical: 12,
+    borderWidth: 1.5, borderColor: Colors.border, borderRadius: Radius.lg,
+    paddingHorizontal: Spacing.md, paddingVertical: 13,
     ...Typography.body, color: Colors.text, backgroundColor: Colors.surface,
   },
   inputDisabled: { opacity: 0.6 },
@@ -174,6 +191,6 @@ const styles = StyleSheet.create({
     paddingVertical: 16, alignItems: 'center', marginTop: 'auto',
   },
   buttonDisabled: { opacity: 0.45 },
-  buttonText: { ...Typography.label, color: Colors.textInverse, fontSize: 16 },
+  buttonText: { ...Typography.label, color: Colors.textInverse, fontSize: 16, fontWeight: '700' },
   uploadingRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
 });

@@ -48,11 +48,16 @@ export default function ResetPasswordScreen() {
     return (
       <SafeAreaView style={styles.safe}>
         <View style={styles.center}>
-          <Text style={styles.icon}>✅</Text>
+          <View style={styles.successIconWrap}>
+            <Text style={styles.icon}>✓</Text>
+          </View>
           <Text style={styles.doneTitle}>Password updated!</Text>
-          <Text style={styles.doneBody}>Your password has been reset successfully. Sign in with your new password.</Text>
-          <TouchableOpacity style={styles.button} onPress={() => router.replace('/(auth)/login')}>
-            <Text style={styles.buttonText}>Sign In →</Text>
+          <Text style={styles.doneBody}>
+            Your password has been reset successfully.{'\n'}Sign in with your new password to continue.
+          </Text>
+          <TouchableOpacity style={styles.signInBtn} onPress={() => router.replace('/(auth)/login')}>
+            <Text style={styles.signInBtnText}>Continue to Sign In</Text>
+            <Text style={styles.signInBtnArrow}>→</Text>
           </TouchableOpacity>
         </View>
       </SafeAreaView>
@@ -173,7 +178,25 @@ const styles = StyleSheet.create({
   backText: { ...Typography.body, color: Colors.textSecondary },
 
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: Spacing.xl },
-  icon: { fontSize: 56, marginBottom: Spacing.lg },
-  doneTitle: { ...Typography.h2, color: Colors.text, marginBottom: Spacing.md, textAlign: 'center' },
+  successIconWrap: {
+    width: 80, height: 80, borderRadius: 40,
+    backgroundColor: Colors.success + '18',
+    borderWidth: 2, borderColor: Colors.success + '40',
+    alignItems: 'center', justifyContent: 'center',
+    marginBottom: Spacing.lg,
+  },
+  icon: { fontSize: 36, color: Colors.success, fontWeight: '800' },
+  doneTitle: { ...Typography.h2, color: Colors.text, marginBottom: Spacing.sm, textAlign: 'center' },
   doneBody: { ...Typography.body, color: Colors.textSecondary, textAlign: 'center', lineHeight: 24, marginBottom: Spacing.xl },
+  signInBtn: {
+    backgroundColor: Colors.primary, borderRadius: Radius.lg,
+    paddingVertical: 16, paddingHorizontal: Spacing.xl,
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    alignSelf: 'stretch',
+    justifyContent: 'center',
+    shadowColor: Colors.primary, shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3, shadowRadius: 12, elevation: 6,
+  },
+  signInBtnText: { ...Typography.label, color: Colors.textInverse, fontSize: 16 },
+  signInBtnArrow: { fontSize: 18, color: Colors.textInverse, fontWeight: '700' },
 });

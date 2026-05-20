@@ -2,7 +2,7 @@ import { Tabs } from 'expo-router';
 import { View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { Colors, Radius } from '@/constants/theme';
+import { Colors, Radius, HeroColors } from '@/constants/theme';
 
 type IconName = React.ComponentProps<typeof MaterialCommunityIcons>['name'];
 
@@ -17,11 +17,11 @@ function TabIcon({ name, activeName, focused, color }: {
       alignItems: 'center', justifyContent: 'center',
       backgroundColor: focused ? Colors.primary + '18' : 'transparent',
       borderRadius: Radius.full,
-      width: 36, height: 26,
+      width: 38, height: 28,
     }}>
       <MaterialCommunityIcons
         name={focused && activeName ? activeName : name}
-        size={20}
+        size={21}
         color={color}
       />
     </View>
@@ -35,29 +35,33 @@ export default function TabsLayout() {
     <Tabs
       screenOptions={{
         tabBarActiveTintColor: Colors.primary,
-        tabBarInactiveTintColor: '#1a1a1a',
+        tabBarInactiveTintColor: Colors.textMuted,
         tabBarStyle: {
           backgroundColor: Colors.surface,
           borderTopColor: Colors.border,
           borderTopWidth: 1,
-          height: 60 + insets.bottom,
-          paddingBottom: insets.bottom + 4,
-          paddingTop: 4,
+          height: 62 + insets.bottom,
+          paddingBottom: insets.bottom + 6,
+          paddingTop: 6,
         },
         tabBarLabelStyle: {
           fontSize: 10,
           fontWeight: '600',
           marginTop: 1,
+          letterSpacing: 0.2,
         },
         tabBarItemStyle: { paddingHorizontal: 0, paddingVertical: 0 },
         headerStyle: {
-          backgroundColor: Colors.surface,
-          borderBottomWidth: 1,
-          borderBottomColor: Colors.border,
+          backgroundColor: HeroColors.base,
+          borderBottomWidth: 0,
         },
-        headerTintColor: Colors.text,
+        headerTintColor: Colors.textInverse,
         headerShadowVisible: false,
-        headerTitleStyle: { fontSize: 18, fontWeight: '700', color: Colors.text },
+        headerTitleStyle: {
+          fontSize: 18, fontWeight: '700',
+          color: Colors.textInverse,
+          letterSpacing: -0.2,
+        },
       }}
     >
       <Tabs.Screen
@@ -65,6 +69,7 @@ export default function TabsLayout() {
         options={{
           title: 'Home',
           headerTitle: 'CVProAI',
+          headerShown: false,
           tabBarIcon: ({ focused, color }) => (
             <TabIcon name="home-outline" activeName="home" focused={focused} color={color} />
           ),
@@ -101,6 +106,7 @@ export default function TabsLayout() {
         name="coach"
         options={{
           title: 'Coach',
+          headerShown: false,
           tabBarIcon: ({ focused, color }) => (
             <TabIcon name="robot-outline" activeName="robot" focused={focused} color={color} />
           ),
@@ -119,6 +125,7 @@ export default function TabsLayout() {
         name="profile"
         options={{
           title: 'Profile',
+          headerShown: false,
           tabBarIcon: ({ focused, color }) => (
             <TabIcon name="account-outline" activeName="account" focused={focused} color={color} />
           ),
