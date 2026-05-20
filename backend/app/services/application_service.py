@@ -7,7 +7,7 @@ from fastapi import HTTPException, status
 from app.models.job import Application, Job
 from app.models.user import User
 from app.schemas.job import ApplicationCreate, ApplicationUpdate, ApplicationResponse, ApplicationJobInfo
-from app.services.notification_service import get_user_push_tokens, send_push_notifications
+from app.services.notification_service import get_user_push_tokens, send_push_notifications, get_or_create_preferences
 from app.services.email_service import send_application_submitted_email, send_application_status_email
 
 STATUS_LABELS = {
@@ -125,13 +125,15 @@ class ApplicationService:
                     body=label,
                     data={"type": "application_status", "application_id": str(app.id), "status": data.status},
                 )
-            # Email: notify job seeker of status change
+            # Email: only if user has enabled status change emails
             user_result = await self.db.execute(select(User).where(User.id == app.user_id))
             seeker = user_result.scalar_one_or_none()
             if seeker:
-                await send_application_status_email(
-                    seeker.email, seeker.name or "", job_title, job_company, data.status
-                )
+                pref = await get_or_create_preferences(self.db, app.user_id)
+                if pref.email_status_changes:
+                    await send_application_status_email(
+                        seeker.email, seeker.name or "", job_title, job_company, data.status
+                    )
 
         return self._to_response(app, job)
 
