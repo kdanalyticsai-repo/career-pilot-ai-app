@@ -12,7 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import settings
 from app.dependencies import get_db, get_current_user
 from app.models.user import User
-from app.services.subscription_service import PLANS, get_all_usage, FREE_LIMITS
+from app.services.subscription_service import PLANS, get_all_usage, FREE_LIMITS, is_in_trial
 
 router = APIRouter(prefix="/subscriptions", tags=["subscriptions"])
 
@@ -135,18 +135,25 @@ async def get_my_usage(
     plan = current_user.subscription or "free"
     plan_data = PLANS.get(plan, PLANS["free"])
     features = plan_data["features"]
+    trial = is_in_trial(current_user)
     result = {}
 
     for feature, monthly_limit in FREE_LIMITS.items():
         used = usage.get(feature, 0)
         if plan == "pro":
             result[feature] = {"used": used, "limit": None, "blocked": False}
+        elif trial:
+            result[feature] = {"used": used, "limit": None, "blocked": False}
         else:
+            # Cap displayed used at the limit to avoid confusing "9/5" when
+            # usage accumulated during the trial period within the same month.
+            display_used = min(used, monthly_limit) if monthly_limit is not None else used
             blocked = monthly_limit is None
-            result[feature] = {"used": used, "limit": monthly_limit, "blocked": blocked}
+            result[feature] = {"used": display_used, "limit": monthly_limit, "blocked": blocked}
 
     return {
         "plan": plan,
+        "is_trial": trial,
         "usage": result,
         "resume_uploads": features.get("resume_uploads"),
         "application_tracking": features.get("application_tracking"),

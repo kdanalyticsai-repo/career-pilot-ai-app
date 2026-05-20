@@ -12,6 +12,19 @@ _MUTED = "#6b7280"
 _BG = "#f9fafb"
 
 
+def _dr(label: str, value: str) -> str:
+    """Table-based detail row — compatible with all email clients including Gmail."""
+    return (
+        '<table width="100%" cellpadding="0" cellspacing="0" border="0" '
+        'style="border-bottom:1px solid #f0f0f0">'
+        '<tr>'
+        f'<td style="font-size:14px;color:{_MUTED};padding:8px 0;white-space:nowrap;width:40%">{label}</td>'
+        f'<td style="font-size:14px;padding:8px 0 8px 8px">{value}</td>'
+        '</tr>'
+        '</table>'
+    )
+
+
 def _wrap(title: str, body: str) -> str:
     return f"""<!DOCTYPE html>
 <html lang="en">
@@ -31,8 +44,6 @@ p{{font-size:15px;line-height:1.65;color:#374151;margin-bottom:12px}}
 .badge-seeker{{background:#4361EE18;color:{_PRIMARY}}}
 .badge-provider{{background:#2ec4b618;color:#2ec4b6}}
 .divider{{height:1px;background:#f0f0f0;margin:20px 0}}
-.detail-row{{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #f0f0f0;font-size:14px}}
-.detail-label{{color:{_MUTED}}}
 .otp{{font-size:36px;font-weight:800;letter-spacing:8px;color:{_PRIMARY};text-align:center;padding:24px;background:{_BG};border-radius:12px;margin:20px 0}}
 .footer{{margin-top:32px;font-size:12px;color:{_MUTED};text-align:center;line-height:1.6}}
 @media(max-width:600px){{.wrap{{padding:24px 18px}}}}
@@ -109,8 +120,8 @@ async def send_application_submitted_email(to_email: str, name: str, job_title: 
 <span class="badge badge-seeker">Job Seeker</span>
 <p>Hi {display}, your application has been recorded successfully.</p>
 <div class="divider"></div>
-<div class="detail-row"><span class="detail-label">Role</span><span><strong>{job_title}</strong></span></div>
-<div class="detail-row"><span class="detail-label">Company</span><span>{company}</span></div>
+{_dr("Role", f"<strong>{job_title}</strong>")}
+{_dr("Company", company)}
 <div class="divider"></div>
 <p>Track all your applications in the <strong>Applications</strong> tab inside CVProAI.</p>"""
     await _send(to_email, f"Application submitted — {job_title} at {company}", _wrap("Application submitted", body))
@@ -135,9 +146,9 @@ async def send_application_status_email(
 <span class="badge badge-seeker">Job Seeker</span>
 <p>Hi {display}, the status of your application has been updated.</p>
 <div class="divider"></div>
-<div class="detail-row"><span class="detail-label">Role</span><span><strong>{job_title}</strong></span></div>
-<div class="detail-row"><span class="detail-label">Company</span><span>{company}</span></div>
-<div class="detail-row"><span class="detail-label">New status</span><span><strong>{label}</strong></span></div>
+{_dr("Role", f"<strong>{job_title}</strong>")}
+{_dr("Company", company)}
+{_dr("New status", f"<strong>{label}</strong>")}
 <div class="divider"></div>
 <p>Open CVProAI to view full details and next steps.</p>"""
     await _send(to_email, f"Application update: {label} — {job_title}", _wrap("Application update", body))
@@ -151,9 +162,9 @@ async def send_listing_submitted_email(to_email: str, name: str, job_title: str,
 <span class="badge badge-provider">Job Provider</span>
 <p>Hi {display}, your listing has been submitted and is now pending admin review.</p>
 <div class="divider"></div>
-<div class="detail-row"><span class="detail-label">Title</span><span><strong>{job_title}</strong></span></div>
-<div class="detail-row"><span class="detail-label">Company</span><span>{company}</span></div>
-<div class="detail-row"><span class="detail-label">Status</span><span>⏳ Pending Review</span></div>
+{_dr("Title", f"<strong>{job_title}</strong>")}
+{_dr("Company", company)}
+{_dr("Status", "⏳ Pending Review")}
 <div class="divider"></div>
 <p>You'll receive another email once your listing is reviewed. This usually takes less than 24 hours.</p>"""
     await _send(to_email, f"Listing submitted for review — {job_title}", _wrap("Listing submitted", body))
@@ -176,9 +187,9 @@ async def send_listing_decision_email(
 <span class="badge badge-provider">Job Provider</span>
 <p>Hi {display}, the admin has reviewed your job listing.</p>
 <div class="divider"></div>
-<div class="detail-row"><span class="detail-label">Title</span><span><strong>{job_title}</strong></span></div>
-<div class="detail-row"><span class="detail-label">Company</span><span>{company}</span></div>
-<div class="detail-row"><span class="detail-label">Status</span><span><strong>{status_line}</strong></span></div>
+{_dr("Title", f"<strong>{job_title}</strong>")}
+{_dr("Company", company)}
+{_dr("Status", f"<strong>{status_line}</strong>")}
 <div class="divider"></div>
 <p>{note}</p>"""
     subject = f"Your listing is live — {job_title}" if decision == "approved" else f"Listing not approved — {job_title}"

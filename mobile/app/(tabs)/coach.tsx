@@ -40,9 +40,10 @@ export default function CoachTab() {
     staleTime: 30_000,
   });
 
+  const isTrial: boolean = usageData?.is_trial ?? false;
   const chatsUsed: number = usageData?.usage?.chat?.used ?? 0;
   const chatsRemaining = Math.max(0, FREE_CHAT_LIMIT - chatsUsed);
-  const limitReached = !isPro && chatsRemaining === 0;
+  const limitReached = !isPro && !isTrial && chatsRemaining === 0;
 
   const { data: sessions } = useQuery({
     queryKey: ['chat-sessions'],
@@ -187,8 +188,8 @@ export default function CoachTab() {
           </View>
         </View>
 
-        {/* Usage banner */}
-        {!isPro && (
+        {/* Usage banner — hidden during trial; shown after trial ends */}
+        {!isPro && !isTrial && (
           <TouchableOpacity
             style={[styles.usageBanner, limitReached && styles.usageBannerLimit]}
             onPress={() => router.push('/paywall')}
@@ -197,7 +198,7 @@ export default function CoachTab() {
             <Text style={[styles.usageBannerText, limitReached && { color: Colors.danger }]}>
               {limitReached
                 ? `Monthly limit reached (${FREE_CHAT_LIMIT}/${FREE_CHAT_LIMIT}) · Tap to upgrade`
-                : `${chatsRemaining} free chat${chatsRemaining !== 1 ? 's' : ''} remaining · Upgrade for unlimited`}
+                : `Trial ended · ${chatsRemaining} chat${chatsRemaining !== 1 ? 's' : ''} remaining · Upgrade for unlimited`}
             </Text>
           </TouchableOpacity>
         )}
@@ -290,9 +291,9 @@ export default function CoachTab() {
             onSubmitEditing={handleSend}
           />
           <TouchableOpacity
-            style={[styles.sendBtn, (!input.trim() || isPending || limitReached) && styles.sendBtnDisabled]}
+            style={[styles.sendBtn, (!input.trim() || isPending || (!isPro && !isTrial && limitReached)) && styles.sendBtnDisabled]}
             onPress={handleSend}
-            disabled={!input.trim() || isPending || limitReached}
+            disabled={!input.trim() || isPending || (!isPro && !isTrial && limitReached)}
           >
             <Text style={styles.sendBtnText}>↑</Text>
           </TouchableOpacity>
