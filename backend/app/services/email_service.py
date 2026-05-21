@@ -289,6 +289,46 @@ If anything looks wrong, please contact us at <a href="mailto:info@kdaanalytics.
     await _send(to_email, "Your ProAICV data export", _wrap("Data export", body))
 
 
+async def send_bulk_upload_email(
+    to_email: str, name: str,
+    submitted: int, success_count: int,
+    errors: list[dict],
+) -> None:
+    display = name or "there"
+    error_html = ""
+    if errors:
+        shown = errors[:20]
+        items = "".join(
+            f'<li style="margin-bottom:4px"><strong>Row {e["row"]}:</strong> {e["message"]}</li>'
+            for e in shown
+        )
+        more = f"<li style='color:{_MUTED}'>…and {len(errors) - 20} more errors</li>" if len(errors) > 20 else ""
+        error_html = f"""
+<div class="divider"></div>
+<p style="color:#B45309;font-weight:600">⚠️ {len(errors)} row{'s' if len(errors) != 1 else ''} had errors and were skipped:</p>
+<ul style="padding-left:20px;margin:8px 0;font-size:13px;color:#374151">{items}{more}</ul>"""
+
+    body = f"""
+<h1>Bulk Job Upload {'Complete' if success_count > 0 else 'Failed'} 📋</h1>
+<span class="badge badge-provider">Job Provider</span>
+<p>Hi {display}, here is the result of your bulk job upload.</p>
+<div class="divider"></div>
+{_dr("Rows in file", str(submitted))}
+{_dr("Queued for review", f"<strong style='color:#2ec4b6'>{success_count}</strong>")}
+{_dr("Skipped (errors)", str(len(errors)))}
+{_dr("Status", "⏳ Pending Admin Review" if success_count > 0 else "❌ Nothing submitted")}
+{error_html}
+<div class="divider"></div>
+{'<p>Each job will go live after admin approval. You will receive a separate email per listing decision.</p>' if success_count > 0 else '<p>Please fix the errors in your file and try uploading again. Use the sample template as a guide.</p>'}"""
+
+    subject = (
+        f"Bulk upload: {success_count} job{'s' if success_count != 1 else ''} queued for review"
+        if success_count > 0
+        else "Bulk upload failed — no jobs submitted"
+    )
+    await _send(to_email, subject, _wrap("Bulk upload", body))
+
+
 async def send_phone_otp_email(to_email: str, name: str, otp: str, phone: str) -> None:
     display = name or "there"
     body = f"""

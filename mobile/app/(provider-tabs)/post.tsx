@@ -1,13 +1,17 @@
 import { useState } from 'react';
 import {
   View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView,
-  KeyboardAvoidingView, Platform, Alert, ActivityIndicator,
+  KeyboardAvoidingView, Platform, Alert, ActivityIndicator, Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { router } from 'expo-router';
+import * as DocumentPicker from 'expo-document-picker';
 import { api } from '@/services/api';
-import { Colors, Typography, Spacing, Radius, HeroColors } from '@/constants/theme';
+import { Colors, Typography, Spacing, Radius, HeroColors, Shadow } from '@/constants/theme';
+
+const API_BASE = process.env.EXPO_PUBLIC_API_URL ?? 'https://cvpilot-backend-hop4.onrender.com';
+const TEMPLATE_URL = `${API_BASE}/api/v1/provider/jobs/bulk-template`;
 
 type PickOption = { label: string; value: string };
 
@@ -69,6 +73,77 @@ export default function PostJobScreen() {
   const [salaryMin, setSalaryMin] = useState('');
   const [salaryMax, setSalaryMax] = useState('');
   const [vacancies, setVacancies] = useState('1');
+  const [uploading, setUploading] = useState(false);
+
+  const handleDownloadTemplate = () => {
+    Linking.openURL(TEMPLATE_URL).catch(() =>
+      Alert.alert('Error', 'Could not open the template URL. Please check your connection.')
+    );
+  };
+
+  const handleBulkUpload = async () => {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: [
+          'text/csv',
+          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+          'application/vnd.ms-excel',
+          '*/*',
+        ],
+        copyToCacheDirectory: true,
+      });
+
+      if (result.canceled || !result.assets?.length) return;
+
+      const file = result.assets[0];
+      const name = file.name?.toLowerCase() ?? '';
+      if (!name.endsWith('.csv') && !name.endsWith('.xlsx')) {
+        Alert.alert('Invalid File', 'Please upload a .csv or .xlsx file only.');
+        return;
+      }
+
+      setUploading(true);
+
+      const formData = new FormData();
+      formData.append('file', {
+        uri: file.uri,
+        name: file.name,
+        type: file.mimeType ?? 'application/octet-stream',
+      } as any);
+
+      const res = await api.post('/provider/jobs/bulk', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+
+      const { submitted, success_count, error_count, errors } = res.data;
+
+      if (success_count === 0) {
+        const errLines = errors.slice(0, 5).map((e: any) => `Row ${e.row}: ${e.message}`).join('\n');
+        const more = error_count > 5 ? `\n…and ${error_count - 5} more errors.` : '';
+        Alert.alert(
+          'Upload Failed',
+          `No jobs were submitted. Please fix the errors below and try again.\n\n${errLines}${more}`,
+        );
+      } else {
+        let msg = `${success_count} of ${submitted} job${success_count !== 1 ? 's' : ''} submitted for admin review.\nA confirmation email has been sent to you.`;
+        if (error_count > 0) {
+          const errLines = errors.slice(0, 3).map((e: any) => `Row ${e.row}: ${e.message}`).join('\n');
+          msg += `\n\n⚠️ ${error_count} row${error_count !== 1 ? 's' : ''} skipped:\n${errLines}`;
+          if (error_count > 3) msg += `\n…and ${error_count - 3} more (see email for full list).`;
+        }
+        Alert.alert('Upload Complete', msg, [
+          { text: 'View Listings', onPress: () => router.replace('/(provider-tabs)/listings' as any) },
+          { text: 'OK' },
+        ]);
+        qc.invalidateQueries({ queryKey: ['provider-jobs'] });
+      }
+    } catch (err: any) {
+      const detail = err?.response?.data?.detail ?? 'Could not process the file. Please try again.';
+      Alert.alert('Upload Error', detail);
+    } finally {
+      setUploading(false);
+    }
+  };
   const [skills, setSkills] = useState('');
   const [requirements, setRequirements] = useState('');
   const [description, setDescription] = useState('');
@@ -111,6 +186,46 @@ export default function PostJobScreen() {
     <SafeAreaView style={styles.safe} edges={['bottom']}>
       <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
+
+          {/* ── Bulk Upload ─────────────────────────────── */}
+          <View style={[styles.bulkCard, Shadow.sm]}>
+            <View style={styles.bulkHeader}>
+              <Text style={styles.bulkIcon}>📤</Text>
+              <View style={styles.bulkHeaderText}>
+                <Text style={styles.bulkTitle}>Bulk Job Upload</Text>
+                <Text style={styles.bulkSub}>Upload 25+ jobs at once via Excel or CSV</Text>
+              </View>
+            </View>
+
+            <View style={styles.bulkSteps}>
+              <Text style={styles.bulkStep}>1. Download the template below</Text>
+              <Text style={styles.bulkStep}>2. Fill in your jobs (min. 25 rows)</Text>
+              <Text style={styles.bulkStep}>3. Upload the completed file</Text>
+              <Text style={styles.bulkStep}>4. Jobs go to admin review — same as single listing</Text>
+            </View>
+
+            <TouchableOpacity style={styles.templateBtn} onPress={handleDownloadTemplate} activeOpacity={0.8}>
+              <Text style={styles.templateBtnText}>↓  Download Sample Template (.xlsx)</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.bulkUploadBtn, uploading && styles.btnDisabled]}
+              onPress={handleBulkUpload}
+              disabled={uploading}
+              activeOpacity={0.85}
+            >
+              {uploading
+                ? <ActivityIndicator color={Colors.textInverse} />
+                : <Text style={styles.bulkUploadBtnText}>↑  Upload Excel / CSV</Text>
+              }
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.dividerRow}>
+            <View style={styles.dividerLine} />
+            <Text style={styles.dividerText}>OR ADD MANUALLY</Text>
+            <View style={styles.dividerLine} />
+          </View>
 
           <Field label="Job Title" required>
             <TextInput style={styles.input} placeholder="e.g. Senior React Native Developer" value={title} onChangeText={setTitle} />
@@ -229,4 +344,34 @@ const styles = StyleSheet.create({
   submitBtnDisabled: { opacity: 0.6 },
   submitBtnText: { ...Typography.label, color: Colors.textInverse, fontSize: 16, fontWeight: '700' },
   note: { ...Typography.caption, color: Colors.textMuted, textAlign: 'center' },
+
+  bulkCard: {
+    backgroundColor: Colors.surface, borderRadius: Radius.lg,
+    padding: Spacing.md, borderWidth: 1, borderColor: Colors.primary + '30',
+    gap: Spacing.md,
+  },
+  bulkHeader: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
+  bulkIcon: { fontSize: 28 },
+  bulkHeaderText: { flex: 1 },
+  bulkTitle: { ...Typography.h4, color: Colors.text },
+  bulkSub: { ...Typography.caption, color: Colors.textMuted, marginTop: 2 },
+  bulkSteps: { gap: 4 },
+  bulkStep: { ...Typography.caption, color: Colors.textSecondary, lineHeight: 18 },
+  templateBtn: {
+    borderWidth: 1, borderColor: Colors.primary + '50',
+    borderRadius: Radius.md, paddingVertical: 10, alignItems: 'center',
+    backgroundColor: Colors.primaryLight,
+  },
+  templateBtnText: { ...Typography.label, color: Colors.primary, fontWeight: '600' },
+  bulkUploadBtn: {
+    borderWidth: 1, borderColor: 'rgba(91,46,255,0.3)',
+    borderRadius: Radius.lg, paddingVertical: 12, alignItems: 'center',
+    backgroundColor: HeroColors.base,
+  },
+  bulkUploadBtnText: { ...Typography.label, color: Colors.textInverse, fontWeight: '700' },
+  btnDisabled: { opacity: 0.6 },
+
+  dividerRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
+  dividerLine: { flex: 1, height: 1, backgroundColor: Colors.border },
+  dividerText: { ...Typography.caption, color: Colors.textMuted, fontWeight: '600', letterSpacing: 0.5 },
 });
