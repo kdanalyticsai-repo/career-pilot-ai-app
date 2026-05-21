@@ -1,4 +1,4 @@
-"""SendGrid email service for CVProAI transactional emails."""
+"""SendGrid email service for ProAICV transactional emails."""
 from __future__ import annotations
 import logging
 import httpx
@@ -51,7 +51,7 @@ p{{font-size:15px;line-height:1.65;color:#374151;margin-bottom:12px}}
 </head>
 <body>
 <div class="wrap">
-  <div class="logo">CVPro<span>AI</span></div>
+  <div class="logo">ProAI<span>CV</span></div>
   {body}
   <div class="footer">
     &copy; 2026 KDAA ANALYTICS (OPC) PRIVATE LIMITED<br/>
@@ -102,14 +102,14 @@ async def send_welcome_email(to_email: str, name: str, role: str) -> None:
     else:
         bullets = "<li>Upload your resume &amp; get an ATS score</li><li>Discover AI-matched jobs daily</li><li>Generate cover letters &amp; prep for interviews</li>"
     body = f"""
-<h1>Welcome to CVProAI, {display}! 🎉</h1>
+<h1>Welcome to ProAICV, {display}! 🎉</h1>
 {badge}
 <p>Your account is ready. Here's what you can do right away:</p>
 <ul style="padding-left:20px;margin-bottom:16px;font-size:15px;line-height:1.8;color:#374151">{bullets}</ul>
 <p>You have <strong>7 days of full Pro access</strong> from today — explore every feature free.</p>
 <div class="divider"></div>
 <p style="color:{_MUTED};font-size:13px">If you didn't create this account, contact <a href="mailto:info@kdaanalytics.com">info@kdaanalytics.com</a>.</p>"""
-    await _send(to_email, "Welcome to CVProAI — your account is ready", _wrap("Welcome", body))
+    await _send(to_email, "Welcome to ProAICV — your account is ready", _wrap("Welcome", body))
 
 
 # ── 2a. Job seeker: application submitted ─────────────────────────────────────
@@ -123,7 +123,7 @@ async def send_application_submitted_email(to_email: str, name: str, job_title: 
 {_dr("Role", f"<strong>{job_title}</strong>")}
 {_dr("Company", company)}
 <div class="divider"></div>
-<p>Track all your applications in the <strong>Applications</strong> tab inside CVProAI.</p>"""
+<p>Track all your applications in the <strong>Applications</strong> tab inside ProAICV.</p>"""
     await _send(to_email, f"Application submitted — {job_title} at {company}", _wrap("Application submitted", body))
 
 
@@ -150,7 +150,7 @@ async def send_application_status_email(
 {_dr("Company", company)}
 {_dr("New status", f"<strong>{label}</strong>")}
 <div class="divider"></div>
-<p>Open CVProAI to view full details and next steps.</p>"""
+<p>Open ProAICV to view full details and next steps.</p>"""
     await _send(to_email, f"Application update: {label} — {job_title}", _wrap("Application update", body))
 
 
@@ -177,7 +177,7 @@ async def send_listing_decision_email(
     display = name or "there"
     if decision == "approved":
         status_line, headline = "✅ Live", "Your listing is now live! 🚀"
-        note = "Job seekers can now discover and apply to your listing in the CVProAI app."
+        note = "Job seekers can now discover and apply to your listing in the ProAICV app."
     else:
         status_line, headline = "❌ Rejected", "Your listing was not approved"
         note = ("Your listing did not meet our content guidelines. Please review and resubmit with accurate information. "
@@ -201,10 +201,10 @@ async def send_profile_updated_email(to_email: str, name: str) -> None:
     display = name or "there"
     body = f"""
 <h1>Profile updated ✏️</h1>
-<p>Hi {display}, your CVProAI profile was updated successfully.</p>
+<p>Hi {display}, your ProAICV profile was updated successfully.</p>
 <p>If you didn't make this change, please contact us immediately at
 <a href="mailto:info@kdaanalytics.com">info@kdaanalytics.com</a>.</p>"""
-    await _send(to_email, "Your CVProAI profile was updated", _wrap("Profile updated", body))
+    await _send(to_email, "Your ProAICV profile was updated", _wrap("Profile updated", body))
 
 
 # ── 6. Forgot password OTP ────────────────────────────────────────────────────
@@ -212,13 +212,13 @@ async def send_password_reset_otp_email(to_email: str, name: str, otp: str) -> N
     display = name or "there"
     body = f"""
 <h1>Reset your password 🔐</h1>
-<p>Hi {display}, use the code below to reset your CVProAI password.
+<p>Hi {display}, use the code below to reset your ProAICV password.
 The code expires in <strong>15 minutes</strong>.</p>
 <div class="otp">{otp}</div>
 <p>Enter this code in the app when prompted. Do <strong>not</strong> share it with anyone.</p>
 <div class="divider"></div>
 <p style="color:{_MUTED};font-size:13px">If you didn't request a password reset, you can safely ignore this email.</p>"""
-    await _send(to_email, "Your CVProAI password reset code", _wrap("Reset password", body))
+    await _send(to_email, "Your ProAICV password reset code", _wrap("Reset password", body))
 
 
 # ── Trial ending reminder ─────────────────────────────────────────────────────
@@ -226,7 +226,7 @@ async def send_trial_ending_email(to_email: str, name: str) -> None:
     display = name or "there"
     body = f"""
 <h1>Your free trial ends today ⏰</h1>
-<p>Hi {display}, your 7-day free trial of CVProAI is coming to an end.</p>
+<p>Hi {display}, your 7-day free trial of ProAICV is coming to an end.</p>
 <p>Upgrade to <strong>Pro</strong> to keep access to:</p>
 <ul style="padding-left:20px;margin-bottom:16px;font-size:15px;line-height:1.8;color:#374151">
   <li>Unlimited AI Career Coach chats</li>
@@ -236,8 +236,8 @@ async def send_trial_ending_email(to_email: str, name: str) -> None:
 </ul>
 <p>Only <strong>&#8377;199/month</strong> — cancel anytime.</p>
 <div class="divider"></div>
-<p style="color:{_MUTED};font-size:13px">Open CVProAI and tap <em>Upgrade</em> to continue without interruption.</p>"""
-    await _send(to_email, "Your CVProAI free trial ends today — upgrade to Pro", _wrap("Trial ending", body))
+<p style="color:{_MUTED};font-size:13px">Open ProAICV and tap <em>Upgrade</em> to continue without interruption.</p>"""
+    await _send(to_email, "Your ProAICV free trial ends today — upgrade to Pro", _wrap("Trial ending", body))
 
 
 # ── Phone verification OTP ────────────────────────────────────────────────────
@@ -256,22 +256,22 @@ async def send_weekly_digest_email(
 {_dr("Interview stage", str(interview))}
 {_dr("Offers", str(offer))}
 {_dr("Rejected", str(rejected))}
-{_dr("Jobs available on CVProAI", str(total_jobs))}
+{_dr("Jobs available on ProAICV", str(total_jobs))}
 <div class="divider"></div>
 <p>{'🎉 You have an interview coming up — prepare your STAR stories and research the company!' if interview > 0 else 'Keep applying! Consistency is the key to landing your next role.'}</p>
 <p style="color:{_MUTED};font-size:13px">Open the app to track your applications and discover new matches.</p>"""
-    await _send(to_email, "Your weekly CVProAI career summary", _wrap("Weekly digest", body))
+    await _send(to_email, "Your weekly ProAICV career summary", _wrap("Weekly digest", body))
 
 
 async def send_career_tip_email(to_email: str, name: str, tip_subject: str, tip_body: str) -> None:
     display = name or "there"
     body = f"""
 <h1>{tip_subject} 💡</h1>
-<p>Hi {display}, here's your fortnightly career tip from CVProAI.</p>
+<p>Hi {display}, here's your fortnightly career tip from ProAICV.</p>
 <div class="divider"></div>
 {tip_body}
 <div class="divider"></div>
-<p style="color:{_MUTED};font-size:13px">Open CVProAI to apply these tips to your resume and job search.</p>"""
+<p style="color:{_MUTED};font-size:13px">Open ProAICV to apply these tips to your resume and job search.</p>"""
     await _send(to_email, f"Career tip: {tip_subject}", _wrap("Career tip", body))
 
 
@@ -279,24 +279,24 @@ async def send_data_export_email(to_email: str, name: str, rows: list[tuple[str,
     display = name or "there"
     table_rows = "".join(_dr(label, value) for label, value in rows)
     body = f"""
-<h1>Your CVProAI data export 📦</h1>
+<h1>Your ProAICV data export 📦</h1>
 <p>Hi {display}, here is a copy of the data we hold for your account.
 If anything looks wrong, please contact us at <a href="mailto:info@kdaanalytics.com">info@kdaanalytics.com</a>.</p>
 <div class="divider"></div>
 {table_rows}
 <div class="divider"></div>
 <p style="color:{_MUTED};font-size:13px">To delete your account and all data, use the Delete Account option in Settings.</p>"""
-    await _send(to_email, "Your CVProAI data export", _wrap("Data export", body))
+    await _send(to_email, "Your ProAICV data export", _wrap("Data export", body))
 
 
 async def send_phone_otp_email(to_email: str, name: str, otp: str, phone: str) -> None:
     display = name or "there"
     body = f"""
 <h1>Verify your mobile number 📱</h1>
-<p>Hi {display}, use the code below to verify your mobile number <strong>{phone}</strong> on CVProAI.
+<p>Hi {display}, use the code below to verify your mobile number <strong>{phone}</strong> on ProAICV.
 The code expires in <strong>15 minutes</strong>.</p>
 <div class="otp">{otp}</div>
 <p>Enter this code in the app when prompted. Do <strong>not</strong> share it with anyone.</p>
 <div class="divider"></div>
 <p style="color:{_MUTED};font-size:13px">If you didn't request this, you can safely ignore this email.</p>"""
-    await _send(to_email, f"CVProAI verification code: {otp}", _wrap("Verify mobile", body))
+    await _send(to_email, f"ProAICV verification code: {otp}", _wrap("Verify mobile", body))

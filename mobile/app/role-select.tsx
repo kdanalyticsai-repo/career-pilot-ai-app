@@ -53,7 +53,7 @@ export default function RoleSelectScreen() {
           <View style={styles.logoMark}>
             <Text style={styles.logoMarkIcon}>✦</Text>
           </View>
-          <Text style={styles.logoText}>CVProAI</Text>
+          <Text style={styles.logoText}>ProAICV</Text>
           <Text style={styles.heroTagline}>Your AI-powered career platform</Text>
 
           <View style={styles.pillRow}>

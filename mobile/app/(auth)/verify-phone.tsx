@@ -121,7 +121,7 @@ export default function VerifyPhoneScreen() {
               <View style={styles.logoMark}>
                 <Text style={styles.logoMarkIcon}>✦</Text>
               </View>
-              <Text style={styles.logo}>CVProAI</Text>
+              <Text style={styles.logo}>ProAICV</Text>
               <Text style={styles.tagline}>Verify your mobile number</Text>
             </View>
 

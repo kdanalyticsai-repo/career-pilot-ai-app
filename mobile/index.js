@@ -4,7 +4,7 @@ import { View, Text, StyleSheet } from 'react-native';
 function App() {
   return (
     <View style={styles.container}>
-      <Text style={styles.text}>CVProAI is working!</Text>
+      <Text style={styles.text}>ProAICV is working!</Text>
     </View>
   );
 }

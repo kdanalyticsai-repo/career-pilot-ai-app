@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 CAREER_TIPS = [
     (
         "Tailor your resume for every job",
-        "<p>Generic resumes get 3× fewer callbacks. Before applying, scan the job description for keywords and mirror them in your resume — especially in your summary and skills sections. CVProAI's Tailor feature does this automatically.</p>",
+        "<p>Generic resumes get 3× fewer callbacks. Before applying, scan the job description for keywords and mirror them in your resume — especially in your summary and skills sections. ProAICV's Tailor feature does this automatically.</p>",
     ),
     (
         "Quantify every achievement you can",

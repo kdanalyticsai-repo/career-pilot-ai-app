@@ -6,7 +6,7 @@ import os
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
-    APP_NAME: str = "CVProAI"
+    APP_NAME: str = "ProAICV"
     APP_ENV: str = "development"
     SECRET_KEY: str = "dev-secret-key-change-in-production-min-32-chars!!"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 720  # 12 hours — reduces cold-start refresh failures
@@ -41,7 +41,7 @@ class Settings(BaseSettings):
     # SendGrid email service
     SENDGRID_API_KEY: str = ""
     SENDGRID_FROM_EMAIL: str = "info@kdaanalytics.com"
-    SENDGRID_FROM_NAME: str = "CVProAI"
+    SENDGRID_FROM_NAME: str = "ProAICV"
 
     # Expo push notifications
     EXPO_ACCESS_TOKEN: str = ""

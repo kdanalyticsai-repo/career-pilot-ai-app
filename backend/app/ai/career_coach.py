@@ -4,7 +4,7 @@ from app.config import settings
 
 logger = logging.getLogger(__name__)
 
-CAREER_COACH_SYSTEM = """You are CVProAI's AI career coach — an expert career advisor with deep knowledge
+CAREER_COACH_SYSTEM = """You are ProAICV's AI career coach — an expert career advisor with deep knowledge
 of the Indian tech job market, resume writing, interview preparation, salary negotiation, and career growth.
 
 You help users:

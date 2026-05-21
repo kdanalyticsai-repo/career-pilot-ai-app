@@ -69,7 +69,7 @@ export default function ResetPasswordScreen() {
       <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
           <View style={styles.header}>
-            <Text style={styles.logo}>CVProAI</Text>
+            <Text style={styles.logo}>ProAICV</Text>
           </View>
 
           <View style={styles.form}>

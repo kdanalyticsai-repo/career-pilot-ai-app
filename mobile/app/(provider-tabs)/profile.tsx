@@ -154,7 +154,7 @@ export default function ProviderProfileScreen() {
           { icon: '📞', title: 'Contact Us', onPress: () => Linking.openURL(`mailto:${SUPPORT_EMAIL}`) },
           { icon: '📋', title: 'Terms & Conditions', onPress: () => Linking.openURL(TERMS_URL) },
           { icon: '🔒', title: 'Privacy Policy', onPress: () => Linking.openURL(PRIVACY_URL) },
-          { icon: 'ℹ️', title: 'About CVProAI', sub: 'v1.0.0', onPress: () => {} },
+          { icon: 'ℹ️', title: 'About ProAICV', sub: 'v1.0.0', onPress: () => {} },
         ])}
 
         <TouchableOpacity style={[styles.logoutBtn, Shadow.sm]} onPress={handleLogout} activeOpacity={0.8}>

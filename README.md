@@ -1,1 +1,1 @@
-# CVProAI — AI-Powered Career Platform
+# ProAICV — AI-Powered Career Platform

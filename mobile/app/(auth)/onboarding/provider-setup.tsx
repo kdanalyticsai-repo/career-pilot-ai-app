@@ -90,7 +90,7 @@ export default function ProviderSetupScreen() {
             <View style={styles.logoMark}>
               <Text style={styles.logoMarkIcon}>✦</Text>
             </View>
-            <Text style={styles.logo}>CVProAI</Text>
+            <Text style={styles.logo}>ProAICV</Text>
             <Text style={styles.subtitle}>Provider Setup</Text>
           </View>
 

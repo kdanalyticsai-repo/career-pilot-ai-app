@@ -77,7 +77,7 @@ export default function RegisterScreen() {
               <View style={[styles.logoMark, isProvider && { backgroundColor: Colors.tertiaryContainer }]}>
                 <Text style={styles.logoMarkIcon}>{isProvider ? '🏢' : '✦'}</Text>
               </View>
-              <Text style={styles.logo}>CVProAI</Text>
+              <Text style={styles.logo}>ProAICV</Text>
               <Text style={styles.tagline}>{tagline}</Text>
             </View>
 

@@ -64,7 +64,7 @@ export default function LoginScreen() {
               <View style={styles.logoMark}>
                 <Text style={styles.logoMarkIcon}>✦</Text>
               </View>
-              <Text style={styles.logo}>CVProAI</Text>
+              <Text style={styles.logo}>ProAICV</Text>
               <Text style={styles.tagline}>{tagline}</Text>
             </View>
 

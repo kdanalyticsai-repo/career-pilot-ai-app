@@ -202,7 +202,7 @@ export default function ProfileTab() {
             </View>
             <View style={styles.menuLabelWrap}>
               <Text style={styles.menuLabel}>App Version</Text>
-              <Text style={styles.menuSub}>CVProAI v1.0.0</Text>
+              <Text style={styles.menuSub}>ProAICV v1.0.0</Text>
             </View>
           </View>
         </View>
