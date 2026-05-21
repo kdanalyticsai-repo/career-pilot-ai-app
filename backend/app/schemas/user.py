@@ -28,6 +28,9 @@ class UserUpdate(BaseModel):
     name: str | None = None
     phone: str | None = None
     avatar_url: str | None = None
+    company_pan: str | None = None
+    company_reg_no: str | None = None
+    gstin: str | None = None
 
 
 class UserPreferences(BaseModel):

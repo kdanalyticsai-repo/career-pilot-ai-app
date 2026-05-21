@@ -41,6 +41,14 @@ async def update_me(
         current_user.phone = data.phone
     if data.avatar_url is not None:
         current_user.avatar_url = data.avatar_url
+    if current_user.role == "job_provider":
+        if data.company_pan is not None:
+            current_user.company_pan = data.company_pan or None
+            current_user.pan_verified = False  # reset verification on PAN change
+        if data.company_reg_no is not None:
+            current_user.company_reg_no = data.company_reg_no or None
+        if data.gstin is not None:
+            current_user.gstin = data.gstin or None
     await db.commit()
     await db.refresh(current_user)
     await send_profile_updated_email(current_user.email, current_user.name or "")
