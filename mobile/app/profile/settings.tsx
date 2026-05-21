@@ -6,7 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { api } from '@/services/api';
 import { useAuthStore } from '@/stores/authStore';
-import { Colors, Typography, Spacing, Radius, Shadow } from '@/constants/theme';
+import { Colors, Typography, Spacing, Radius, Shadow, HeroColors } from '@/constants/theme';
 
 export default function SettingsScreen() {
   const { logout, user } = useAuthStore();
@@ -71,7 +71,7 @@ export default function SettingsScreen() {
 
   const sections: {
     title: string;
-    rows: { label: string; icon: string; sub?: string; onPress: () => void; danger?: boolean }[];
+    rows: { label: string; icon: string; sub?: string; onPress: () => void }[];
   }[] = [
     {
       title: 'Account',
@@ -101,7 +101,19 @@ export default function SettingsScreen() {
             : user?.company_pan
             ? '⏳ Verification pending review'
             : 'Submit company PAN to get verified',
-          onPress: () => {},
+          onPress: () => {
+            const title = user?.pan_verified
+              ? '✓ PAN Verified'
+              : user?.company_pan
+              ? '⏳ Verification Pending'
+              : 'Not Submitted';
+            const message = user?.pan_verified
+              ? `Your company PAN (${user.company_pan}) has been verified by the ProAICV team. Your profile now shows the Verified badge.`
+              : user?.company_pan
+              ? `Your company PAN (${user.company_pan}) has been submitted and is under review. Our team typically verifies within 24 hours.`
+              : 'You have not submitted a company PAN yet. Go to Edit Profile to add your PAN, CIN, or GSTIN for verification.';
+            Alert.alert(title, message);
+          },
         },
       ],
     }] : []),
@@ -140,20 +152,6 @@ export default function SettingsScreen() {
         },
       ],
     },
-    {
-      title: 'Danger Zone',
-      rows: [
-        {
-          label: 'Delete Account',
-          icon: '🗑️',
-          sub: isProvider
-            ? 'Permanently remove your account and listings'
-            : 'Permanently remove all your data',
-          onPress: handleDeleteAccount,
-          danger: true,
-        },
-      ],
-    },
   ];
 
   return (
@@ -172,11 +170,11 @@ export default function SettingsScreen() {
                   disabled={exporting || deleting}
                   activeOpacity={0.7}
                 >
-                  <View style={[styles.iconWrap, row.danger && styles.iconWrapDanger]}>
+                  <View style={styles.iconWrap}>
                     <Text style={styles.rowIcon}>{row.icon}</Text>
                   </View>
                   <View style={styles.rowText}>
-                    <Text style={[styles.rowLabel, row.danger && { color: Colors.danger }]}>
+                    <Text style={styles.rowLabel}>
                       {row.label}
                     </Text>
                     {row.sub ? <Text style={styles.rowSub} numberOfLines={1}>{row.sub}</Text> : null}
@@ -192,6 +190,18 @@ export default function SettingsScreen() {
             </View>
           </View>
         ))}
+
+        <TouchableOpacity
+          style={[styles.deleteBtn, Shadow.sm]}
+          onPress={handleDeleteAccount}
+          disabled={deleting}
+          activeOpacity={0.8}
+        >
+          {deleting
+            ? <ActivityIndicator size="small" color={Colors.textInverse} />
+            : <Text style={styles.deleteBtnText}>Delete Account</Text>
+          }
+        </TouchableOpacity>
 
         <View style={styles.appInfo}>
           <Text style={styles.appInfoText}>ProAICV v1.0.0</Text>
@@ -226,12 +236,19 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.surfaceSecondary,
     alignItems: 'center', justifyContent: 'center',
   },
-  iconWrapDanger: { backgroundColor: Colors.danger + '15' },
   rowIcon: { fontSize: 16 },
   rowText: { flex: 1 },
   rowLabel: { ...Typography.label, color: Colors.text },
   rowSub: { ...Typography.caption, color: Colors.textMuted, marginTop: 1 },
   chevron: { fontSize: 20, color: Colors.textMuted, fontWeight: '300' },
+
+  deleteBtn: {
+    borderWidth: 1, borderColor: 'rgba(91,46,255,0.3)',
+    borderRadius: Radius.lg, padding: Spacing.md, alignItems: 'center',
+    backgroundColor: HeroColors.base,
+    marginHorizontal: Spacing.sm,
+  },
+  deleteBtnText: { ...Typography.label, color: Colors.textInverse, fontWeight: '700' },
 
   appInfo: { alignItems: 'center', marginTop: Spacing.lg, gap: 4 },
   appInfoText: { ...Typography.caption, color: Colors.textMuted },
