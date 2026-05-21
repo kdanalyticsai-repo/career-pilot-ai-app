@@ -241,6 +241,40 @@ async def send_trial_ending_email(to_email: str, name: str) -> None:
 
 
 # ── Phone verification OTP ────────────────────────────────────────────────────
+async def send_weekly_digest_email(
+    to_email: str, name: str,
+    applied: int, interview: int, offer: int, rejected: int, total_jobs: int,
+) -> None:
+    display = name or "there"
+    total_apps = applied + interview + offer + rejected
+    body = f"""
+<h1>Your weekly career summary 📊</h1>
+<p>Hi {display}, here's a quick look at how your job search is going this week.</p>
+<div class="divider"></div>
+{_dr("Total applications", str(total_apps))}
+{_dr("Applied", str(applied))}
+{_dr("Interview stage", str(interview))}
+{_dr("Offers", str(offer))}
+{_dr("Rejected", str(rejected))}
+{_dr("Jobs available on CVProAI", str(total_jobs))}
+<div class="divider"></div>
+<p>{'🎉 You have an interview coming up — prepare your STAR stories and research the company!' if interview > 0 else 'Keep applying! Consistency is the key to landing your next role.'}</p>
+<p style="color:{_MUTED};font-size:13px">Open the app to track your applications and discover new matches.</p>"""
+    await _send(to_email, "Your weekly CVProAI career summary", _wrap("Weekly digest", body))
+
+
+async def send_career_tip_email(to_email: str, name: str, tip_subject: str, tip_body: str) -> None:
+    display = name or "there"
+    body = f"""
+<h1>{tip_subject} 💡</h1>
+<p>Hi {display}, here's your fortnightly career tip from CVProAI.</p>
+<div class="divider"></div>
+{tip_body}
+<div class="divider"></div>
+<p style="color:{_MUTED};font-size:13px">Open CVProAI to apply these tips to your resume and job search.</p>"""
+    await _send(to_email, f"Career tip: {tip_subject}", _wrap("Career tip", body))
+
+
 async def send_data_export_email(to_email: str, name: str, rows: list[tuple[str, str]]) -> None:
     display = name or "there"
     table_rows = "".join(_dr(label, value) for label, value in rows)

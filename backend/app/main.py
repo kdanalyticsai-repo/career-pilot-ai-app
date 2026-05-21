@@ -15,6 +15,8 @@ from app.config import settings
 from app.database import async_engine, Base
 from app.api.v1 import auth, users, resumes, jobs, applications, ai, analytics, notifications, subscriptions, admin, provider
 from app.jobs.renewal_reminder import send_pro_renewal_reminders
+from app.jobs.reminders import send_interview_reminders
+from app.jobs.weekly_digest import send_weekly_digests
 import app.models.job  # noqa: F401
 import app.models.ai_features  # noqa: F401
 import app.models.notification  # noqa: F401
@@ -93,14 +95,32 @@ async def lifespan(app: FastAPI):
     if settings.SENTRY_DSN and _has_sentry:
         sentry_sdk.init(dsn=settings.SENTRY_DSN, traces_sample_rate=0.1)
 
-    # Daily renewal reminder — runs at 9:00 AM IST (03:30 UTC)
     scheduler = AsyncIOScheduler(timezone="UTC")
+
+    # Daily — Pro renewal push at 9:00 AM IST (03:30 UTC)
     scheduler.add_job(
         send_pro_renewal_reminders,
         CronTrigger(hour=3, minute=30),
         id="pro_renewal_reminders",
         replace_existing=True,
     )
+
+    # Weekly Monday — Interview prep push reminders at 9:00 AM IST (03:30 UTC)
+    scheduler.add_job(
+        send_interview_reminders,
+        CronTrigger(day_of_week="mon", hour=3, minute=35),
+        id="interview_reminders",
+        replace_existing=True,
+    )
+
+    # Weekly Monday — Digest emails + bi-weekly career tips at 9:30 AM IST (04:00 UTC)
+    scheduler.add_job(
+        send_weekly_digests,
+        CronTrigger(day_of_week="mon", hour=4, minute=0),
+        id="weekly_digests",
+        replace_existing=True,
+    )
+
     scheduler.start()
 
     yield

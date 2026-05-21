@@ -9,6 +9,8 @@ from app.models.job import Job, Application
 from app.models.resume import Resume, ResumeSection
 from app.config import settings
 from app.services.email_service import send_listing_decision_email
+from app.models.notification import PushToken, NotificationPreference
+from app.services.notification_service import send_push_notifications
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
@@ -221,12 +223,35 @@ async def approve_job(
     job.is_active = True
     job.review_status = "approved"
     await db.commit()
+
     # Notify the job provider
     if job.posted_by:
         provider_result = await db.execute(select(User).where(User.id == job.posted_by))
         provider = provider_result.scalar_one_or_none()
         if provider:
             await send_listing_decision_email(provider.email, provider.name or "", job.title, job.company or "", "approved")
+
+    # Push job alert to all job seekers who have the preference enabled
+    seeker_tokens_result = await db.execute(
+        select(PushToken.token)
+        .join(NotificationPreference, NotificationPreference.user_id == PushToken.user_id)
+        .join(User, User.id == PushToken.user_id)
+        .where(
+            User.role == "job_seeker",
+            User.onboarded == True,
+            PushToken.active == True,
+            NotificationPreference.push_job_alerts == True,
+        )
+    )
+    tokens = list(seeker_tokens_result.scalars().all())
+    if tokens:
+        await send_push_notifications(
+            tokens=tokens,
+            title=f"New job: {job.title}",
+            body=f"{job.company} is hiring — tap to view and apply",
+            data={"screen": "jobs"},
+        )
+
     return {"status": "approved", "job_id": str(job_id)}
 
 
