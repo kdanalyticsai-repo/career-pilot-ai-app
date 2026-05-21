@@ -41,9 +41,12 @@ export default function SettingsScreen() {
   };
 
   const handleDeleteAccount = () => {
+    const deleteMsg = user?.role === 'job_provider'
+      ? 'This will permanently delete your account, all job listings, and associated data. This cannot be undone.'
+      : 'This will permanently delete your account, all resumes, applications, and data. This cannot be undone.';
     Alert.alert(
       'Delete Account',
-      'This will permanently delete your account, all resumes, applications, and data. This cannot be undone.',
+      deleteMsg,
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -64,6 +67,8 @@ export default function SettingsScreen() {
     );
   };
 
+  const isProvider = user?.role === 'job_provider';
+
   const sections: {
     title: string;
     rows: { label: string; icon: string; sub?: string; onPress: () => void; danger?: boolean }[];
@@ -77,14 +82,29 @@ export default function SettingsScreen() {
           sub: user?.email ?? '',
           onPress: () => router.push('/profile/edit'),
         },
-        {
+        ...(!isProvider ? [{
           label: 'Subscription',
           icon: '✦',
           sub: user?.subscription === 'pro' ? 'Pro Plan · Active' : 'Free Plan · Upgrade for more',
           onPress: () => router.push('/paywall'),
-        },
+        }] : []),
       ],
     },
+    ...(isProvider ? [{
+      title: 'Company',
+      rows: [
+        {
+          label: 'Verification Status',
+          icon: '🏛️',
+          sub: user?.pan_verified
+            ? '✓ PAN verified by admin'
+            : user?.company_pan
+            ? '⏳ Verification pending review'
+            : 'Submit company PAN to get verified',
+          onPress: () => {},
+        },
+      ],
+    }] : []),
     {
       title: 'Preferences',
       rows: [
@@ -126,7 +146,9 @@ export default function SettingsScreen() {
         {
           label: 'Delete Account',
           icon: '🗑️',
-          sub: 'Permanently remove all your data',
+          sub: isProvider
+            ? 'Permanently remove your account and listings'
+            : 'Permanently remove all your data',
           onPress: handleDeleteAccount,
           danger: true,
         },

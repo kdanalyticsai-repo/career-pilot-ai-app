@@ -75,11 +75,7 @@ export default function RoleSelectScreen() {
         <Text style={styles.sectionHeading}>How would you like to get started?</Text>
 
         {/* Job Seeker Card */}
-        <TouchableOpacity
-          style={[styles.card, Shadow.md]}
-          onPress={() => handleSelect('job_seeker')}
-          activeOpacity={0.93}
-        >
+        <View style={[styles.card, Shadow.md]}>
           <View style={styles.imageWrap}>
             <Image
               source={{ uri: SEEKER_IMAGE }}
@@ -116,14 +112,10 @@ export default function RoleSelectScreen() {
             <Text style={styles.cardCTAText}>Find Jobs</Text>
             <Text style={styles.cardCTAArrow}>→</Text>
           </TouchableOpacity>
-        </TouchableOpacity>
+        </View>
 
         {/* Job Provider Card */}
-        <TouchableOpacity
-          style={[styles.card, Shadow.md]}
-          onPress={() => handleSelect('job_provider')}
-          activeOpacity={0.93}
-        >
+        <View style={[styles.card, Shadow.md]}>
           <View style={styles.imageWrap}>
             <Image
               source={{ uri: PROVIDER_IMAGE }}
@@ -159,17 +151,7 @@ export default function RoleSelectScreen() {
             <Text style={styles.cardCTAText}>Hire Talent</Text>
             <Text style={styles.cardCTAArrow}>→</Text>
           </TouchableOpacity>
-        </TouchableOpacity>
-
-        {/* Sign In */}
-        <TouchableOpacity
-          style={styles.signInRow}
-          onPress={() => router.push('/(auth)/login')}
-          activeOpacity={0.7}
-        >
-          <Text style={styles.signInText}>Already have an account?  </Text>
-          <Text style={styles.signInLink}>Sign In →</Text>
-        </TouchableOpacity>
+        </View>
 
         <View style={{ height: Spacing.xl }} />
       </ScrollView>

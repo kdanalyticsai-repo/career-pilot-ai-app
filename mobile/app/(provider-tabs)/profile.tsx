@@ -241,9 +241,10 @@ const styles = StyleSheet.create({
   menuChevron: { fontSize: 18, color: Colors.textMuted },
 
   logoutBtn: {
-    borderWidth: 1.5, borderColor: Colors.danger + '60',
+    borderWidth: 1, borderColor: 'rgba(91,46,255,0.3)',
     borderRadius: Radius.lg, padding: Spacing.md, alignItems: 'center',
-    backgroundColor: Colors.danger + '08',
+    backgroundColor: HeroColors.base,
+    marginHorizontal: Spacing.sm,
   },
-  logoutText: { ...Typography.label, color: Colors.danger },
+  logoutText: { ...Typography.label, color: Colors.textInverse, fontWeight: '700' },
 });
