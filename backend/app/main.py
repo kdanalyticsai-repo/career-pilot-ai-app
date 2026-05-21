@@ -80,6 +80,7 @@ async def _run_migrations(conn):
         )
         """,
         "CREATE INDEX IF NOT EXISTS idx_job_provider_profiles_user ON job_provider_profiles(user_id)",
+        "ALTER TABLE jobs ADD COLUMN IF NOT EXISTS vacancies INTEGER DEFAULT 1",
     ]
     for stmt in migrations:
         await conn.execute(text(stmt))

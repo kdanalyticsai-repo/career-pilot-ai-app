@@ -7,7 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { router } from 'expo-router';
 import { api } from '@/services/api';
-import { Colors, Typography, Spacing, Radius } from '@/constants/theme';
+import { Colors, Typography, Spacing, Radius, HeroColors } from '@/constants/theme';
 
 type PickOption = { label: string; value: string };
 
@@ -68,6 +68,7 @@ export default function PostJobScreen() {
   const [remoteType, setRemoteType] = useState('onsite');
   const [salaryMin, setSalaryMin] = useState('');
   const [salaryMax, setSalaryMax] = useState('');
+  const [vacancies, setVacancies] = useState('1');
   const [skills, setSkills] = useState('');
   const [requirements, setRequirements] = useState('');
   const [description, setDescription] = useState('');
@@ -82,6 +83,7 @@ export default function PostJobScreen() {
       remote_type: remoteType,
       salary_min: salaryMin ? parseInt(salaryMin, 10) : null,
       salary_max: salaryMax ? parseInt(salaryMax, 10) : null,
+      vacancies: vacancies ? parseInt(vacancies, 10) : 1,
       skills_required: skills.split(',').map(s => s.trim()).filter(Boolean),
       requirements: requirements.split('\n').map(s => s.trim()).filter(Boolean),
       description: description.trim(),
@@ -92,7 +94,7 @@ export default function PostJobScreen() {
         { text: 'View My Listings', onPress: () => router.replace('/(provider-tabs)/listings' as any) },
       ]);
       setTitle(''); setCompany(''); setLocation(''); setDescription('');
-      setSkills(''); setRequirements(''); setSalaryMin(''); setSalaryMax('');
+      setSkills(''); setRequirements(''); setSalaryMin(''); setSalaryMax(''); setVacancies('1');
     },
     onError: () => Alert.alert('Error', 'Could not submit listing. Please try again.'),
   });
@@ -136,6 +138,16 @@ export default function PostJobScreen() {
               <TextInput style={styles.input} placeholder="e.g. 1200000" value={salaryMax} onChangeText={setSalaryMax} keyboardType="numeric" />
             </View>
           </View>
+
+          <Field label="No. of Vacancies">
+            <TextInput
+              style={styles.input}
+              placeholder="e.g. 2"
+              value={vacancies}
+              onChangeText={setVacancies}
+              keyboardType="numeric"
+            />
+          </Field>
 
           <Field label="Skills Required">
             <TextInput
@@ -210,10 +222,11 @@ const styles = StyleSheet.create({
   chipTextActive: { color: Colors.primary, fontWeight: '700' },
   salaryRow: { flexDirection: 'row', gap: Spacing.sm },
   submitBtn: {
-    backgroundColor: Colors.primary, borderRadius: Radius.md,
-    paddingVertical: 14, alignItems: 'center', marginTop: Spacing.sm,
+    borderWidth: 1, borderColor: 'rgba(91,46,255,0.3)',
+    borderRadius: Radius.lg, paddingVertical: 14, alignItems: 'center',
+    backgroundColor: HeroColors.base, marginTop: Spacing.sm,
   },
   submitBtnDisabled: { opacity: 0.6 },
-  submitBtnText: { ...Typography.label, color: Colors.textInverse, fontSize: 16 },
+  submitBtnText: { ...Typography.label, color: Colors.textInverse, fontSize: 16, fontWeight: '700' },
   note: { ...Typography.caption, color: Colors.textMuted, textAlign: 'center' },
 });

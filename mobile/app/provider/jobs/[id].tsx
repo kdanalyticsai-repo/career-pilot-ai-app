@@ -15,9 +15,9 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string }
 type Tab = 'details' | 'applicants';
 
 export default function ProviderJobDetailScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, initialTab } = useLocalSearchParams<{ id: string; initialTab?: string }>();
   const qc = useQueryClient();
-  const [tab, setTab] = useState<Tab>('details');
+  const [tab, setTab] = useState<Tab>((initialTab as Tab) ?? 'details');
 
   const { data: job, isLoading } = useQuery({
     queryKey: ['provider-job', id],

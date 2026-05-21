@@ -73,23 +73,17 @@ export default function SettingsScreen() {
     title: string;
     rows: { label: string; icon: string; sub?: string; onPress: () => void }[];
   }[] = [
-    {
+    ...(!isProvider ? [{
       title: 'Account',
       rows: [
         {
-          label: 'Edit Profile',
-          icon: '✏️',
-          sub: user?.email ?? '',
-          onPress: () => router.push('/profile/edit'),
-        },
-        ...(!isProvider ? [{
           label: 'Subscription',
           icon: '✦',
           sub: user?.subscription === 'pro' ? 'Pro Plan · Active' : 'Free Plan · Upgrade for more',
           onPress: () => router.push('/paywall'),
-        }] : []),
+        },
       ],
-    },
+    }] : []),
     ...(isProvider ? [{
       title: 'Company',
       rows: [

@@ -133,14 +133,24 @@ export default function ProviderProfileScreen() {
 
         {/* Stats */}
         <View style={styles.statsRow}>
-          <View style={[styles.statCard, Shadow.sm]}>
+          <TouchableOpacity
+            style={[styles.statCard, Shadow.sm]}
+            onPress={() => router.push('/(provider-tabs)/listings' as any)}
+            activeOpacity={0.75}
+          >
             <Text style={styles.statNumber}>{liveJobs}</Text>
             <Text style={styles.statLabel}>Live Jobs</Text>
-          </View>
-          <View style={[styles.statCard, Shadow.sm]}>
+            <Text style={styles.statHint}>tap to view →</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.statCard, Shadow.sm]}
+            onPress={() => router.push('/provider/applicants' as any)}
+            activeOpacity={0.75}
+          >
             <Text style={styles.statNumber}>{totalApplicants}</Text>
             <Text style={styles.statLabel}>Applicants</Text>
-          </View>
+            <Text style={styles.statHint}>tap to view →</Text>
+          </TouchableOpacity>
         </View>
 
         {/* Account */}
@@ -213,6 +223,7 @@ const styles = StyleSheet.create({
   },
   statNumber: { fontSize: 28, fontWeight: '800', color: Colors.text, letterSpacing: -0.5 },
   statLabel: { ...Typography.caption, color: Colors.textMuted, marginTop: 4 },
+  statHint: { ...Typography.caption, color: Colors.primary, marginTop: 2, fontSize: 10 },
 
   section: { gap: Spacing.xs },
   sectionLabel: {

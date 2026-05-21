@@ -44,6 +44,7 @@ class Job(Base):
     job_type: Mapped[str] = mapped_column(String(30), default="full_time")
     experience_level: Mapped[str] = mapped_column(String(20), default="mid")
     remote_type: Mapped[str] = mapped_column(String(20), default="onsite")
+    vacancies: Mapped[int | None] = mapped_column(Integer, default=1)
     source: Mapped[str] = mapped_column(String(50), default="mock")
     external_url: Mapped[str | None] = mapped_column(String(500))
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)

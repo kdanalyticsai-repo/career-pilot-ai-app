@@ -24,6 +24,7 @@ class JobCreateRequest(BaseModel):
     job_type: str = "full_time"
     experience_level: str = "mid"
     remote_type: str = "onsite"
+    vacancies: int | None = 1
 
 
 class JobUpdateRequest(BaseModel):
@@ -38,6 +39,7 @@ class JobUpdateRequest(BaseModel):
     job_type: str | None = None
     experience_level: str | None = None
     remote_type: str | None = None
+    vacancies: int | None = None
 
 
 def _job_to_dict(job: Job, applicant_count: int = 0) -> dict:
@@ -55,6 +57,7 @@ def _job_to_dict(job: Job, applicant_count: int = 0) -> dict:
         "job_type": job.job_type,
         "experience_level": job.experience_level,
         "remote_type": job.remote_type,
+        "vacancies": job.vacancies,
         "review_status": job.review_status,
         "is_active": job.is_active,
         "posted_at": job.posted_at.isoformat() if job.posted_at else None,
@@ -80,6 +83,7 @@ async def create_job(
         job_type=data.job_type,
         experience_level=data.experience_level,
         remote_type=data.remote_type,
+        vacancies=data.vacancies,
         source="provider",
         is_active=False,
         review_status="pending",
