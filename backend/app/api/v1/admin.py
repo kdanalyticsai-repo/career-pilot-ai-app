@@ -379,6 +379,65 @@ async def list_users(
     }
 
 
+@router.get("/pending-applicant-access")
+async def list_pending_applicant_access(
+    _: User = Depends(_require_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Return approved provider jobs where applicant access is pending admin approval."""
+    result = await db.execute(
+        select(Job, User)
+        .outerjoin(User, Job.posted_by == User.id)
+        .where(Job.source == "provider", Job.applicants_access == "pending")
+        .order_by(Job.posted_at.desc())
+    )
+    rows = result.all()
+    return [
+        {
+            "id": str(job.id),
+            "title": job.title,
+            "company": job.company,
+            "location": job.location,
+            "review_status": job.review_status,
+            "applicant_count": 0,
+            "posted_at": job.posted_at.isoformat() if job.posted_at else None,
+            "provider_name": user.name if user else "(deleted user)",
+            "provider_email": user.email if user else None,
+        }
+        for job, user in rows
+    ]
+
+
+@router.post("/jobs/{job_id}/approve-applicant-access", status_code=200)
+async def approve_applicant_access(
+    job_id: uuid.UUID,
+    _: User = Depends(_require_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(select(Job).where(Job.id == job_id))
+    job = result.scalar_one_or_none()
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    job.applicants_access = "approved"
+    await db.commit()
+    return {"approved": True, "job_id": str(job_id)}
+
+
+@router.post("/jobs/{job_id}/reject-applicant-access", status_code=200)
+async def reject_applicant_access(
+    job_id: uuid.UUID,
+    _: User = Depends(_require_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(select(Job).where(Job.id == job_id))
+    job = result.scalar_one_or_none()
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    job.applicants_access = "rejected"
+    await db.commit()
+    return {"rejected": True, "job_id": str(job_id)}
+
+
 @router.get("/pending-pan-providers")
 async def list_pending_pan_providers(
     _: User = Depends(_require_admin),

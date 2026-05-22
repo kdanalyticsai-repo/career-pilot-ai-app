@@ -72,6 +72,7 @@ def _job_to_dict(job: Job, applicant_count: int = 0) -> dict:
         "remote_type": job.remote_type,
         "vacancies": job.vacancies,
         "review_status": job.review_status,
+        "applicants_access": job.applicants_access,
         "is_active": job.is_active,
         "posted_at": job.posted_at.isoformat() if job.posted_at else None,
         "applicant_count": applicant_count,
@@ -387,6 +388,26 @@ async def delete_job(
     await db.commit()
 
 
+@router.post("/jobs/{job_id}/request-applicant-access", status_code=200)
+async def request_applicant_access(
+    job_id: uuid.UUID,
+    current_user: User = Depends(require_role("job_provider")),
+    db: AsyncSession = Depends(get_db),
+):
+    """Provider requests admin approval to view applicant details for a listing."""
+    result = await db.execute(select(Job).where(Job.id == job_id))
+    job = result.scalar_one_or_none()
+    if not job or job.posted_by != current_user.id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found")
+    if job.review_status != "approved":
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Listing must be approved before requesting applicant access.")
+    if job.applicants_access in ("pending", "approved"):
+        return {"applicants_access": job.applicants_access, "message": "Request already submitted."}
+    job.applicants_access = "pending"
+    await db.commit()
+    return {"applicants_access": "pending", "message": "Access request submitted. Admin will review shortly."}
+
+
 @router.get("/jobs/{job_id}/applicants")
 async def get_applicants(
     job_id: uuid.UUID,
@@ -397,6 +418,13 @@ async def get_applicants(
     job = result.scalar_one_or_none()
     if not job or job.posted_by != current_user.id:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found")
+
+    if job.applicants_access != "approved":
+        access = job.applicants_access or "not_requested"
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={"code": "applicants_access_required", "access": access},
+        )
 
     apps_result = await db.execute(
         select(Application, User)

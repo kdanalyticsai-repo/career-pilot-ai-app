@@ -47,6 +47,7 @@ export default function AdminScreen() {
   const [selectedProviderJob, setSelectedProviderJob] = useState<any>(null); // listed job detail
   const [selectedUser, setSelectedUser] = useState<any>(null);       // signup detail
   const [selectedPanProvider, setSelectedPanProvider] = useState<any>(null); // PAN review
+  const [selectedAccessJob, setSelectedAccessJob] = useState<any>(null);     // applicant access review
   const [statModal, setStatModal] = useState<string | null>(null);   // revenue/activity detail
   const qc = useQueryClient();
 
@@ -79,6 +80,12 @@ export default function AdminScreen() {
   const { data: pendingPanData, refetch: refetchPendingPan } = useQuery({
     queryKey: ['admin-pending-pan'],
     queryFn: () => api.get('/admin/pending-pan-providers').then(r => r.data),
+    retry: false,
+  });
+
+  const { data: pendingAccessData, refetch: refetchPendingAccess } = useQuery({
+    queryKey: ['admin-pending-access'],
+    queryFn: () => api.get('/admin/pending-applicant-access').then(r => r.data),
     retry: false,
   });
 
@@ -133,6 +140,26 @@ export default function AdminScreen() {
     onError: (err: any) => Alert.alert('Error', err?.response?.data?.detail ?? 'Failed to verify PAN.'),
   });
 
+  const { mutate: approveAccess } = useMutation({
+    mutationFn: (jobId: string) => api.post(`/admin/jobs/${jobId}/approve-applicant-access`),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin-pending-access'] });
+      setSelectedAccessJob(null);
+      Alert.alert('Access Approved', 'The provider can now view applicant details for this listing.');
+    },
+    onError: () => Alert.alert('Error', 'Could not approve. Please try again.'),
+  });
+
+  const { mutate: rejectAccess } = useMutation({
+    mutationFn: (jobId: string) => api.post(`/admin/jobs/${jobId}/reject-applicant-access`),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin-pending-access'] });
+      setSelectedAccessJob(null);
+      Alert.alert('Access Rejected', 'Provider has been notified that access was not approved.');
+    },
+    onError: () => Alert.alert('Error', 'Could not reject. Please try again.'),
+  });
+
   const { mutate: rejectPan } = useMutation({
     mutationFn: (userId: string) => api.post(`/admin/users/${userId}/reject-pan`),
     onSuccess: () => {
@@ -159,7 +186,7 @@ export default function AdminScreen() {
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await Promise.all([refetchStats(), refetchUsers(), refetchPending(), refetchProviderJobs(), refetchPendingPan()]);
+    await Promise.all([refetchStats(), refetchUsers(), refetchPending(), refetchProviderJobs(), refetchPendingPan(), refetchPendingAccess()]);
     setRefreshing(false);
   };
 
@@ -167,6 +194,7 @@ export default function AdminScreen() {
   const providerJobs: any[] = providerJobsData ?? [];
   const recentUsers: any[] = usersData?.users ?? [];
   const pendingPan: any[] = pendingPanData ?? [];
+  const pendingAccess: any[] = pendingAccessData ?? [];
 
   if (statsLoading) {
     return <SafeAreaView style={styles.safe}><ActivityIndicator size="large" color={Colors.primary} style={{ marginTop: 80 }} /></SafeAreaView>;
@@ -431,6 +459,32 @@ export default function AdminScreen() {
           )}
         </View>
 
+        {/* Pending Applicant Access */}
+        {pendingAccess.length > 0 && (
+          <>
+            <Text style={styles.sectionLabel}>PENDING APPLICANT ACCESS ({pendingAccess.length})</Text>
+            <View style={[styles.listCard, Shadow.sm]}>
+              {pendingAccess.map((job: any, i: number) => (
+                <TouchableOpacity
+                  key={job.id}
+                  style={[styles.userRow, i < pendingAccess.length - 1 && styles.userRowBorder]}
+                  onPress={() => setSelectedAccessJob(job)}
+                  activeOpacity={0.7}
+                >
+                  <View style={styles.userInfo}>
+                    <Text style={styles.userName} numberOfLines={1}>{job.title}</Text>
+                    <Text style={styles.userEmail} numberOfLines={1}>{job.company} · {job.location}</Text>
+                    <Text style={styles.userDate}>By {job.provider_name ?? job.provider_email}</Text>
+                  </View>
+                  <View style={[styles.planChip, { backgroundColor: Colors.warning + '15' }]}>
+                    <Text style={[styles.planChipText, { color: Colors.warning }]}>ACCESS</Text>
+                  </View>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </>
+        )}
+
         <Text style={styles.footer}>Pull to refresh · Tap any row or stat for details</Text>
       </ScrollView>
 
@@ -579,6 +633,41 @@ export default function AdminScreen() {
                   <Text style={styles.approveBtnText}>✓ Approve PAN</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.rejectBtn} onPress={() => rejectPan(selectedPanProvider.id)}>
+                  <Text style={styles.rejectBtnText}>✕ Reject</Text>
+                </TouchableOpacity>
+              </View>
+            </ScrollView>
+          </SafeAreaView>
+        )}
+      </Modal>
+
+      {/* ── Applicant Access Modal ── */}
+      <Modal visible={!!selectedAccessJob} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setSelectedAccessJob(null)}>
+        {selectedAccessJob && (
+          <SafeAreaView style={{ flex: 1, backgroundColor: Colors.background }}>
+            <ScrollView contentContainerStyle={{ padding: Spacing.lg, gap: Spacing.md, paddingBottom: Spacing.xxl }}>
+              <View style={styles.modalHeader}>
+                <Text style={[Typography.h3, { color: Colors.text }]}>Applicant Access Request</Text>
+                <TouchableOpacity onPress={() => setSelectedAccessJob(null)}><Text style={styles.modalClose}>✕</Text></TouchableOpacity>
+              </View>
+              {([
+                ['Job Title', selectedAccessJob.title],
+                ['Company', selectedAccessJob.company],
+                ['Location', selectedAccessJob.location],
+                ['Provider', selectedAccessJob.provider_name],
+                ['Provider Email', selectedAccessJob.provider_email],
+                ['Posted at', selectedAccessJob.posted_at ? new Date(selectedAccessJob.posted_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '—'],
+              ] as [string, string | null][]).map(([label, value]) => value ? (
+                <View key={label} style={styles.detailRow}>
+                  <Text style={styles.detailLabel}>{label}</Text>
+                  <Text style={styles.detailValue}>{value}</Text>
+                </View>
+              ) : null)}
+              <View style={{ flexDirection: 'row', gap: Spacing.sm }}>
+                <TouchableOpacity style={styles.approveBtn} onPress={() => approveAccess(selectedAccessJob.id)}>
+                  <Text style={styles.approveBtnText}>✓ Grant Access</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.rejectBtn} onPress={() => rejectAccess(selectedAccessJob.id)}>
                   <Text style={styles.rejectBtnText}>✕ Reject</Text>
                 </TouchableOpacity>
               </View>

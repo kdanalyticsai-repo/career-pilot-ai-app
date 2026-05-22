@@ -4,7 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, router } from 'expo-router';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/services/api';
-import { Colors, Typography, Spacing, Radius, Shadow } from '@/constants/theme';
+import { Colors, Typography, Spacing, Radius, Shadow, HeroColors } from '@/constants/theme';
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
   pending:  { label: 'Pending Review', color: Colors.warning,  bg: Colors.warning + '18'  },
@@ -26,10 +26,25 @@ export default function ProviderJobDetailScreen() {
     ),
   });
 
+  const accessStatus: string | null = job?.applicants_access ?? null;
+  const accessGranted = accessStatus === 'approved';
+
   const { data: applicants = [], isLoading: appsLoading } = useQuery({
     queryKey: ['provider-job-applicants', id],
     queryFn: () => api.get(`/provider/jobs/${id}/applicants`).then(r => r.data),
-    enabled: tab === 'applicants',
+    enabled: tab === 'applicants' && accessGranted,
+    retry: false,
+  });
+
+  const { mutate: requestAccess, isPending: isRequesting } = useMutation({
+    mutationFn: () => api.post(`/provider/jobs/${id}/request-applicant-access`),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['provider-job', id] });
+      qc.invalidateQueries({ queryKey: ['provider-jobs'] });
+    },
+    onError: (err: any) => {
+      Alert.alert('Error', err?.response?.data?.detail || 'Could not submit request. Please try again.');
+    },
   });
 
   const { mutate: deleteJob, isPending: isDeleting } = useMutation({
@@ -146,27 +161,84 @@ export default function ProviderJobDetailScreen() {
           <View style={[styles.section, Shadow.sm]}>
             <Text style={styles.sectionTitle}>Applicant Details</Text>
             <Text style={styles.sectionSub}>People who applied to this listing</Text>
-            {appsLoading ? (
-              <ActivityIndicator color={Colors.primary} style={{ padding: Spacing.md }} />
-            ) : applicants.length === 0 ? (
-              <Text style={styles.emptyText}>No applicants yet</Text>
-            ) : (
-              applicants.map((a: any) => (
-                <View key={a.application_id} style={styles.applicantRow}>
-                  <View style={styles.applicantAvatar}>
-                    <Text style={styles.applicantAvatarText}>
-                      {(a.applicant_name ?? a.applicant_email ?? '?')[0].toUpperCase()}
-                    </Text>
-                  </View>
-                  <View style={styles.applicantInfo}>
-                    <Text style={styles.applicantName}>{a.applicant_name ?? '(no name)'}</Text>
-                    <Text style={styles.applicantEmail}>{a.applicant_email}</Text>
-                    <Text style={styles.applicantDate}>
-                      Applied {new Date(a.applied_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
-                    </Text>
-                  </View>
+
+            {/* Access not requested yet */}
+            {!accessStatus && (
+              <View style={styles.accessGate}>
+                <View style={styles.accessGateIcon}>
+                  <Text style={{ fontSize: 28 }}>🔒</Text>
                 </View>
-              ))
+                <Text style={styles.accessGateTitle}>Admin approval required</Text>
+                <Text style={styles.accessGateBody}>
+                  To protect applicant privacy, viewing contact details requires a one-time approval from our admin team.
+                </Text>
+                {job?.review_status !== 'approved' ? (
+                  <View style={styles.accessGateNotice}>
+                    <Text style={styles.accessGateNoticeText}>Your listing must be approved before you can request access.</Text>
+                  </View>
+                ) : (
+                  <TouchableOpacity
+                    style={[styles.accessGateBtn, Shadow.sm, isRequesting && { opacity: 0.6 }]}
+                    onPress={() => requestAccess()}
+                    disabled={isRequesting}
+                    activeOpacity={0.85}
+                  >
+                    <Text style={styles.accessGateBtnText}>{isRequesting ? 'Submitting…' : 'Request Access to Applicants'}</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            )}
+
+            {/* Access pending */}
+            {accessStatus === 'pending' && (
+              <View style={styles.accessGate}>
+                <View style={[styles.accessGateIcon, { backgroundColor: Colors.warning + '20' }]}>
+                  <Text style={{ fontSize: 28 }}>⏳</Text>
+                </View>
+                <Text style={styles.accessGateTitle}>Request under review</Text>
+                <Text style={styles.accessGateBody}>
+                  Your request to view applicant details is pending admin approval. You'll be notified once it's reviewed.
+                </Text>
+              </View>
+            )}
+
+            {/* Access rejected */}
+            {accessStatus === 'rejected' && (
+              <View style={styles.accessGate}>
+                <View style={[styles.accessGateIcon, { backgroundColor: Colors.danger + '15' }]}>
+                  <Text style={{ fontSize: 28 }}>❌</Text>
+                </View>
+                <Text style={[styles.accessGateTitle, { color: Colors.danger }]}>Access not approved</Text>
+                <Text style={styles.accessGateBody}>
+                  Your request was not approved. Please contact support at info@kdaanalytics.com for assistance.
+                </Text>
+              </View>
+            )}
+
+            {/* Access approved — show list */}
+            {accessGranted && (
+              appsLoading ? (
+                <ActivityIndicator color={Colors.primary} style={{ padding: Spacing.md }} />
+              ) : applicants.length === 0 ? (
+                <Text style={styles.emptyText}>No applicants yet</Text>
+              ) : (
+                applicants.map((a: any) => (
+                  <View key={a.application_id} style={styles.applicantRow}>
+                    <View style={styles.applicantAvatar}>
+                      <Text style={styles.applicantAvatarText}>
+                        {(a.applicant_name ?? a.applicant_email ?? '?')[0].toUpperCase()}
+                      </Text>
+                    </View>
+                    <View style={styles.applicantInfo}>
+                      <Text style={styles.applicantName}>{a.applicant_name ?? '(no name)'}</Text>
+                      <Text style={styles.applicantEmail}>{a.applicant_email}</Text>
+                      <Text style={styles.applicantDate}>
+                        Applied {new Date(a.applied_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                      </Text>
+                    </View>
+                  </View>
+                ))
+              )
             )}
           </View>
         )}
@@ -231,6 +303,33 @@ const styles = StyleSheet.create({
     padding: Spacing.md, alignItems: 'center', backgroundColor: Colors.danger + '08',
   },
   deleteBtnText: { ...Typography.label, color: Colors.danger },
+
+  accessGate: {
+    alignItems: 'center', paddingVertical: Spacing.lg, paddingHorizontal: Spacing.md, gap: Spacing.sm,
+  },
+  accessGateIcon: {
+    width: 72, height: 72, borderRadius: 36,
+    backgroundColor: Colors.primaryLight,
+    alignItems: 'center', justifyContent: 'center',
+    marginBottom: Spacing.xs,
+  },
+  accessGateTitle: { ...Typography.h4, color: Colors.text, textAlign: 'center' },
+  accessGateBody: {
+    ...Typography.body, color: Colors.textSecondary,
+    textAlign: 'center', lineHeight: 21,
+  },
+  accessGateNotice: {
+    backgroundColor: Colors.warning + '18', borderRadius: Radius.md,
+    borderWidth: 1, borderColor: Colors.warning + '40',
+    padding: Spacing.sm, marginTop: Spacing.xs,
+  },
+  accessGateNoticeText: { ...Typography.caption, color: '#B45309', textAlign: 'center' },
+  accessGateBtn: {
+    backgroundColor: HeroColors.base, borderRadius: Radius.lg,
+    paddingVertical: 13, paddingHorizontal: Spacing.xl,
+    marginTop: Spacing.sm, alignItems: 'center',
+  },
+  accessGateBtnText: { ...Typography.label, color: Colors.textInverse, fontWeight: '700' },
 
   emptyText: { ...Typography.body, color: Colors.textMuted, textAlign: 'center', padding: Spacing.md },
   applicantRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, paddingVertical: Spacing.sm, borderTopWidth: 1, borderTopColor: Colors.border },
