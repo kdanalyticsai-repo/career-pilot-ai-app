@@ -16,7 +16,13 @@ class AuthService:
         result = await self.db.execute(select(User).where(User.email == data.email))
         existing = result.scalar_one_or_none()
         if existing:
-            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Email already registered")
+            if existing.role and existing.role != data.role:
+                role_label = "Job Seeker" if existing.role == "job_seeker" else "Job Provider"
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail=f"This email is already registered as a {role_label}. One email cannot be used for both roles. Please sign in or use a different email.",
+                )
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Email already registered. Please sign in instead.")
 
         user = User(
             email=data.email,

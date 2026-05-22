@@ -153,8 +153,10 @@ async def send_phone_otp(
 
     # Always send via email (reliable fallback); also attempt SMS when API key is configured
     await send_phone_otp_email(current_user.email, current_user.name or "", otp, phone)
-    await send_otp_sms(phone, otp)
-    return MessageResponse(message="OTP sent to your mobile number and email.")
+    sms_sent = await send_otp_sms(phone, otp)
+    if sms_sent:
+        return MessageResponse(message="OTP sent to your mobile number and email.")
+    return MessageResponse(message="OTP sent to your email. Check your inbox if you don't receive an SMS.")
 
 
 @router.post("/verify-phone-otp", response_model=UserResponse)

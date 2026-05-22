@@ -188,6 +188,8 @@ class JobService:
     async def compute_all_matches(self, user_id: uuid.UUID) -> int:
         resume = await self._get_primary_resume(user_id)
         if not resume:
+            await self.db.execute(delete(JobMatch).where(JobMatch.user_id == user_id))
+            await self.db.commit()
             return 0
 
         result = await self.db.execute(select(Job).where(Job.is_active == True))

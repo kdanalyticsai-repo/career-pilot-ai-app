@@ -3,11 +3,12 @@ import os
 import shutil
 from pathlib import Path
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, update
+from sqlalchemy import select, update, delete
 from fastapi import HTTPException, status, Request
 from fastapi.responses import JSONResponse
 
 from app.models.resume import Resume
+from app.models.job import JobMatch
 from app.schemas.resume import ResumeUploadRequest, ResumeUpdate, ResumeSectionUpdate
 from app.config import settings
 
@@ -105,6 +106,7 @@ class ResumeService:
                     _s3_client().delete_object(Bucket=settings.S3_BUCKET_NAME, Key=resume.s3_key)
                 except Exception:
                     pass
+        await self.db.execute(delete(JobMatch).where(JobMatch.resume_id == resume_id))
         await self.db.delete(resume)
         await self.db.commit()
 

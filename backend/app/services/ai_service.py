@@ -4,6 +4,7 @@ from sqlalchemy import select
 from fastapi import HTTPException, status
 
 from app.models.resume import Resume
+from app.models.user import User
 from app.models.job import Job
 from app.models.ai_features import TailoredResume, ChatSession, ChatMessage
 from app.schemas.ai_features import (
@@ -176,19 +177,37 @@ class AIService:
         )
         existing_msgs = list(reversed(msgs_result.scalars().all()))
 
-        # Build context from user's primary resume
+        # Build context: user profile + all uploaded resumes
         user_context = None
         try:
-            resume = await self._get_primary_resume(user_id)
-            data = resume.structured_data or {}
-            contact = data.get("contact", {}) or {}
-            skills = data.get("skills", {}) or {}
-            user_context = (
-                f"User's name: {contact.get('name', 'Unknown')}\n"
-                f"ATS Score: {resume.ats_score}/100\n"
-                f"Technical Skills: {', '.join((skills.get('technical') or [])[:10])}\n"
-                f"Recent title: {(data.get('experience') or [{}])[0].get('title', 'Unknown')}"
+            user_result = await self.db.execute(select(User).where(User.id == user_id))
+            user_obj = user_result.scalar_one_or_none()
+            user_name = (user_obj.name or "").strip() if user_obj else ""
+
+            resumes_result = await self.db.execute(
+                select(Resume)
+                .where(Resume.user_id == user_id, Resume.status == "ready")
+                .order_by(Resume.created_at.desc())
             )
+            all_resumes = list(resumes_result.scalars().all())
+
+            lines = [f"User's name: {user_name or 'Unknown'}"]
+            if all_resumes:
+                primary = all_resumes[0]
+                data = primary.structured_data or {}
+                skills = data.get("skills", {}) or {}
+                exp = (data.get("experience") or [{}])[0]
+                lines += [
+                    f"Number of resumes uploaded: {len(all_resumes)}",
+                    f"Latest resume ATS score: {primary.ats_score}/100",
+                    f"Technical skills: {', '.join((skills.get('technical') or [])[:10])}",
+                    f"Most recent job title: {exp.get('title', 'Unknown')} at {exp.get('company', '')}",
+                ]
+                if len(all_resumes) > 1:
+                    lines.append(f"Other resumes on file: {len(all_resumes) - 1} more")
+            else:
+                lines.append("No resume uploaded yet.")
+            user_context = "\n".join(lines)
         except Exception:
             pass
 
