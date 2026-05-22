@@ -4,7 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, router } from 'expo-router';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/services/api';
-import { Colors, Typography, Spacing, Radius, Shadow, HeroColors } from '@/constants/theme';
+import { Colors, Typography, Spacing, Radius, Shadow } from '@/constants/theme';
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
   pending:  { label: 'Pending Review', color: Colors.warning,  bg: Colors.warning + '18'  },
@@ -29,12 +29,13 @@ export default function ProviderJobDetailScreen() {
   const accessStatus: string | null = job?.applicants_access ?? null;
   const accessGranted = accessStatus === 'approved';
 
-  const { data: applicants = [], isLoading: appsLoading } = useQuery({
+  const { data: appsData, isLoading: appsLoading } = useQuery({
     queryKey: ['provider-job-applicants', id],
     queryFn: () => api.get(`/provider/jobs/${id}/applicants`).then(r => r.data),
-    enabled: tab === 'applicants' && accessGranted,
+    enabled: tab === 'applicants',
     retry: false,
   });
+  const applicants: any[] = appsData?.applicants ?? [];
 
   const { mutate: requestAccess, isPending: isRequesting } = useMutation({
     mutationFn: () => api.post(`/provider/jobs/${id}/request-applicant-access`),
@@ -159,86 +160,105 @@ export default function ProviderJobDetailScreen() {
 
         {tab === 'applicants' && (
           <View style={[styles.section, Shadow.sm]}>
-            <Text style={styles.sectionTitle}>Applicant Details</Text>
+            <Text style={styles.sectionTitle}>APPLICANTS</Text>
             <Text style={styles.sectionSub}>People who applied to this listing</Text>
 
-            {/* Access not requested yet */}
-            {!accessStatus && (
-              <View style={styles.accessGate}>
-                <View style={styles.accessGateIcon}>
-                  <Text style={{ fontSize: 28 }}>🔒</Text>
-                </View>
-                <Text style={styles.accessGateTitle}>Admin approval required</Text>
-                <Text style={styles.accessGateBody}>
-                  To protect applicant privacy, viewing contact details requires a one-time approval from our admin team.
-                </Text>
-                {job?.review_status !== 'approved' ? (
-                  <View style={styles.accessGateNotice}>
-                    <Text style={styles.accessGateNoticeText}>Your listing must be approved before you can request access.</Text>
-                  </View>
+            {/* Access status banner */}
+            {!accessGranted && job?.review_status === 'approved' && (
+              <View style={[
+                styles.accessBanner,
+                accessStatus === 'pending' ? { backgroundColor: Colors.warning + '15', borderColor: Colors.warning + '40' }
+                : accessStatus === 'rejected' ? { backgroundColor: Colors.danger + '10', borderColor: Colors.danger + '30' }
+                : { backgroundColor: Colors.primary + '10', borderColor: Colors.primary + '25' },
+              ]}>
+                {accessStatus === 'pending' ? (
+                  <>
+                    <Text style={[styles.accessBannerIcon]}>⏳</Text>
+                    <View style={{ flex: 1 }}>
+                      <Text style={[styles.accessBannerTitle, { color: '#92400E' }]}>Access Request Pending</Text>
+                      <Text style={[styles.accessBannerBody, { color: '#92400E' }]}>Admin is reviewing your request. Contact details will unlock once approved.</Text>
+                    </View>
+                  </>
+                ) : accessStatus === 'rejected' ? (
+                  <>
+                    <Text style={styles.accessBannerIcon}>❌</Text>
+                    <View style={{ flex: 1 }}>
+                      <Text style={[styles.accessBannerTitle, { color: Colors.danger }]}>Access Not Approved</Text>
+                      <Text style={[styles.accessBannerBody, { color: Colors.danger }]}>Contact support at info@kdaanalytics.com for assistance.</Text>
+                    </View>
+                  </>
                 ) : (
-                  <TouchableOpacity
-                    style={[styles.accessGateBtn, Shadow.sm, isRequesting && { opacity: 0.6 }]}
-                    onPress={() => requestAccess()}
-                    disabled={isRequesting}
-                    activeOpacity={0.85}
-                  >
-                    <Text style={styles.accessGateBtnText}>{isRequesting ? 'Submitting…' : 'Request Access to Applicants'}</Text>
-                  </TouchableOpacity>
+                  <>
+                    <Text style={styles.accessBannerIcon}>🔒</Text>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.accessBannerTitle}>Contact details locked</Text>
+                      <Text style={styles.accessBannerBody}>Request admin approval to view emails and reach out to applicants.</Text>
+                    </View>
+                    <TouchableOpacity
+                      style={[styles.accessBannerBtn, isRequesting && { opacity: 0.6 }]}
+                      onPress={() => requestAccess()}
+                      disabled={isRequesting}
+                      activeOpacity={0.85}
+                    >
+                      <Text style={styles.accessBannerBtnText}>{isRequesting ? '…' : 'Request'}</Text>
+                    </TouchableOpacity>
+                  </>
                 )}
               </View>
             )}
 
-            {/* Access pending */}
-            {accessStatus === 'pending' && (
+            {/* Listing not approved yet */}
+            {!accessGranted && job?.review_status !== 'approved' && (
               <View style={styles.accessGate}>
-                <View style={[styles.accessGateIcon, { backgroundColor: Colors.warning + '20' }]}>
-                  <Text style={{ fontSize: 28 }}>⏳</Text>
+                <View style={styles.accessGateIcon}>
+                  <Text style={{ fontSize: 28 }}>🔒</Text>
                 </View>
-                <Text style={styles.accessGateTitle}>Request under review</Text>
+                <Text style={styles.accessGateTitle}>Listing pending review</Text>
                 <Text style={styles.accessGateBody}>
-                  Your request to view applicant details is pending admin approval. You'll be notified once it's reviewed.
+                  Your listing must be approved before you can see applicants.
                 </Text>
               </View>
             )}
 
-            {/* Access rejected */}
-            {accessStatus === 'rejected' && (
-              <View style={styles.accessGate}>
-                <View style={[styles.accessGateIcon, { backgroundColor: Colors.danger + '15' }]}>
-                  <Text style={{ fontSize: 28 }}>❌</Text>
-                </View>
-                <Text style={[styles.accessGateTitle, { color: Colors.danger }]}>Access not approved</Text>
-                <Text style={styles.accessGateBody}>
-                  Your request was not approved. Please contact support at info@kdaanalytics.com for assistance.
-                </Text>
-              </View>
-            )}
-
-            {/* Access approved — show list */}
-            {accessGranted && (
-              appsLoading ? (
-                <ActivityIndicator color={Colors.primary} style={{ padding: Spacing.md }} />
-              ) : applicants.length === 0 ? (
+            {/* Applicants list */}
+            {appsLoading ? (
+              <ActivityIndicator color={Colors.primary} style={{ padding: Spacing.md }} />
+            ) : applicants.length === 0 ? (
+              job?.review_status === 'approved' ? (
                 <Text style={styles.emptyText}>No applicants yet</Text>
-              ) : (
-                applicants.map((a: any) => (
-                  <View key={a.application_id} style={styles.applicantRow}>
+              ) : null
+            ) : (
+              applicants.map((a: any) => {
+                const initial = (a.applicant_name ?? '?')[0].toUpperCase();
+                const canTap = accessGranted;
+                const Row = canTap ? TouchableOpacity : View;
+                return (
+                  <Row
+                    key={a.application_id}
+                    style={styles.applicantRow}
+                    {...(canTap ? {
+                      onPress: () => router.push(`/provider/applicant/${a.application_id}` as any),
+                      activeOpacity: 0.75,
+                    } : {})}
+                  >
                     <View style={styles.applicantAvatar}>
-                      <Text style={styles.applicantAvatarText}>
-                        {(a.applicant_name ?? a.applicant_email ?? '?')[0].toUpperCase()}
-                      </Text>
+                      <Text style={styles.applicantAvatarText}>{initial}</Text>
                     </View>
                     <View style={styles.applicantInfo}>
                       <Text style={styles.applicantName}>{a.applicant_name ?? '(no name)'}</Text>
-                      <Text style={styles.applicantEmail}>{a.applicant_email}</Text>
+                      {a.applicant_email ? (
+                        <Text style={styles.applicantEmail}>{a.applicant_email}</Text>
+                      ) : (
+                        <Text style={[styles.applicantEmail, { color: Colors.textMuted, fontStyle: 'italic' }]}>Email locked</Text>
+                      )}
                       <Text style={styles.applicantDate}>
                         Applied {new Date(a.applied_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
                       </Text>
                     </View>
-                  </View>
-                ))
-              )
+                    {canTap && <Text style={styles.applicantChevron}>›</Text>}
+                  </Row>
+                );
+              })
             )}
           </View>
         )}
@@ -304,6 +324,20 @@ const styles = StyleSheet.create({
   },
   deleteBtnText: { ...Typography.label, color: Colors.danger },
 
+  accessBanner: {
+    flexDirection: 'row', alignItems: 'center', gap: Spacing.sm,
+    borderRadius: Radius.md, borderWidth: 1,
+    padding: Spacing.sm, marginBottom: Spacing.sm,
+  },
+  accessBannerIcon: { fontSize: 18 },
+  accessBannerTitle: { ...Typography.label, color: Colors.text, fontWeight: '700', marginBottom: 2 },
+  accessBannerBody: { ...Typography.caption, color: Colors.textSecondary, lineHeight: 16 },
+  accessBannerBtn: {
+    backgroundColor: Colors.primary, borderRadius: Radius.md,
+    paddingVertical: 6, paddingHorizontal: Spacing.md,
+  },
+  accessBannerBtnText: { ...Typography.caption, color: Colors.textInverse, fontWeight: '700' },
+
   accessGate: {
     alignItems: 'center', paddingVertical: Spacing.lg, paddingHorizontal: Spacing.md, gap: Spacing.sm,
   },
@@ -318,25 +352,14 @@ const styles = StyleSheet.create({
     ...Typography.body, color: Colors.textSecondary,
     textAlign: 'center', lineHeight: 21,
   },
-  accessGateNotice: {
-    backgroundColor: Colors.warning + '18', borderRadius: Radius.md,
-    borderWidth: 1, borderColor: Colors.warning + '40',
-    padding: Spacing.sm, marginTop: Spacing.xs,
-  },
-  accessGateNoticeText: { ...Typography.caption, color: '#B45309', textAlign: 'center' },
-  accessGateBtn: {
-    backgroundColor: HeroColors.base, borderRadius: Radius.lg,
-    paddingVertical: 13, paddingHorizontal: Spacing.xl,
-    marginTop: Spacing.sm, alignItems: 'center',
-  },
-  accessGateBtnText: { ...Typography.label, color: Colors.textInverse, fontWeight: '700' },
 
   emptyText: { ...Typography.body, color: Colors.textMuted, textAlign: 'center', padding: Spacing.md },
   applicantRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, paddingVertical: Spacing.sm, borderTopWidth: 1, borderTopColor: Colors.border },
-  applicantAvatar: { width: 36, height: 36, borderRadius: 18, backgroundColor: Colors.primary + '20', alignItems: 'center', justifyContent: 'center' },
-  applicantAvatarText: { ...Typography.label, color: Colors.primary, fontWeight: '700' },
+  applicantAvatar: { width: 40, height: 40, borderRadius: 20, backgroundColor: Colors.primary + '20', alignItems: 'center', justifyContent: 'center' },
+  applicantAvatarText: { ...Typography.label, color: Colors.primary, fontWeight: '700', fontSize: 16 },
   applicantInfo: { flex: 1 },
-  applicantName: { ...Typography.label, color: Colors.text },
+  applicantName: { ...Typography.label, color: Colors.text, fontWeight: '600' },
   applicantEmail: { ...Typography.bodySmall, color: Colors.textSecondary },
   applicantDate: { ...Typography.caption, color: Colors.textMuted, marginTop: 1 },
+  applicantChevron: { fontSize: 22, color: Colors.textMuted, fontWeight: '300' },
 });

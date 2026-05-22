@@ -408,6 +408,38 @@ async def request_applicant_access(
     return {"applicants_access": "pending", "message": "Access request submitted. Admin will review shortly."}
 
 
+@router.get("/applicants/{application_id}")
+async def get_applicant_detail(
+    application_id: uuid.UUID,
+    current_user: User = Depends(require_role("job_provider")),
+    db: AsyncSession = Depends(get_db),
+):
+    """Get full details for a single applicant. Requires applicants_access == approved on the job."""
+    apps_result = await db.execute(
+        select(Application, User, Job)
+        .join(User, Application.user_id == User.id)
+        .join(Job, Application.job_id == Job.id)
+        .where(Application.id == application_id)
+    )
+    row = apps_result.first()
+    if not row:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Application not found")
+    app, user, job = row
+    if job.posted_by != current_user.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not your listing")
+    if job.applicants_access != "approved":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Applicant access not approved for this listing")
+    return {
+        "application_id": str(app.id),
+        "applicant_name": user.name,
+        "applicant_email": user.email,
+        "applied_at": app.applied_at.isoformat(),
+        "status": app.status,
+        "job_title": job.title,
+        "job_company": job.company,
+    }
+
+
 @router.get("/jobs/{job_id}/applicants")
 async def get_applicants(
     job_id: uuid.UUID,
@@ -419,12 +451,8 @@ async def get_applicants(
     if not job or job.posted_by != current_user.id:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found")
 
-    if job.applicants_access != "approved":
-        access = job.applicants_access or "not_requested"
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail={"code": "applicants_access_required", "access": access},
-        )
+    access_granted = job.applicants_access == "approved"
+    access_status = job.applicants_access or "not_requested"
 
     apps_result = await db.execute(
         select(Application, User)
@@ -433,13 +461,20 @@ async def get_applicants(
         .order_by(Application.applied_at.desc())
     )
     rows = apps_result.all()
-    return [
+
+    applicants = [
         {
             "application_id": str(app.id),
             "applicant_name": user.name,
-            "applicant_email": user.email,
+            "applicant_email": user.email if access_granted else None,
             "applied_at": app.applied_at.isoformat(),
             "status": app.status,
         }
         for app, user in rows
     ]
+
+    return {
+        "access_granted": access_granted,
+        "access_status": access_status,
+        "applicants": applicants,
+    }

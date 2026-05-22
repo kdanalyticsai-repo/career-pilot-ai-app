@@ -24,8 +24,15 @@ function JobCard({ item }: { item: any }) {
           <Text style={styles.jobTitle} numberOfLines={1}>{item.title}</Text>
           <Text style={styles.company}>{item.company} · {item.location}</Text>
         </View>
-        <View style={[styles.statusBadge, { backgroundColor: s.bg }]}>
-          <Text style={[styles.statusText, { color: s.color }]}>{s.label}</Text>
+        <View style={styles.cardBadges}>
+          <View style={[styles.statusBadge, { backgroundColor: s.bg }]}>
+            <Text style={[styles.statusText, { color: s.color }]}>{s.label}</Text>
+          </View>
+          {item.applicant_count > 0 && (
+            <View style={styles.applicantBadge}>
+              <Text style={styles.applicantBadgeText}>{item.applicant_count} applied</Text>
+            </View>
+          )}
         </View>
       </View>
       <View style={styles.cardMeta}>
@@ -34,16 +41,6 @@ function JobCard({ item }: { item: any }) {
           ? <Text style={styles.metaText}>₹{(item.salary_min / 1000).toFixed(0)}k–{(item.salary_max / 1000).toFixed(0)}k/yr</Text>
           : null}
       </View>
-
-      {item.applicant_count > 0 && (
-        <View style={styles.applicantsSection}>
-          <Text style={styles.applicantsSectionLabel}>APPLICANTS</Text>
-          <View style={styles.applicantsTile}>
-            <Text style={styles.applicantsCount}>{item.applicant_count}</Text>
-            <Text style={styles.applicantsApplied}>applied</Text>
-          </View>
-        </View>
-      )}
     </TouchableOpacity>
   );
 }
@@ -55,6 +52,7 @@ export default function MyListingsScreen() {
   });
 
   const jobs: any[] = data ?? [];
+  const totalApplicants = jobs.reduce((sum, j) => sum + (j.applicant_count ?? 0), 0);
 
   if (isLoading) {
     return (
@@ -72,6 +70,15 @@ export default function MyListingsScreen() {
         renderItem={({ item }) => <JobCard item={item} />}
         contentContainerStyle={styles.list}
         refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={Colors.primary} />}
+        ListHeaderComponent={totalApplicants > 0 ? (
+          <View style={styles.applicantsHeader}>
+            <Text style={styles.applicantsHeaderLabel}>APPLICANTS</Text>
+            <View style={styles.applicantsHeaderTile}>
+              <Text style={styles.applicantsHeaderCount}>{totalApplicants}</Text>
+              <Text style={styles.applicantsHeaderSub}>total applied</Text>
+            </View>
+          </View>
+        ) : null}
         ListEmptyComponent={
           <View style={styles.empty}>
             <Text style={styles.emptyIcon}>📋</Text>
@@ -87,6 +94,23 @@ export default function MyListingsScreen() {
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: Colors.background },
   list: { padding: Spacing.md, gap: Spacing.md, paddingBottom: Spacing.xxl },
+
+  applicantsHeader: {
+    alignItems: 'center', gap: Spacing.sm, marginBottom: Spacing.xs,
+    paddingVertical: Spacing.md,
+  },
+  applicantsHeaderLabel: {
+    ...Typography.caption, color: Colors.textMuted,
+    textTransform: 'uppercase', letterSpacing: 1, fontWeight: '700', fontSize: 11,
+  },
+  applicantsHeaderTile: {
+    backgroundColor: Colors.primary + '12', borderRadius: Radius.lg,
+    paddingHorizontal: Spacing.xxl, paddingVertical: Spacing.sm,
+    alignItems: 'center', minWidth: 100,
+  },
+  applicantsHeaderCount: { fontSize: 32, fontWeight: '800', color: Colors.primary, letterSpacing: -1 },
+  applicantsHeaderSub: { ...Typography.caption, color: Colors.primary, fontWeight: '600' },
+
   card: {
     backgroundColor: Colors.surface, borderRadius: Radius.lg,
     padding: Spacing.md, borderWidth: 1, borderColor: Colors.borderSubtle,
@@ -94,27 +118,18 @@ const styles = StyleSheet.create({
   },
   cardTop: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.sm },
   cardInfo: { flex: 1 },
+  cardBadges: { alignItems: 'flex-end', gap: 4 },
   jobTitle: { ...Typography.h4, color: Colors.text },
   company: { ...Typography.bodySmall, color: Colors.textSecondary, marginTop: 2 },
   statusBadge: { borderRadius: Radius.full, paddingHorizontal: 10, paddingVertical: 4, alignSelf: 'flex-start' },
   statusText: { ...Typography.caption, fontWeight: '700', letterSpacing: 0.3 },
+  applicantBadge: {
+    backgroundColor: Colors.primary + '12', borderRadius: Radius.full,
+    paddingHorizontal: 8, paddingVertical: 3,
+  },
+  applicantBadgeText: { ...Typography.caption, color: Colors.primary, fontWeight: '700' },
   cardMeta: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm },
   metaText: { ...Typography.caption, color: Colors.textMuted },
-  applicantsSection: {
-    borderTopWidth: 1, borderTopColor: Colors.borderSubtle,
-    paddingTop: Spacing.sm, alignItems: 'center', gap: 6,
-  },
-  applicantsSectionLabel: {
-    ...Typography.caption, color: Colors.textMuted,
-    textTransform: 'uppercase', letterSpacing: 0.8, fontWeight: '600',
-  },
-  applicantsTile: {
-    backgroundColor: Colors.primary + '12', borderRadius: Radius.md,
-    paddingHorizontal: Spacing.xl, paddingVertical: Spacing.sm,
-    alignItems: 'center', minWidth: 80,
-  },
-  applicantsCount: { fontSize: 24, fontWeight: '800', color: Colors.primary, letterSpacing: -0.5 },
-  applicantsApplied: { ...Typography.caption, color: Colors.primary, fontWeight: '600' },
   empty: { alignItems: 'center', paddingTop: 80, paddingHorizontal: Spacing.xl, gap: Spacing.md },
   emptyIcon: { fontSize: 48 },
   emptyTitle: { ...Typography.h4, color: Colors.text },
