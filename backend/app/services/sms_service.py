@@ -26,6 +26,7 @@ async def send_otp_sms(phone: str, otp: str) -> bool:
 
     try:
         async with httpx.AsyncClient(timeout=15.0) as client:
+            # Try OTP route first (requires Fast2SMS website verification)
             resp = await client.get(
                 _FAST2SMS_URL,
                 params={
@@ -36,15 +37,42 @@ async def send_otp_sms(phone: str, otp: str) -> bool:
                     "numbers": clean,
                 },
             )
-            logger.info("Fast2SMS HTTP %s for %s", resp.status_code, phone)
+            logger.info("Fast2SMS OTP route HTTP %s for %s", resp.status_code, phone)
             try:
                 data = resp.json()
             except Exception:
                 logger.error("Fast2SMS non-JSON response for %s: %s", phone, resp.text[:200])
                 return False
+
             if data.get("return") is True:
-                logger.info("SMS OTP sent successfully to %s", phone)
+                logger.info("SMS OTP sent successfully (otp route) to %s", phone)
                 return True
+
+            # Fall back to quick route if OTP route not yet verified (status_code 996)
+            if data.get("status_code") == 996 or "website verification" in str(data.get("message", "")).lower():
+                logger.info("Fast2SMS OTP route not verified; trying quick route for %s", phone)
+                resp2 = await client.get(
+                    _FAST2SMS_URL,
+                    params={
+                        "authorization": api_key,
+                        "route": "q",
+                        "message": f"Your ProAICV verification code is {otp}. Valid for 15 minutes. Do not share this code.",
+                        "flash": "0",
+                        "numbers": clean,
+                    },
+                )
+                logger.info("Fast2SMS quick route HTTP %s for %s", resp2.status_code, phone)
+                try:
+                    data2 = resp2.json()
+                except Exception:
+                    logger.error("Fast2SMS quick route non-JSON for %s: %s", phone, resp2.text[:200])
+                    return False
+                if data2.get("return") is True:
+                    logger.info("SMS OTP sent successfully (quick route) to %s", phone)
+                    return True
+                logger.error("Fast2SMS quick route rejected for %s — response: %s", phone, data2)
+                return False
+
             logger.error("Fast2SMS rejected OTP for %s — response: %s", phone, data)
             return False
     except httpx.TimeoutException:
