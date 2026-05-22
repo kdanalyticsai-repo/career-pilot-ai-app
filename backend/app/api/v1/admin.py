@@ -349,7 +349,10 @@ async def list_users(
     db: AsyncSession = Depends(get_db),
 ):
     result = await db.execute(
-        select(User.id, User.email, User.name, User.subscription, User.created_at)
+        select(
+            User.id, User.email, User.name, User.subscription, User.created_at,
+            User.role, User.phone, User.company_pan, User.company_reg_no, User.gstin,
+        )
         .order_by(User.created_at.desc())
         .limit(limit)
         .offset(offset)
@@ -363,12 +366,69 @@ async def list_users(
                 "name": r[2],
                 "subscription": r[3],
                 "created_at": r[4].isoformat() if r[4] else None,
+                "role": r[5],
+                "phone": r[6],
+                "company_pan": r[7],
+                "company_reg_no": r[8],
+                "gstin": r[9],
             }
             for r in rows
         ],
         "limit": limit,
         "offset": offset,
     }
+
+
+@router.get("/pending-pan-providers")
+async def list_pending_pan_providers(
+    _: User = Depends(_require_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Return job providers who have submitted company PAN but are not yet verified."""
+    result = await db.execute(
+        select(User)
+        .where(
+            User.role == "job_provider",
+            User.company_pan.isnot(None),
+            User.pan_verified == False,
+        )
+        .order_by(User.created_at.desc())
+    )
+    providers = result.scalars().all()
+    return [
+        {
+            "id": str(p.id),
+            "name": p.name,
+            "email": p.email,
+            "phone": p.phone,
+            "company_pan": p.company_pan,
+            "company_reg_no": p.company_reg_no,
+            "gstin": p.gstin,
+            "created_at": p.created_at.isoformat() if p.created_at else None,
+        }
+        for p in providers
+    ]
+
+
+@router.post("/users/{user_id}/reject-pan", status_code=200)
+async def reject_provider_pan(
+    user_id: uuid.UUID,
+    _: User = Depends(_require_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Clear a job provider's submitted PAN details (reject verification)."""
+    result = await db.execute(select(User).where(User.id == user_id))
+    user = result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    if user.role != "job_provider":
+        raise HTTPException(status_code=400, detail="User is not a job provider")
+    user.company_pan = None
+    user.company_reg_no = None
+    user.gstin = None
+    user.pan_verified = False
+    await db.commit()
+    return {"rejected": True, "user_id": str(user_id)}
 
 
 @router.post("/users/{user_id}/verify-pan", status_code=200)

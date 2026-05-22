@@ -54,9 +54,9 @@ p{{font-size:15px;line-height:1.65;color:#374151;margin-bottom:12px}}
   <div class="logo">ProAI<span>CV</span></div>
   {body}
   <div class="footer">
-    &copy; 2026 KDAA ANALYTICS (OPC) PRIVATE LIMITED<br/>
-    <a href="https://kdaanalytics.com" style="color:{_MUTED}">kdaanalytics.com</a> &middot;
-    <a href="mailto:info@kdaanalytics.com" style="color:{_MUTED}">info@kdaanalytics.com</a>
+    &copy; 2026 KDAA ANALYTICS PRIVATE LIMITED<br/>
+    🌐 <a href="https://kdaanalytics.com" style="color:{_MUTED}">kdaanalytics.com</a> &middot;
+    ✉ <a href="mailto:info@kdaanalytics.com" style="color:{_MUTED}">info@kdaanalytics.com</a>
   </div>
 </div>
 </body>
@@ -102,7 +102,7 @@ async def send_welcome_email(to_email: str, name: str, role: str) -> None:
     else:
         bullets = "<li>Upload your resume &amp; get an ATS score</li><li>Discover AI-matched jobs daily</li><li>Generate cover letters &amp; prep for interviews</li>"
     body = f"""
-<h1>Welcome to ProAICV, {display}! 🎉</h1>
+<h1>Greetings from ProAICV, {display}! 🎉</h1>
 {badge}
 <p>Your account is ready. Here's what you can do right away:</p>
 <ul style="padding-left:20px;margin-bottom:16px;font-size:15px;line-height:1.8;color:#374151">{bullets}</ul>
