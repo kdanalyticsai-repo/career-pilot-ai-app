@@ -33,10 +33,17 @@ function JobCard({ item }: { item: any }) {
         {item.salary_min && item.salary_max
           ? <Text style={styles.metaText}>₹{(item.salary_min / 1000).toFixed(0)}k–{(item.salary_max / 1000).toFixed(0)}k/yr</Text>
           : null}
-        {item.applicant_count > 0
-          ? <Text style={[styles.metaText, { color: Colors.primary }]}>{item.applicant_count} applicant{item.applicant_count !== 1 ? 's' : ''}</Text>
-          : null}
       </View>
+
+      {item.applicant_count > 0 && (
+        <View style={styles.applicantsSection}>
+          <Text style={styles.applicantsSectionLabel}>APPLICANTS</Text>
+          <View style={styles.applicantsTile}>
+            <Text style={styles.applicantsCount}>{item.applicant_count}</Text>
+            <Text style={styles.applicantsApplied}>applied</Text>
+          </View>
+        </View>
+      )}
     </TouchableOpacity>
   );
 }
@@ -93,6 +100,21 @@ const styles = StyleSheet.create({
   statusText: { ...Typography.caption, fontWeight: '700', letterSpacing: 0.3 },
   cardMeta: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm },
   metaText: { ...Typography.caption, color: Colors.textMuted },
+  applicantsSection: {
+    borderTopWidth: 1, borderTopColor: Colors.borderSubtle,
+    paddingTop: Spacing.sm, alignItems: 'center', gap: 6,
+  },
+  applicantsSectionLabel: {
+    ...Typography.caption, color: Colors.textMuted,
+    textTransform: 'uppercase', letterSpacing: 0.8, fontWeight: '600',
+  },
+  applicantsTile: {
+    backgroundColor: Colors.primary + '12', borderRadius: Radius.md,
+    paddingHorizontal: Spacing.xl, paddingVertical: Spacing.sm,
+    alignItems: 'center', minWidth: 80,
+  },
+  applicantsCount: { fontSize: 24, fontWeight: '800', color: Colors.primary, letterSpacing: -0.5 },
+  applicantsApplied: { ...Typography.caption, color: Colors.primary, fontWeight: '600' },
   empty: { alignItems: 'center', paddingTop: 80, paddingHorizontal: Spacing.xl, gap: Spacing.md },
   emptyIcon: { fontSize: 48 },
   emptyTitle: { ...Typography.h4, color: Colors.text },

@@ -30,7 +30,7 @@ interface AuthState {
   pendingRole: string;
 
   hydrate: () => Promise<void>;
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string, expectedRole?: string) => Promise<void>;
   adminLogin: (email: string, password: string) => Promise<void>;
   register: (email: string, password: string, name: string) => Promise<void>;
   googleLogin: (idToken: string) => Promise<void>;
@@ -61,11 +61,18 @@ export const useAuthStore = create<AuthState>((set) => ({
     }
   },
 
-  login: async (email, password) => {
+  login: async (email, password, expectedRole) => {
     set({ isLoading: true });
     try {
       await authService.login(email, password);
       const user = await authService.getMe();
+      if (expectedRole && user.role !== 'admin' && user.role !== expectedRole) {
+        await authService.logout();
+        const err: any = new Error('role_mismatch');
+        err.isRoleMismatch = true;
+        err.actualRole = user.role;
+        throw err;
+      }
       set({ user, isAuthenticated: true });
     } finally {
       set({ isLoading: false });

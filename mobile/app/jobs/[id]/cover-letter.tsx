@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, ActivityIndicator, Clipboard, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, ActivityIndicator, Clipboard, Alert, Share } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useMutation, useQuery } from '@tanstack/react-query';
@@ -23,6 +23,16 @@ export default function CoverLetterScreen() {
     onSuccess: (res) => {
       setResult(res.data);
       setEditedLetter(res.data.cover_letter);
+    },
+    onError: (err: any) => {
+      const detail = err?.response?.data?.detail;
+      if (err?.response?.status === 404 || (typeof detail === 'string' && detail.includes('resume'))) {
+        Alert.alert('No Resume Found', 'Please upload a resume first before generating a cover letter.', [{ text: 'OK' }]);
+      } else if (err?.response?.status === 403) {
+        Alert.alert('Upgrade Required', 'Cover letter generation is a Pro feature. Upgrade to continue.', [{ text: 'OK' }]);
+      } else {
+        Alert.alert('Generation Failed', detail || 'Could not generate cover letter. Please try again.', [{ text: 'OK' }]);
+      }
     },
   });
 

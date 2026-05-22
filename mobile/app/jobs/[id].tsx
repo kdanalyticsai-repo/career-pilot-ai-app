@@ -6,6 +6,13 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/services/api';
 import { Colors, Typography, Spacing, Radius, Shadow, HeroColors } from '@/constants/theme';
 
+function stripHtml(html: string): string {
+  return html
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&nbsp;/g, ' ').replace(/&quot;/g, '"')
+    .replace(/\s{2,}/g, ' ').trim();
+}
+
 const LABEL: Record<string, string> = {
   full_time: 'Full-time', part_time: 'Part-time', contract: 'Contract', internship: 'Intern',
   entry: 'Entry', mid: 'Mid', senior: 'Senior', lead: 'Lead',
@@ -152,7 +159,7 @@ export default function JobDetailScreen() {
             </View>
             <Text style={styles.cardTitle}>About the Role</Text>
           </View>
-          <Text style={styles.description}>{job.description}</Text>
+          <Text style={styles.description}>{stripHtml(job.description ?? '')}</Text>
         </View>
 
         {/* Requirements */}

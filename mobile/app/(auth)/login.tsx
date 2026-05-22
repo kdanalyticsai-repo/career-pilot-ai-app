@@ -32,8 +32,13 @@ export default function LoginScreen() {
   const onSubmit = async (data: FormData) => {
     setErrorMsg('');
     try {
-      await login(data.email, data.password);
+      await login(data.email, data.password, pendingRole);
     } catch (err: any) {
+      if (err?.isRoleMismatch) {
+        const roleLabel = err.actualRole === 'job_provider' ? 'Job Provider' : 'Job Seeker';
+        setErrorMsg(`This account is registered as a ${roleLabel}. Please go back and select the correct role to sign in.`);
+        return;
+      }
       const status = err?.response?.status;
       if (!status) {
         setErrorMsg('No internet connection. Please check your network and try again.');
