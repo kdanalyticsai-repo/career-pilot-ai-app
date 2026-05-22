@@ -124,6 +124,15 @@ export default function ProfileTab() {
             </View>
           ) : (
             <View style={[styles.menuCard, Shadow.sm, { padding: Spacing.md }]}>
+              {usageData?.is_trial && trialEndDate ? (
+                <View style={styles.trialActiveBanner}>
+                  <Text style={styles.trialActiveIcon}>🎉</Text>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.trialActiveTitle}>Free trial active</Text>
+                    <Text style={styles.trialActiveDate}>Expires {trialEndDate} — enjoy full Pro access!</Text>
+                  </View>
+                </View>
+              ) : null}
               <Text style={styles.sectionLabel}>This Month's Usage</Text>
               {usage.chat && <UsageBar label="AI Coach Chats" used={usage.chat.used ?? 0} limit={usage.chat.limit} />}
               {usage.interview_prep && <UsageBar label="Interview Prep" used={usage.interview_prep.used ?? 0} limit={usage.interview_prep.limit} />}
@@ -269,6 +278,11 @@ const styles = StyleSheet.create({
   },
   upgradeInline: { marginTop: Spacing.sm },
   upgradeInlineText: { ...Typography.caption, color: Colors.primary, fontWeight: '600' },
+
+  trialActiveBanner: { flexDirection: 'row', gap: Spacing.sm, alignItems: 'flex-start', marginBottom: Spacing.md, backgroundColor: Colors.matchHigh + '10', borderRadius: Radius.md, padding: Spacing.sm },
+  trialActiveIcon: { fontSize: 18, marginTop: 1 },
+  trialActiveTitle: { ...Typography.label, color: Colors.matchHigh, fontWeight: '700' },
+  trialActiveDate: { ...Typography.caption, color: Colors.textSecondary, marginTop: 1, lineHeight: 16 },
 
   trialEndedCard: { flexDirection: 'row', gap: Spacing.md, alignItems: 'flex-start', marginBottom: Spacing.md },
   trialEndedIcon: { fontSize: 22, marginTop: 2 },

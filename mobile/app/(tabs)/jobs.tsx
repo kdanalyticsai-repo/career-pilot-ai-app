@@ -107,9 +107,10 @@ export default function JobsTab() {
 
   function handleRecompute() {
     if (!hasResume) {
-      Alert.alert('No Resume Found', 'Upload your resume to find the match!', [
+      computeMatches();
+      Alert.alert('No Resume Found', 'Match percentages cleared. Upload a resume to see personalised matches.', [
         { text: 'Upload Resume', onPress: () => router.push('/resume/upload') },
-        { text: 'Cancel', style: 'cancel' },
+        { text: 'OK', style: 'cancel' },
       ]);
       return;
     }

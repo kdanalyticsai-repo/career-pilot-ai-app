@@ -123,10 +123,24 @@ export default function OnboardingStep3() {
               <Text style={[styles.uploadTitle, fileName && { color: Colors.primary }]}>
                 {fileName ?? 'Tap to select your PDF resume'}
               </Text>
-              <Text style={styles.uploadSubtext}>PDF format · max 10 MB</Text>
+              <Text style={styles.uploadSubtext}>
+                {fileName ? 'Tap to choose a different file' : 'PDF format only · max 10 MB'}
+              </Text>
+              {!fileName && (
+                <View style={styles.browseChip}>
+                  <Text style={styles.browseChipText}>Browse Files</Text>
+                </View>
+              )}
             </>
           )}
         </TouchableOpacity>
+
+        {!fileName && !isUploading && (
+          <View style={styles.tipBox}>
+            <Text style={styles.tipIcon}>💡</Text>
+            <Text style={styles.tipText}>Upload your latest PDF resume to get an ATS score and AI-powered job matches.</Text>
+          </View>
+        )}
 
         <View style={styles.benefits}>
           {BENEFITS.map((b) => (
@@ -170,6 +184,20 @@ const styles = StyleSheet.create({
     borderColor: Colors.primary, borderStyle: 'solid',
     backgroundColor: Colors.primaryLight + '18',
   },
+  browseChip: {
+    backgroundColor: Colors.primaryLight, borderRadius: Radius.full,
+    paddingHorizontal: Spacing.lg, paddingVertical: 9, marginTop: Spacing.sm,
+    borderWidth: 1.5, borderColor: Colors.primary + '40',
+  },
+  browseChipText: { ...Typography.label, color: Colors.primary, fontWeight: '700' },
+  tipBox: {
+    flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.sm,
+    backgroundColor: Colors.primaryLight + '40', borderRadius: Radius.md,
+    padding: Spacing.md, marginBottom: Spacing.md,
+    borderWidth: 1, borderColor: Colors.primary + '25',
+  },
+  tipIcon: { fontSize: 16, marginTop: 1 },
+  tipText: { ...Typography.bodySmall, color: Colors.primaryDark, flex: 1, lineHeight: 19 },
   uploadIconWrap: {
     width: 72, height: 72, borderRadius: 36,
     backgroundColor: Colors.primaryLight,

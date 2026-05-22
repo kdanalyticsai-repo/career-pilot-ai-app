@@ -247,7 +247,9 @@ export default function CoachTab() {
               <View style={styles.starterHeroIcon}>
                 <Text style={styles.starterHeroIconText}>✦</Text>
               </View>
-              <Text style={styles.starterHeading}>How can I help you?</Text>
+              <Text style={styles.starterHeading}>
+                {user?.name ? `Hi ${user.name.split(' ')[0]}!` : 'How can I help you?'}
+              </Text>
               <Text style={styles.starterSubheading}>Ask me anything about your career journey</Text>
             </View>
             <View style={styles.starterGrid}>

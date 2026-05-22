@@ -1,5 +1,8 @@
 import { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, RefreshControl, ActivityIndicator, TouchableOpacity, Alert, Modal } from 'react-native';
+import {
+  View, Text, StyleSheet, ScrollView, RefreshControl, ActivityIndicator,
+  TouchableOpacity, Alert, Modal,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { router } from 'expo-router';
@@ -7,36 +10,47 @@ import { api } from '@/services/api';
 import { useAuthStore } from '@/stores/authStore';
 import { Colors, Typography, Spacing, Radius, Shadow } from '@/constants/theme';
 
-function StatCard({ label, value, sub, color }: { label: string; value: string | number; sub?: string; color?: string }) {
-  return (
+// ── Stat card (clickable) ────────────────────────────────────────────────────
+function StatCard({ label, value, sub, color, onPress }: {
+  label: string; value: string | number; sub?: string; color?: string; onPress?: () => void;
+}) {
+  const inner = (
     <View style={[statStyles.card, Shadow.sm]}>
-      <Text style={statStyles.label}>{label}</Text>
+      <Text style={statStyles.label} numberOfLines={2}>{label}</Text>
       <Text style={[statStyles.value, color ? { color } : {}]}>{value}</Text>
       {sub ? <Text style={statStyles.sub}>{sub}</Text> : null}
+      {onPress ? <Text style={statStyles.tapHint}>tap for details</Text> : null}
     </View>
   );
+  return onPress
+    ? <TouchableOpacity style={statStyles.wrap} onPress={onPress} activeOpacity={0.75}>{inner}</TouchableOpacity>
+    : <View style={statStyles.wrap}>{inner}</View>;
 }
 
 const statStyles = StyleSheet.create({
+  wrap: { flex: 1 },
   card: {
-    flex: 1, backgroundColor: Colors.surface, borderRadius: Radius.lg,
-    padding: Spacing.md, borderWidth: 1, borderColor: Colors.borderSubtle,
+    backgroundColor: Colors.surface, borderRadius: Radius.lg,
+    padding: Spacing.sm, borderWidth: 1, borderColor: Colors.borderSubtle,
   },
-  label: { ...Typography.caption, color: Colors.textMuted, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4 },
+  label: { fontSize: 10, fontWeight: '600', color: Colors.textMuted, textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: 4, lineHeight: 14 },
   value: { ...Typography.h2, color: Colors.text },
   sub: { ...Typography.caption, color: Colors.textSecondary, marginTop: 2 },
+  tapHint: { fontSize: 9, color: Colors.primary, marginTop: 3, letterSpacing: 0.2 },
 });
 
+// ── Main screen ──────────────────────────────────────────────────────────────
 export default function AdminScreen() {
   const { logout } = useAuthStore();
   const [refreshing, setRefreshing] = useState(false);
-  const [selectedJob, setSelectedJob] = useState<any>(null);
+  const [selectedJob, setSelectedJob] = useState<any>(null);         // pending job review
+  const [selectedProviderJob, setSelectedProviderJob] = useState<any>(null); // listed job detail
+  const [selectedUser, setSelectedUser] = useState<any>(null);       // signup detail
+  const [selectedPanProvider, setSelectedPanProvider] = useState<any>(null); // PAN review
+  const [statModal, setStatModal] = useState<string | null>(null);   // revenue/activity detail
   const qc = useQueryClient();
 
-  const handleSignOut = async () => {
-    await logout();
-    router.replace('/role-select' as any);
-  };
+  const handleSignOut = async () => { await logout(); router.replace('/role-select' as any); };
 
   const { data: stats, isLoading: statsLoading, refetch: refetchStats, error: statsError } = useQuery({
     queryKey: ['admin-stats'],
@@ -59,6 +73,12 @@ export default function AdminScreen() {
   const { data: providerJobsData, isLoading: providerJobsLoading, refetch: refetchProviderJobs } = useQuery({
     queryKey: ['admin-provider-jobs'],
     queryFn: () => api.get('/admin/provider-jobs').then(r => r.data),
+    retry: false,
+  });
+
+  const { data: pendingPanData, refetch: refetchPendingPan } = useQuery({
+    queryKey: ['admin-pending-pan'],
+    queryFn: () => api.get('/admin/pending-pan-providers').then(r => r.data),
     retry: false,
   });
 
@@ -88,10 +108,9 @@ export default function AdminScreen() {
       qc.invalidateQueries({ queryKey: ['admin-provider-jobs'] });
       qc.invalidateQueries({ queryKey: ['admin-pending-jobs'] });
       qc.invalidateQueries({ queryKey: ['admin-stats'] });
+      setSelectedProviderJob(null);
     },
-    onError: (err: any) => {
-      Alert.alert('Error', err?.response?.data?.detail ?? 'Failed to delete listing.');
-    },
+    onError: (err: any) => Alert.alert('Error', err?.response?.data?.detail ?? 'Failed to delete listing.'),
   });
 
   const { mutate: deleteUser, isPending: deletingUser } = useMutation({
@@ -99,49 +118,58 @@ export default function AdminScreen() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['admin-users'] });
       qc.invalidateQueries({ queryKey: ['admin-stats'] });
+      setSelectedUser(null);
     },
-    onError: (err: any) => {
-      Alert.alert('Error', err?.response?.data?.detail ?? 'Failed to delete user.');
+    onError: (err: any) => Alert.alert('Error', err?.response?.data?.detail ?? 'Failed to delete user.'),
+  });
+
+  const { mutate: approvePan } = useMutation({
+    mutationFn: (userId: string) => api.post(`/admin/users/${userId}/verify-pan`),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin-pending-pan'] });
+      setSelectedPanProvider(null);
+      Alert.alert('PAN Verified', 'Provider has been marked as PAN verified.');
     },
+    onError: (err: any) => Alert.alert('Error', err?.response?.data?.detail ?? 'Failed to verify PAN.'),
+  });
+
+  const { mutate: rejectPan } = useMutation({
+    mutationFn: (userId: string) => api.post(`/admin/users/${userId}/reject-pan`),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin-pending-pan'] });
+      setSelectedPanProvider(null);
+      Alert.alert('PAN Rejected', 'Provider has been notified. Their PAN has been cleared.');
+    },
+    onError: (err: any) => Alert.alert('Error', err?.response?.data?.detail ?? 'Failed to reject PAN.'),
   });
 
   const confirmDeleteJob = (job: any) => {
-    Alert.alert(
-      'Delete Listing',
-      `Permanently delete "${job.title}" by ${job.provider_name ?? job.provider_email}?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Delete', style: 'destructive', onPress: () => deleteJob(job.id) },
-      ],
-    );
+    Alert.alert('Delete Listing', `Permanently delete "${job.title}"?`, [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Delete', style: 'destructive', onPress: () => deleteJob(job.id) },
+    ]);
   };
 
   const confirmDeleteUser = (user: any) => {
-    Alert.alert(
-      'Delete User',
-      `Permanently delete ${user.name ?? user.email}?\n\nThis will also remove their resumes, applications, and all associated data.`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Delete', style: 'destructive', onPress: () => deleteUser(user.id) },
-      ],
-    );
+    Alert.alert('Delete User', `Permanently delete ${user.name ?? user.email}?\n\nThis removes all their data.`, [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Delete', style: 'destructive', onPress: () => deleteUser(user.id) },
+    ]);
   };
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await Promise.all([refetchStats(), refetchUsers(), refetchPending(), refetchProviderJobs()]);
+    await Promise.all([refetchStats(), refetchUsers(), refetchPending(), refetchProviderJobs(), refetchPendingPan()]);
     setRefreshing(false);
   };
 
   const pendingJobs: any[] = pendingJobsData ?? [];
   const providerJobs: any[] = providerJobsData ?? [];
+  const recentUsers: any[] = usersData?.users ?? [];
+  const pendingPan: any[] = pendingPanData ?? [];
 
   if (statsLoading) {
-    return (
-      <SafeAreaView style={styles.safe}>
-        <ActivityIndicator size="large" color={Colors.primary} style={{ marginTop: 80 }} />
-      </SafeAreaView>
-    );
+    return <SafeAreaView style={styles.safe}><ActivityIndicator size="large" color={Colors.primary} style={{ marginTop: 80 }} /></SafeAreaView>;
   }
 
   if (statsError) {
@@ -150,7 +178,7 @@ export default function AdminScreen() {
         <View style={styles.errorWrap}>
           <Text style={styles.errorIcon}>🔒</Text>
           <Text style={styles.errorTitle}>Access Denied</Text>
-          <Text style={styles.errorBody}>Your account does not have admin privileges. Please contact the system administrator.</Text>
+          <Text style={styles.errorBody}>Your account does not have admin privileges.</Text>
           <TouchableOpacity onPress={async () => { await logout(); router.replace('/role-select' as any); }} style={styles.backBtn}>
             <Text style={styles.backBtnText}>Sign Out</Text>
           </TouchableOpacity>
@@ -165,7 +193,62 @@ export default function AdminScreen() {
   const listed = stats?.listed_jobs ?? {};
   const applications = stats?.applications ?? {};
   const resumes = stats?.resumes ?? {};
-  const recentUsers: any[] = usersData?.users ?? [];
+
+  const proUsers = recentUsers.filter((u: any) => u.subscription === 'pro');
+
+  const statModalContent: Record<string, React.ReactNode> = {
+    mrr: (
+      <View style={styles.modalBody}>
+        <Text style={styles.modalTitle}>Estimated MRR</Text>
+        <Text style={styles.modalSub}>Monthly Recurring Revenue based on active Pro subscribers</Text>
+        <View style={styles.detailRow}><Text style={styles.detailLabel}>Pro subscribers</Text><Text style={styles.detailValue}>{rev.pro_subscribers ?? 0}</Text></View>
+        <View style={styles.detailRow}><Text style={styles.detailLabel}>Price per user</Text><Text style={styles.detailValue}>₹199/mo</Text></View>
+        <View style={[styles.detailRow, { borderBottomWidth: 0 }]}><Text style={[styles.detailLabel, { fontWeight: '700' }]}>Est. MRR</Text><Text style={[styles.detailValue, { color: Colors.primary, fontWeight: '700' }]}>₹{(rev.monthly_inr ?? 0).toLocaleString('en-IN')}</Text></View>
+      </View>
+    ),
+    subs: (
+      <View style={styles.modalBody}>
+        <Text style={styles.modalTitle}>Pro Subscribers</Text>
+        <Text style={styles.modalSub}>{proUsers.length} Pro member{proUsers.length !== 1 ? 's' : ''} found in recent signups</Text>
+        {proUsers.length === 0 ? <Text style={styles.emptyText}>No Pro subscribers in recent list</Text> : proUsers.map((u: any) => (
+          <View key={u.id} style={styles.detailRow}>
+            <Text style={styles.detailLabel} numberOfLines={1}>{u.name ?? '(no name)'}</Text>
+            <Text style={[styles.detailValue, { color: Colors.primary }]}>PRO</Text>
+          </View>
+        ))}
+      </View>
+    ),
+    jobs: (
+      <View style={styles.modalBody}>
+        <Text style={styles.modalTitle}>Active Jobs</Text>
+        <Text style={styles.modalSub}>Total active jobs currently visible on the feed</Text>
+        <View style={styles.detailRow}><Text style={styles.detailLabel}>Total active</Text><Text style={styles.detailValue}>{jobs.total_active ?? 0}</Text></View>
+        {Object.entries(jobs.by_source ?? {}).map(([src, count]: [string, any]) => (
+          <View key={src} style={styles.detailRow}><Text style={styles.detailLabel}>Source: {src}</Text><Text style={styles.detailValue}>{count}</Text></View>
+        ))}
+      </View>
+    ),
+    apps: (
+      <View style={styles.modalBody}>
+        <Text style={styles.modalTitle}>Applications</Text>
+        <Text style={styles.modalSub}>Breakdown of all applications by status</Text>
+        <View style={styles.detailRow}><Text style={styles.detailLabel}>Total</Text><Text style={[styles.detailValue, { fontWeight: '700' }]}>{applications.total ?? 0}</Text></View>
+        {Object.entries(applications.by_status ?? {}).map(([status, count]: [string, any]) => (
+          <View key={status} style={styles.detailRow}>
+            <Text style={styles.detailLabel}>{status.charAt(0).toUpperCase() + status.slice(1)}</Text>
+            <Text style={styles.detailValue}>{count}</Text>
+          </View>
+        ))}
+      </View>
+    ),
+    resumes: (
+      <View style={styles.modalBody}>
+        <Text style={styles.modalTitle}>Resumes</Text>
+        <Text style={styles.modalSub}>Total resumes uploaded across all job seeker accounts</Text>
+        <View style={[styles.detailRow, { borderBottomWidth: 0 }]}><Text style={styles.detailLabel}>Total resumes</Text><Text style={[styles.detailValue, { fontWeight: '700' }]}>{resumes.total ?? 0}</Text></View>
+      </View>
+    ),
+  };
 
   return (
     <SafeAreaView style={styles.safe} edges={['bottom']}>
@@ -184,9 +267,7 @@ export default function AdminScreen() {
             <Text style={styles.subtitle}>Internal — do not share</Text>
           </View>
           <TouchableOpacity onPress={onRefresh} style={styles.headerBtn} disabled={refreshing}>
-            {refreshing
-              ? <ActivityIndicator size="small" color={Colors.primary} />
-              : <Text style={styles.refreshIcon}>↻</Text>}
+            {refreshing ? <ActivityIndicator size="small" color={Colors.primary} /> : <Text style={styles.refreshIcon}>↻</Text>}
           </TouchableOpacity>
         </View>
 
@@ -214,23 +295,48 @@ export default function AdminScreen() {
         {/* Revenue */}
         <Text style={styles.sectionLabel}>REVENUE</Text>
         <View style={styles.row}>
-          <StatCard
-            label="Est. MRR"
-            value={`₹${(rev.monthly_inr ?? 0).toLocaleString('en-IN')}`}
-            sub="Based on pro users × ₹199"
-          />
-          <StatCard label="Pro Subs" value={rev.pro_subscribers ?? 0} color={Colors.primary} />
+          <StatCard label="Est. MRR" value={`₹${(rev.monthly_inr ?? 0).toLocaleString('en-IN')}`} sub="Pro users × ₹199" onPress={() => setStatModal('mrr')} />
+          <StatCard label="Pro Subs" value={rev.pro_subscribers ?? 0} color={Colors.primary} onPress={() => setStatModal('subs')} />
         </View>
 
         {/* Activity */}
         <Text style={styles.sectionLabel}>ACTIVITY</Text>
         <View style={styles.row}>
-          <StatCard label="Active Jobs" value={jobs.total_active ?? 0} />
-          <StatCard label="Applications" value={applications.total ?? 0} />
-          <StatCard label="Resumes" value={resumes.total ?? 0} />
+          <StatCard label="Active Jobs" value={jobs.total_active ?? 0} onPress={() => setStatModal('jobs')} />
+          <StatCard label="Applications" value={applications.total ?? 0} onPress={() => setStatModal('apps')} />
+          <StatCard label="Resumes" value={resumes.total ?? 0} onPress={() => setStatModal('resumes')} />
         </View>
 
-        {/* Pending Jobs */}
+        {/* Pending PAN Verification */}
+        {pendingPan.length > 0 && (
+          <>
+            <Text style={styles.sectionLabel}>PENDING PAN VERIFICATION ({pendingPan.length})</Text>
+            <View style={[styles.listCard, Shadow.sm]}>
+              {pendingPan.map((p: any, i: number) => (
+                <TouchableOpacity
+                  key={p.id}
+                  style={[styles.userRow, i < pendingPan.length - 1 && styles.userRowBorder]}
+                  onPress={() => setSelectedPanProvider(p)}
+                  activeOpacity={0.7}
+                >
+                  <View style={styles.userAvatar}>
+                    <Text style={styles.userAvatarText}>{(p.name ?? p.email ?? '?')[0].toUpperCase()}</Text>
+                  </View>
+                  <View style={styles.userInfo}>
+                    <Text style={styles.userName} numberOfLines={1}>{p.name ?? '(no name)'}</Text>
+                    <Text style={styles.userEmail} numberOfLines={1}>{p.company_name ?? p.email}</Text>
+                    <Text style={styles.userDate}>PAN: {p.company_pan}</Text>
+                  </View>
+                  <View style={[styles.planChip, { backgroundColor: Colors.warning + '15' }]}>
+                    <Text style={[styles.planChipText, { color: Colors.warning }]}>REVIEW</Text>
+                  </View>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </>
+        )}
+
+        {/* Pending Job Listings */}
         <Text style={styles.sectionLabel}>
           PENDING JOB LISTINGS{stats?.pending_provider_jobs > 0 ? ` (${stats.pending_provider_jobs})` : ''}
         </Text>
@@ -267,44 +373,30 @@ export default function AdminScreen() {
             <Text style={styles.emptyText}>No provider listings yet</Text>
           ) : (
             providerJobs.map((job: any, i: number) => {
-              const status = job.review_status ?? 'pending';
-              const statusColor =
-                status === 'approved' ? Colors.tertiary :
-                status === 'rejected' ? Colors.danger :
-                Colors.warning;
-              const statusLabel =
-                status === 'approved' ? 'LIVE' :
-                status === 'rejected' ? 'REJECTED' :
-                'PENDING';
+              const statusColor = job.review_status === 'approved' ? Colors.tertiary : job.review_status === 'rejected' ? Colors.danger : Colors.warning;
+              const statusLabel = job.review_status === 'approved' ? 'LIVE' : job.review_status === 'rejected' ? 'REJECTED' : 'PENDING';
               return (
-                <View
+                <TouchableOpacity
                   key={job.id}
                   style={[styles.userRow, i < providerJobs.length - 1 && styles.userRowBorder]}
+                  onPress={() => setSelectedProviderJob(job)}
+                  activeOpacity={0.7}
                 >
                   <View style={styles.userInfo}>
                     <Text style={styles.userName} numberOfLines={1}>{job.title}</Text>
                     <Text style={styles.userEmail} numberOfLines={1}>{job.company} · {job.location}</Text>
                     <Text style={styles.userDate}>By {job.provider_name ?? job.provider_email}</Text>
                   </View>
-                  <View style={styles.userRowActions}>
-                    <View style={[styles.planChip, { backgroundColor: statusColor + '18' }]}>
-                      <Text style={[styles.planChipText, { color: statusColor, fontWeight: '700' }]}>{statusLabel}</Text>
-                    </View>
-                    <TouchableOpacity
-                      style={styles.deleteBtn}
-                      onPress={() => confirmDeleteJob(job)}
-                      disabled={deletingJob}
-                    >
-                      <Text style={styles.deleteBtnText}>🗑</Text>
-                    </TouchableOpacity>
+                  <View style={[styles.planChip, { backgroundColor: statusColor + '18' }]}>
+                    <Text style={[styles.planChipText, { color: statusColor, fontWeight: '700' }]}>{statusLabel}</Text>
                   </View>
-                </View>
+                </TouchableOpacity>
               );
             })
           )}
         </View>
 
-        {/* Recent signups */}
+        {/* Recent Signups */}
         <Text style={styles.sectionLabel}>RECENT SIGNUPS</Text>
         <View style={[styles.listCard, Shadow.sm]}>
           {usersLoading ? (
@@ -313,14 +405,14 @@ export default function AdminScreen() {
             <Text style={styles.emptyText}>No users yet</Text>
           ) : (
             recentUsers.map((user: any, i: number) => (
-              <View
+              <TouchableOpacity
                 key={user.id}
                 style={[styles.userRow, i < recentUsers.length - 1 && styles.userRowBorder]}
+                onPress={() => setSelectedUser(user)}
+                activeOpacity={0.7}
               >
                 <View style={styles.userAvatar}>
-                  <Text style={styles.userAvatarText}>
-                    {(user.name ?? user.email ?? '?')[0].toUpperCase()}
-                  </Text>
+                  <Text style={styles.userAvatarText}>{(user.name ?? user.email ?? '?')[0].toUpperCase()}</Text>
                 </View>
                 <View style={styles.userInfo}>
                   <Text style={styles.userName} numberOfLines={1}>{user.name ?? '(no name)'}</Text>
@@ -329,81 +421,165 @@ export default function AdminScreen() {
                     Joined {new Date(user.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
                   </Text>
                 </View>
-                <View style={styles.userRowActions}>
-                  <View style={[styles.planChip, user.subscription === 'pro' && styles.planChipPro]}>
-                    <Text style={[styles.planChipText, user.subscription === 'pro' && styles.planChipTextPro]}>
-                      {user.subscription === 'pro' ? 'PRO' : 'FREE'}
-                    </Text>
-                  </View>
-                  <TouchableOpacity
-                    style={styles.deleteBtn}
-                    onPress={() => confirmDeleteUser(user)}
-                    disabled={deletingUser}
-                  >
-                    <Text style={styles.deleteBtnText}>🗑</Text>
-                  </TouchableOpacity>
+                <View style={[styles.planChip, user.subscription === 'pro' && styles.planChipPro]}>
+                  <Text style={[styles.planChipText, user.subscription === 'pro' && styles.planChipTextPro]}>
+                    {user.subscription === 'pro' ? 'PRO' : 'FREE'}
+                  </Text>
                 </View>
-              </View>
+              </TouchableOpacity>
             ))
           )}
         </View>
 
-        <Text style={styles.footer}>Tap ↻ on the top right to refresh</Text>
+        <Text style={styles.footer}>Pull to refresh · Tap any row or stat for details</Text>
       </ScrollView>
 
-      {/* Job Review Modal */}
+      {/* ── Stat Detail Modal ── */}
+      <Modal visible={!!statModal} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setStatModal(null)}>
+        <SafeAreaView style={{ flex: 1, backgroundColor: Colors.background }}>
+          <ScrollView contentContainerStyle={{ padding: Spacing.lg, gap: Spacing.md, paddingBottom: Spacing.xxl }}>
+            <View style={styles.modalHeader}>
+              <Text style={[Typography.h3, { color: Colors.text }]}>Detail</Text>
+              <TouchableOpacity onPress={() => setStatModal(null)}>
+                <Text style={styles.modalClose}>✕</Text>
+              </TouchableOpacity>
+            </View>
+            {statModal ? statModalContent[statModal] : null}
+          </ScrollView>
+        </SafeAreaView>
+      </Modal>
+
+      {/* ── Pending Job Review Modal ── */}
       <Modal visible={!!selectedJob} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setSelectedJob(null)}>
         {selectedJob && (
           <SafeAreaView style={{ flex: 1, backgroundColor: Colors.background }}>
             <ScrollView contentContainerStyle={{ padding: Spacing.lg, gap: Spacing.md, paddingBottom: Spacing.xxl }}>
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+              <View style={styles.modalHeader}>
                 <Text style={[Typography.h3, { color: Colors.text }]}>Review Listing</Text>
-                <TouchableOpacity onPress={() => setSelectedJob(null)}>
-                  <Text style={{ fontSize: 24, color: Colors.textMuted }}>✕</Text>
-                </TouchableOpacity>
+                <TouchableOpacity onPress={() => setSelectedJob(null)}><Text style={styles.modalClose}>✕</Text></TouchableOpacity>
               </View>
-
               <View style={[styles.listCard, Shadow.sm, { padding: Spacing.md, gap: Spacing.sm }]}>
                 <Text style={[Typography.h4, { color: Colors.text }]}>{selectedJob.title}</Text>
                 <Text style={[Typography.body, { color: Colors.textSecondary }]}>{selectedJob.company} · {selectedJob.location}</Text>
-                <Text style={[Typography.caption, { color: Colors.textMuted }]}>
-                  {selectedJob.job_type?.replace('_', '-')} · {selectedJob.experience_level} · {selectedJob.remote_type}
-                </Text>
-                {selectedJob.salary_min && selectedJob.salary_max
-                  ? <Text style={[Typography.caption, { color: Colors.textMuted }]}>₹{(selectedJob.salary_min/1000).toFixed(0)}k–{(selectedJob.salary_max/1000).toFixed(0)}k/yr</Text>
-                  : null}
+                <Text style={[Typography.caption, { color: Colors.textMuted }]}>{selectedJob.job_type?.replace('_', '-')} · {selectedJob.experience_level} · {selectedJob.remote_type}</Text>
               </View>
-
               {selectedJob.skills_required?.length > 0 && (
                 <View style={[styles.listCard, Shadow.sm, { padding: Spacing.md }]}>
-                  <Text style={[Typography.caption, { color: Colors.textMuted, marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.5 }]}>Skills</Text>
+                  <Text style={styles.modalFieldLabel}>Skills</Text>
                   <Text style={[Typography.body, { color: Colors.text }]}>{selectedJob.skills_required.join(', ')}</Text>
                 </View>
               )}
-
               <View style={[styles.listCard, Shadow.sm, { padding: Spacing.md }]}>
-                <Text style={[Typography.caption, { color: Colors.textMuted, marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.5 }]}>Description</Text>
+                <Text style={styles.modalFieldLabel}>Description</Text>
                 <Text style={[Typography.body, { color: Colors.text, lineHeight: 22 }]}>{selectedJob.description}</Text>
               </View>
-
               <View style={[styles.listCard, Shadow.sm, { padding: Spacing.md }]}>
-                <Text style={[Typography.caption, { color: Colors.textMuted, marginBottom: 4, textTransform: 'uppercase', letterSpacing: 0.5 }]}>Posted by</Text>
+                <Text style={styles.modalFieldLabel}>Posted by</Text>
                 <Text style={[Typography.label, { color: Colors.text }]}>{selectedJob.provider_name}</Text>
                 <Text style={[Typography.bodySmall, { color: Colors.textSecondary }]}>{selectedJob.provider_email}</Text>
               </View>
-
               <View style={{ flexDirection: 'row', gap: Spacing.sm }}>
-                <TouchableOpacity
-                  style={{ flex: 1, backgroundColor: Colors.tertiary, borderRadius: Radius.md, padding: Spacing.md, alignItems: 'center' }}
-                  onPress={() => approveJob(selectedJob.id)}
-                >
-                  <Text style={[Typography.label, { color: Colors.textInverse }]}>Approve & Go Live</Text>
+                <TouchableOpacity style={styles.approveBtn} onPress={() => approveJob(selectedJob.id)}>
+                  <Text style={styles.approveBtnText}>Approve & Go Live</Text>
                 </TouchableOpacity>
-                <TouchableOpacity
-                  style={{ flex: 1, borderWidth: 1.5, borderColor: Colors.danger + '60', borderRadius: Radius.md, padding: Spacing.md, alignItems: 'center', backgroundColor: Colors.danger + '08' }}
-                  onPress={() => rejectJob(selectedJob.id)}
-                >
-                  <Text style={[Typography.label, { color: Colors.danger }]}>Reject</Text>
+                <TouchableOpacity style={styles.rejectBtn} onPress={() => rejectJob(selectedJob.id)}>
+                  <Text style={styles.rejectBtnText}>Reject</Text>
+                </TouchableOpacity>
+              </View>
+            </ScrollView>
+          </SafeAreaView>
+        )}
+      </Modal>
+
+      {/* ── Listed Job Detail Modal ── */}
+      <Modal visible={!!selectedProviderJob} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setSelectedProviderJob(null)}>
+        {selectedProviderJob && (
+          <SafeAreaView style={{ flex: 1, backgroundColor: Colors.background }}>
+            <ScrollView contentContainerStyle={{ padding: Spacing.lg, gap: Spacing.md, paddingBottom: Spacing.xxl }}>
+              <View style={styles.modalHeader}>
+                <Text style={[Typography.h3, { color: Colors.text }]}>Listing Detail</Text>
+                <TouchableOpacity onPress={() => setSelectedProviderJob(null)}><Text style={styles.modalClose}>✕</Text></TouchableOpacity>
+              </View>
+              {([
+                ['Title', selectedProviderJob.title],
+                ['Company', selectedProviderJob.company],
+                ['Location', selectedProviderJob.location],
+                ['Type', `${selectedProviderJob.job_type?.replace('_', '-')} · ${selectedProviderJob.experience_level} · ${selectedProviderJob.remote_type}`],
+                ['Status', selectedProviderJob.review_status],
+                ['Posted by', selectedProviderJob.provider_name ?? '(deleted user)'],
+                ['Provider email', selectedProviderJob.provider_email],
+                ['Posted at', selectedProviderJob.posted_at ? new Date(selectedProviderJob.posted_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—'],
+              ] as [string, string][]).map(([label, value]) => (
+                <View key={label} style={styles.detailRow}>
+                  <Text style={styles.detailLabel}>{label}</Text>
+                  <Text style={styles.detailValue} numberOfLines={2}>{value ?? '—'}</Text>
+                </View>
+              ))}
+              <TouchableOpacity style={styles.deleteBtnFull} onPress={() => confirmDeleteJob(selectedProviderJob)} disabled={deletingJob}>
+                <Text style={styles.deleteBtnFullText}>{deletingJob ? 'Deleting...' : 'Delete Listing'}</Text>
+              </TouchableOpacity>
+            </ScrollView>
+          </SafeAreaView>
+        )}
+      </Modal>
+
+      {/* ── User Detail Modal ── */}
+      <Modal visible={!!selectedUser} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setSelectedUser(null)}>
+        {selectedUser && (
+          <SafeAreaView style={{ flex: 1, backgroundColor: Colors.background }}>
+            <ScrollView contentContainerStyle={{ padding: Spacing.lg, gap: Spacing.md, paddingBottom: Spacing.xxl }}>
+              <View style={styles.modalHeader}>
+                <Text style={[Typography.h3, { color: Colors.text }]}>User Detail</Text>
+                <TouchableOpacity onPress={() => setSelectedUser(null)}><Text style={styles.modalClose}>✕</Text></TouchableOpacity>
+              </View>
+              {([
+                ['Name', selectedUser.name],
+                ['Email', selectedUser.email],
+                ['Role', selectedUser.role],
+                ['Phone', selectedUser.phone],
+                ['Subscription', selectedUser.subscription],
+                ['Joined', selectedUser.created_at ? new Date(selectedUser.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' }) : '—'],
+              ] as [string, string | null][]).map(([label, value]) => value ? (
+                <View key={label} style={styles.detailRow}>
+                  <Text style={styles.detailLabel}>{label}</Text>
+                  <Text style={[styles.detailValue, label === 'Subscription' && selectedUser.subscription === 'pro' ? { color: Colors.primary, fontWeight: '700' } : {}]}>{value}</Text>
+                </View>
+              ) : null)}
+              <TouchableOpacity style={styles.deleteBtnFull} onPress={() => confirmDeleteUser(selectedUser)} disabled={deletingUser}>
+                <Text style={styles.deleteBtnFullText}>{deletingUser ? 'Deleting...' : 'Delete User & All Data'}</Text>
+              </TouchableOpacity>
+            </ScrollView>
+          </SafeAreaView>
+        )}
+      </Modal>
+
+      {/* ── PAN Verification Modal ── */}
+      <Modal visible={!!selectedPanProvider} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setSelectedPanProvider(null)}>
+        {selectedPanProvider && (
+          <SafeAreaView style={{ flex: 1, backgroundColor: Colors.background }}>
+            <ScrollView contentContainerStyle={{ padding: Spacing.lg, gap: Spacing.md, paddingBottom: Spacing.xxl }}>
+              <View style={styles.modalHeader}>
+                <Text style={[Typography.h3, { color: Colors.text }]}>PAN Verification</Text>
+                <TouchableOpacity onPress={() => setSelectedPanProvider(null)}><Text style={styles.modalClose}>✕</Text></TouchableOpacity>
+              </View>
+              {([
+                ['Provider name', selectedPanProvider.name],
+                ['Email', selectedPanProvider.email],
+                ['Company PAN', selectedPanProvider.company_pan],
+                ['Company Reg No.', selectedPanProvider.company_reg_no],
+                ['GSTIN', selectedPanProvider.gstin],
+              ] as [string, string | null][]).map(([label, value]) => value ? (
+                <View key={label} style={styles.detailRow}>
+                  <Text style={styles.detailLabel}>{label}</Text>
+                  <Text style={[styles.detailValue, label === 'Company PAN' ? { fontFamily: 'monospace', fontWeight: '700', letterSpacing: 1 } : {}]}>{value}</Text>
+                </View>
+              ) : null)}
+              <View style={{ flexDirection: 'row', gap: Spacing.sm }}>
+                <TouchableOpacity style={styles.approveBtn} onPress={() => approvePan(selectedPanProvider.id)}>
+                  <Text style={styles.approveBtnText}>✓ Approve PAN</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.rejectBtn} onPress={() => rejectPan(selectedPanProvider.id)}>
+                  <Text style={styles.rejectBtnText}>✕ Reject</Text>
                 </TouchableOpacity>
               </View>
             </ScrollView>
@@ -429,10 +605,8 @@ const styles = StyleSheet.create({
 
   sectionLabel: {
     ...Typography.caption, color: Colors.textMuted,
-    textTransform: 'uppercase', letterSpacing: 1,
-    marginTop: Spacing.xs, marginBottom: 2,
+    textTransform: 'uppercase', letterSpacing: 1, marginTop: Spacing.xs, marginBottom: 2,
   },
-
   row: { flexDirection: 'row', gap: Spacing.sm },
 
   singleCard: {
@@ -450,30 +624,34 @@ const styles = StyleSheet.create({
   emptyText: { ...Typography.body, color: Colors.textMuted, padding: Spacing.lg, textAlign: 'center' },
   userRow: { flexDirection: 'row', alignItems: 'center', padding: Spacing.md, gap: Spacing.sm },
   userRowBorder: { borderBottomWidth: 1, borderBottomColor: Colors.border },
-  userAvatar: {
-    width: 36, height: 36, borderRadius: 18,
-    backgroundColor: Colors.primary + '20',
-    alignItems: 'center', justifyContent: 'center',
-  },
+  userAvatar: { width: 36, height: 36, borderRadius: 18, backgroundColor: Colors.primary + '20', alignItems: 'center', justifyContent: 'center' },
   userAvatarText: { ...Typography.label, color: Colors.primary, fontWeight: '700' },
   userInfo: { flex: 1 },
   userName: { ...Typography.label, color: Colors.text },
   userEmail: { ...Typography.bodySmall, color: Colors.textSecondary },
   userDate: { ...Typography.caption, color: Colors.textMuted, marginTop: 1 },
-  userRowActions: { flexDirection: 'row', alignItems: 'center', gap: Spacing.xs },
-  planChip: {
-    backgroundColor: Colors.surfaceSecondary,
-    borderRadius: Radius.full, paddingHorizontal: 8, paddingVertical: 3,
-  },
+  planChip: { backgroundColor: Colors.surfaceSecondary, borderRadius: Radius.full, paddingHorizontal: 8, paddingVertical: 3 },
   planChipPro: { backgroundColor: Colors.primary + '15' },
   planChipText: { ...Typography.caption, color: Colors.textMuted, letterSpacing: 0.3 },
   planChipTextPro: { color: Colors.primary },
-  deleteBtn: {
-    width: 32, height: 32, borderRadius: Radius.sm,
-    backgroundColor: Colors.danger + '10',
-    alignItems: 'center', justifyContent: 'center',
-  },
-  deleteBtnText: { fontSize: 14 },
+
+  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  modalClose: { fontSize: 24, color: Colors.textMuted },
+  modalBody: { backgroundColor: Colors.surface, borderRadius: Radius.lg, padding: Spacing.md, gap: Spacing.sm, borderWidth: 1, borderColor: Colors.borderSubtle },
+  modalTitle: { ...Typography.h4, color: Colors.text },
+  modalSub: { ...Typography.caption, color: Colors.textMuted, lineHeight: 16, marginBottom: Spacing.sm },
+  modalFieldLabel: { ...Typography.caption, color: Colors.textMuted, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 },
+
+  detailRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: Colors.borderSubtle },
+  detailLabel: { ...Typography.body, color: Colors.textSecondary, flex: 1 },
+  detailValue: { ...Typography.body, color: Colors.text, fontWeight: '500', flex: 1, textAlign: 'right' },
+
+  approveBtn: { flex: 1, backgroundColor: Colors.tertiary, borderRadius: Radius.md, padding: Spacing.md, alignItems: 'center' },
+  approveBtnText: { ...Typography.label, color: Colors.textInverse },
+  rejectBtn: { flex: 1, borderWidth: 1.5, borderColor: Colors.danger + '60', borderRadius: Radius.md, padding: Spacing.md, alignItems: 'center', backgroundColor: Colors.danger + '08' },
+  rejectBtnText: { ...Typography.label, color: Colors.danger },
+  deleteBtnFull: { borderWidth: 1.5, borderColor: Colors.danger + '60', borderRadius: Radius.lg, padding: Spacing.md, alignItems: 'center', backgroundColor: Colors.danger + '08', marginTop: Spacing.sm },
+  deleteBtnFullText: { ...Typography.label, color: Colors.danger, fontWeight: '700' },
 
   errorWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: Spacing.xl, gap: Spacing.md },
   errorIcon: { fontSize: 48 },
@@ -481,6 +659,5 @@ const styles = StyleSheet.create({
   errorBody: { ...Typography.body, color: Colors.textSecondary, textAlign: 'center', lineHeight: 22 },
   backBtn: { backgroundColor: Colors.primary, borderRadius: Radius.md, paddingHorizontal: Spacing.lg, paddingVertical: Spacing.sm, marginTop: Spacing.sm },
   backBtnText: { ...Typography.label, color: Colors.textInverse },
-
   footer: { ...Typography.caption, color: Colors.textMuted, textAlign: 'center', marginTop: Spacing.sm },
 });

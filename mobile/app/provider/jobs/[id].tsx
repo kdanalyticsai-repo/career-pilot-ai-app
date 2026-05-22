@@ -126,16 +126,26 @@ export default function ProviderJobDetailScreen() {
             </View>
 
             {canEdit && (
-              <TouchableOpacity style={styles.deleteBtn} onPress={handleDelete} disabled={isDeleting}>
-                <Text style={styles.deleteBtnText}>{isDeleting ? 'Deleting...' : 'Delete Listing'}</Text>
-              </TouchableOpacity>
+              <View style={styles.actionRow}>
+                <TouchableOpacity
+                  style={styles.editBtn}
+                  onPress={() => router.push({ pathname: '/provider/jobs/edit', params: { id } } as any)}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.editBtnText}>Edit Listing</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.deleteBtn} onPress={handleDelete} disabled={isDeleting}>
+                  <Text style={styles.deleteBtnText}>{isDeleting ? 'Deleting...' : 'Delete'}</Text>
+                </TouchableOpacity>
+              </View>
             )}
           </>
         )}
 
         {tab === 'applicants' && (
           <View style={[styles.section, Shadow.sm]}>
-            <Text style={styles.sectionTitle}>Applicants</Text>
+            <Text style={styles.sectionTitle}>Applicant Details</Text>
+            <Text style={styles.sectionSub}>People who applied to this listing</Text>
             {appsLoading ? (
               <ActivityIndicator color={Colors.primary} style={{ padding: Spacing.md }} />
             ) : applicants.length === 0 ? (
@@ -198,6 +208,7 @@ const styles = StyleSheet.create({
     padding: Spacing.md, borderWidth: 1, borderColor: Colors.borderSubtle, gap: Spacing.sm,
   },
   sectionTitle: { ...Typography.h4, color: Colors.text, marginBottom: 2 },
+  sectionSub: { ...Typography.caption, color: Colors.textMuted, marginBottom: Spacing.sm },
 
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.xs },
   skillChip: { backgroundColor: Colors.primary + '12', borderRadius: Radius.full, paddingHorizontal: 10, paddingVertical: 4 },
@@ -209,8 +220,14 @@ const styles = StyleSheet.create({
 
   descText: { ...Typography.body, color: Colors.text, lineHeight: 22 },
 
+  actionRow: { flexDirection: 'row', gap: Spacing.md },
+  editBtn: {
+    flex: 1, borderWidth: 1.5, borderColor: Colors.primary + '60', borderRadius: Radius.lg,
+    padding: Spacing.md, alignItems: 'center', backgroundColor: Colors.primary + '08',
+  },
+  editBtnText: { ...Typography.label, color: Colors.primary, fontWeight: '700' },
   deleteBtn: {
-    borderWidth: 1.5, borderColor: Colors.danger + '60', borderRadius: Radius.lg,
+    flex: 1, borderWidth: 1.5, borderColor: Colors.danger + '60', borderRadius: Radius.lg,
     padding: Spacing.md, alignItems: 'center', backgroundColor: Colors.danger + '08',
   },
   deleteBtnText: { ...Typography.label, color: Colors.danger },

@@ -40,15 +40,6 @@ export default function RoleSelectScreen() {
         <View style={styles.orb3} />
 
         <SafeAreaView edges={['top']} style={styles.heroInner}>
-          {process.env.EXPO_PUBLIC_ADMIN_EMAIL ? (
-            <TouchableOpacity
-              style={styles.adminChip}
-              onPress={() => router.push('/(auth)/admin-login' as any)}
-              activeOpacity={0.7}
-            >
-              <Text style={styles.adminChipText}>🔐  Admin</Text>
-            </TouchableOpacity>
-          ) : null}
 
           <View style={styles.logoMark}>
             <Text style={styles.logoMarkIcon}>✦</Text>
@@ -153,6 +144,16 @@ export default function RoleSelectScreen() {
           </TouchableOpacity>
         </View>
 
+        {process.env.EXPO_PUBLIC_ADMIN_EMAIL ? (
+          <TouchableOpacity
+            style={styles.adminBottomBtn}
+            onPress={() => router.push('/(auth)/admin-login' as any)}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.adminBottomText}>🔐  Admin Access</Text>
+          </TouchableOpacity>
+        ) : null}
+
         <View style={{ height: Spacing.xl }} />
       </ScrollView>
     </View>
@@ -179,15 +180,15 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.secondary, opacity: 0.15, top: 40, left: 20,
   },
 
-  adminChip: {
-    alignSelf: 'flex-end',
-    borderWidth: 1, borderColor: HeroColors.border,
+  adminBottomBtn: {
+    alignSelf: 'center',
+    borderWidth: 1, borderColor: Colors.border,
     borderRadius: Radius.full,
-    paddingHorizontal: Spacing.md, paddingVertical: 5,
-    marginBottom: Spacing.md,
-    backgroundColor: HeroColors.surface,
+    paddingHorizontal: Spacing.lg, paddingVertical: 8,
+    marginTop: Spacing.sm,
+    backgroundColor: Colors.surface,
   },
-  adminChipText: { ...Typography.caption, color: HeroColors.textDim },
+  adminBottomText: { ...Typography.caption, color: Colors.textMuted },
 
   logoMark: {
     width: 68, height: 68, borderRadius: 22,

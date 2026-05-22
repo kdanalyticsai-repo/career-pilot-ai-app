@@ -49,22 +49,22 @@ export default function ProviderTabsLayout() {
       }}
     >
       <Tabs.Screen
+        name="home"
+        options={{
+          title: 'Home',
+          headerTitle: 'ProAICV for Hirers',
+          tabBarIcon: ({ focused, color }) => (
+            <TabIcon name="home-outline" activeName="home" focused={focused} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="listings"
         options={{
           title: 'My Jobs',
           headerTitle: 'My Listings',
           tabBarIcon: ({ focused, color }) => (
             <TabIcon name="briefcase-outline" activeName="briefcase" focused={focused} color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="post"
-        options={{
-          title: 'Post Job',
-          headerTitle: 'Post a Job',
-          tabBarIcon: ({ focused, color }) => (
-            <TabIcon name="plus-circle-outline" activeName="plus-circle" focused={focused} color={color} />
           ),
         }}
       />
@@ -77,6 +77,10 @@ export default function ProviderTabsLayout() {
           ),
         }}
       />
+      {/* Hidden screens — accessible via router.push but not shown in tab bar */}
+      <Tabs.Screen name="post" options={{ href: null, headerTitle: 'Post a Job' }} />
+      <Tabs.Screen name="single-post" options={{ href: null, headerTitle: 'Single Job Listing' }} />
+      <Tabs.Screen name="bulk-post" options={{ href: null, headerTitle: 'Bulk Upload Jobs' }} />
     </Tabs>
   );
 }

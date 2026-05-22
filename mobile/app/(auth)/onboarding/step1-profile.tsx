@@ -4,6 +4,7 @@ import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useAuthStore } from '@/stores/authStore';
 import { Colors, Typography, Spacing, Radius, Shadow } from '@/constants/theme';
 
 const schema = z.object({
@@ -14,8 +15,10 @@ const schema = z.object({
 type FormData = z.infer<typeof schema>;
 
 export default function OnboardingStep1() {
+  const { user } = useAuthStore();
   const { control, handleSubmit, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
+    defaultValues: { name: user?.name ?? '', phone: user?.phone ?? '' },
   });
 
   const onNext = (data: FormData) => {
