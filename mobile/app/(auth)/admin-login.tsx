@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '@/stores/authStore';
 import { Colors, Typography, Spacing, Radius } from '@/constants/theme';
 
@@ -13,6 +14,7 @@ export default function AdminLoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleLogin = async () => {
     setError('');
@@ -69,14 +71,19 @@ export default function AdminLoginScreen() {
 
             <View style={styles.field}>
               <Text style={styles.label}>Password</Text>
-              <TextInput
-                style={[styles.input, error ? styles.inputError : null]}
-                placeholder="••••••••"
-                secureTextEntry
-                autoCapitalize="none"
-                value={password}
-                onChangeText={(t) => { setPassword(t); setError(''); }}
-              />
+              <View style={styles.inputWrap}>
+                <TextInput
+                  style={[styles.input, styles.inputPadRight, error ? styles.inputError : null]}
+                  placeholder="••••••••"
+                  secureTextEntry={!showPassword}
+                  autoCapitalize="none"
+                  value={password}
+                  onChangeText={(t) => { setPassword(t); setError(''); }}
+                />
+                <TouchableOpacity style={styles.eyeBtn} onPress={() => setShowPassword(p => !p)} activeOpacity={0.7}>
+                  <Ionicons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={20} color={Colors.textMuted} />
+                </TouchableOpacity>
+              </View>
             </View>
 
             {error ? (
@@ -125,6 +132,9 @@ const styles = StyleSheet.create({
     ...Typography.body, color: Colors.text, backgroundColor: Colors.background,
   },
   inputError: { borderColor: Colors.danger },
+  inputWrap: { position: 'relative' },
+  inputPadRight: { paddingRight: 48 },
+  eyeBtn: { position: 'absolute', right: 12, top: 0, bottom: 0, justifyContent: 'center', padding: 4 },
 
   errorBox: {
     backgroundColor: Colors.danger + '12', borderRadius: Radius.md,

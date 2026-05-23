@@ -9,6 +9,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '@/stores/authStore';
 import { Colors, Typography, Spacing, Radius, Shadow, HeroColors } from '@/constants/theme';
 
@@ -22,6 +23,7 @@ type FormData = z.infer<typeof schema>;
 export default function LoginScreen() {
   const { login, isLoading, pendingRole } = useAuthStore();
   const [errorMsg, setErrorMsg] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const { control, handleSubmit, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
   });
@@ -112,15 +114,20 @@ export default function LoginScreen() {
                 render={({ field: { onChange, value, onBlur } }) => (
                   <View style={styles.fieldGroup}>
                     <Text style={styles.label}>Password</Text>
-                    <TextInput
-                      style={[styles.input, errors.password && styles.inputError]}
-                      placeholder="Enter your password"
-                      placeholderTextColor={Colors.textMuted}
-                      secureTextEntry
-                      onChangeText={(t) => { onChange(t); setErrorMsg(''); }}
-                      onBlur={onBlur}
-                      value={value}
-                    />
+                    <View style={styles.inputWrap}>
+                      <TextInput
+                        style={[styles.input, styles.inputPadRight, errors.password && styles.inputError]}
+                        placeholder="Enter your password"
+                        placeholderTextColor={Colors.textMuted}
+                        secureTextEntry={!showPassword}
+                        onChangeText={(t) => { onChange(t); setErrorMsg(''); }}
+                        onBlur={onBlur}
+                        value={value}
+                      />
+                      <TouchableOpacity style={styles.eyeBtn} onPress={() => setShowPassword(p => !p)} activeOpacity={0.7}>
+                        <Ionicons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={20} color={Colors.textMuted} />
+                      </TouchableOpacity>
+                    </View>
                     {errors.password && <Text style={styles.fieldError}>{errors.password.message}</Text>}
                   </View>
                 )}
@@ -206,6 +213,9 @@ const styles = StyleSheet.create({
   },
   inputError: { borderColor: Colors.danger },
   fieldError: { ...Typography.caption, color: Colors.danger, marginTop: 4 },
+  inputWrap: { position: 'relative' },
+  inputPadRight: { paddingRight: 48 },
+  eyeBtn: { position: 'absolute', right: 12, top: 0, bottom: 0, justifyContent: 'center', padding: 4 },
 
   errorBox: {
     backgroundColor: Colors.danger + '10', borderRadius: Radius.md,

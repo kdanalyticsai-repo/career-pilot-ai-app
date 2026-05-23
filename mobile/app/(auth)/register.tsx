@@ -9,6 +9,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '@/stores/authStore';
 import { Colors, Typography, Spacing, Radius, Shadow } from '@/constants/theme';
 
@@ -34,6 +35,8 @@ const FIELD_CONFIG: { name: keyof FormData; label: string; placeholder: string; 
 export default function RegisterScreen() {
   const { register: registerUser, isLoading, pendingRole } = useAuthStore();
   const [errorMsg, setErrorMsg] = useState('');
+  const [showPwd, setShowPwd] = useState<Record<string, boolean>>({});
+  const togglePwd = (name: string) => setShowPwd(prev => ({ ...prev, [name]: !prev[name] }));
   const { control, handleSubmit, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
   });
@@ -99,17 +102,24 @@ export default function RegisterScreen() {
                   render={({ field: { onChange, value, onBlur } }) => (
                     <View style={styles.fieldGroup}>
                       <Text style={styles.label}>{fc.label}</Text>
-                      <TextInput
-                        style={[styles.input, errors[fc.name] && styles.inputError]}
-                        placeholder={fc.placeholder}
-                        placeholderTextColor={Colors.textMuted}
-                        keyboardType={fc.keyboard ?? 'default'}
-                        autoCapitalize={fc.capitalize ?? 'none'}
-                        secureTextEntry={fc.secure}
-                        onChangeText={(t) => { onChange(t); setErrorMsg(''); }}
-                        onBlur={onBlur}
-                        value={value}
-                      />
+                      <View style={fc.secure ? styles.inputWrap : undefined}>
+                        <TextInput
+                          style={[styles.input, fc.secure && styles.inputPadRight, errors[fc.name] && styles.inputError]}
+                          placeholder={fc.placeholder}
+                          placeholderTextColor={Colors.textMuted}
+                          keyboardType={fc.keyboard ?? 'default'}
+                          autoCapitalize={fc.capitalize ?? 'none'}
+                          secureTextEntry={fc.secure && !showPwd[fc.name]}
+                          onChangeText={(t) => { onChange(t); setErrorMsg(''); }}
+                          onBlur={onBlur}
+                          value={value}
+                        />
+                        {fc.secure && (
+                          <TouchableOpacity style={styles.eyeBtn} onPress={() => togglePwd(fc.name)} activeOpacity={0.7}>
+                            <Ionicons name={showPwd[fc.name] ? 'eye-off-outline' : 'eye-outline'} size={20} color={Colors.textMuted} />
+                          </TouchableOpacity>
+                        )}
+                      </View>
                       {errors[fc.name] && <Text style={styles.fieldError}>{errors[fc.name]?.message}</Text>}
                     </View>
                   )}
@@ -200,6 +210,9 @@ const styles = StyleSheet.create({
   },
   inputError: { borderColor: Colors.danger },
   fieldError: { ...Typography.caption, color: Colors.danger, marginTop: 4 },
+  inputWrap: { position: 'relative' },
+  inputPadRight: { paddingRight: 48 },
+  eyeBtn: { position: 'absolute', right: 12, top: 0, bottom: 0, justifyContent: 'center', padding: 4 },
 
   button: {
     backgroundColor: Colors.primary,

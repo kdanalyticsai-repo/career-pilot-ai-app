@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import { api } from '@/services/api';
 import { Colors, Typography, Spacing, Radius } from '@/constants/theme';
 
@@ -16,6 +17,8 @@ export default function ResetPasswordScreen() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [done, setDone] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
 
   const handleReset = async () => {
     if (!otp.trim() || otp.length !== 6) { setError('Enter the 6-digit code from your email.'); return; }
@@ -100,24 +103,34 @@ export default function ResetPasswordScreen() {
 
             <View style={styles.fieldGroup}>
               <Text style={styles.label}>New password</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Minimum 8 characters"
-                secureTextEntry
-                value={password}
-                onChangeText={(t) => { setPassword(t); setError(''); }}
-              />
+              <View style={styles.inputWrap}>
+                <TextInput
+                  style={[styles.input, styles.inputPadRight]}
+                  placeholder="Minimum 8 characters"
+                  secureTextEntry={!showPassword}
+                  value={password}
+                  onChangeText={(t) => { setPassword(t); setError(''); }}
+                />
+                <TouchableOpacity style={styles.eyeBtn} onPress={() => setShowPassword(p => !p)} activeOpacity={0.7}>
+                  <Ionicons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={20} color={Colors.textMuted} />
+                </TouchableOpacity>
+              </View>
             </View>
 
             <View style={styles.fieldGroup}>
               <Text style={styles.label}>Confirm new password</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Repeat your new password"
-                secureTextEntry
-                value={confirm}
-                onChangeText={(t) => { setConfirm(t); setError(''); }}
-              />
+              <View style={styles.inputWrap}>
+                <TextInput
+                  style={[styles.input, styles.inputPadRight]}
+                  placeholder="Repeat your new password"
+                  secureTextEntry={!showConfirm}
+                  value={confirm}
+                  onChangeText={(t) => { setConfirm(t); setError(''); }}
+                />
+                <TouchableOpacity style={styles.eyeBtn} onPress={() => setShowConfirm(p => !p)} activeOpacity={0.7}>
+                  <Ionicons name={showConfirm ? 'eye-off-outline' : 'eye-outline'} size={20} color={Colors.textMuted} />
+                </TouchableOpacity>
+              </View>
             </View>
 
             <TouchableOpacity
@@ -166,6 +179,9 @@ const styles = StyleSheet.create({
     ...Typography.body, color: Colors.text, backgroundColor: Colors.background,
   },
   otpInput: { letterSpacing: 6, fontSize: 22, fontWeight: '700', textAlign: 'center' },
+  inputWrap: { position: 'relative' },
+  inputPadRight: { paddingRight: 48 },
+  eyeBtn: { position: 'absolute', right: 12, top: 0, bottom: 0, justifyContent: 'center', padding: 4 },
 
   button: {
     backgroundColor: Colors.primary, borderRadius: Radius.md,
