@@ -51,13 +51,22 @@ export default function ApplicantDetailScreen() {
       const safeName = (applicant.resume_name ?? 'resume').replace(/[^a-zA-Z0-9._-]/g, '_') + '.pdf';
       const localUri = (FileSystem.cacheDirectory ?? '') + safeName;
 
-      const { status } = await FileSystem.downloadAsync(
+      const result = await FileSystem.downloadAsync(
         `${API_URL}/provider/applicants/${applicationId}/resume-download`,
         localUri,
         { headers: token ? { Authorization: `Bearer ${token}` } : {} },
       );
 
-      if (status !== 200) throw new Error('Download failed');
+      if (result.status !== 200) {
+        let serverMsg = 'Could not download the resume.';
+        try {
+          const body = await FileSystem.readAsStringAsync(localUri);
+          const json = JSON.parse(body);
+          if (json.detail) serverMsg = json.detail;
+        } catch {}
+        Alert.alert('Download Failed', serverMsg);
+        return;
+      }
 
       if (Platform.OS === 'android') {
         const contentUri = await FileSystem.getContentUriAsync(localUri);

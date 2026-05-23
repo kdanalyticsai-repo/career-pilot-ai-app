@@ -16,7 +16,7 @@ from app.services.email_service import send_listing_submitted_email, send_bulk_u
 _VALID_JOB_TYPES = {"full_time", "part_time", "contract"}
 _VALID_EXP_LEVELS = {"entry", "mid", "senior", "lead"}
 _VALID_REMOTE_TYPES = {"onsite", "remote", "hybrid"}
-_BULK_MIN_ROWS = 25
+_BULK_MAX_ROWS = 25
 _TEMPLATE_HEADERS = [
     "title", "company", "location", "description",
     "job_type", "experience_level", "remote_type",
@@ -246,12 +246,11 @@ async def bulk_upload_jobs(
     except Exception as exc:
         raise HTTPException(status_code=400, detail=f"Could not parse file: {exc}")
 
-    if len(rows) < _BULK_MIN_ROWS:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Bulk upload requires at least {_BULK_MIN_ROWS} job entries. "
-                   f"Your file has {len(rows)} data rows. For fewer jobs, use the single job form.",
-        )
+    total_submitted = len(rows)
+    skipped_excess = 0
+    if len(rows) > _BULK_MAX_ROWS:
+        skipped_excess = len(rows) - _BULK_MAX_ROWS
+        rows = rows[:_BULK_MAX_ROWS]
 
     success_count = 0
     errors: list[dict] = []
@@ -336,15 +335,16 @@ async def bulk_upload_jobs(
 
     await send_bulk_upload_email(
         current_user.email, current_user.name or "",
-        submitted=len(rows), success_count=success_count, errors=errors,
+        submitted=total_submitted, success_count=success_count, errors=errors,
     )
 
     return {
-        "submitted": len(rows),
+        "submitted": total_submitted,
         "success_count": success_count,
         "pending_review": success_count,
         "error_count": len(errors),
         "errors": errors,
+        "skipped_excess": skipped_excess,
     }
 
 

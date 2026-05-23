@@ -54,7 +54,7 @@ export default function BulkPostScreen() {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
 
-      const { submitted, success_count, error_count, errors } = res.data;
+      const { submitted, success_count, error_count, errors, skipped_excess } = res.data;
 
       if (success_count === 0) {
         const errLines = errors.slice(0, 5).map((e: any) => `Row ${e.row}: ${e.message}`).join('\n');
@@ -64,14 +64,17 @@ export default function BulkPostScreen() {
           `No jobs were submitted. Please fix the errors below and try again.\n\n${errLines}${more}`,
         );
       } else {
-        let msg = `${success_count} of ${submitted} job${success_count !== 1 ? 's' : ''} submitted for admin review.\nA confirmation email has been sent to you.`;
+        let msg = `✅ ${success_count} job${success_count !== 1 ? 's' : ''} submitted for admin review.\n\nYou'll see them in My Jobs with status "Pending Review". A confirmation email has been sent to you.`;
+        if (skipped_excess > 0) {
+          msg += `\n\n⚠️ ${skipped_excess} row${skipped_excess !== 1 ? 's' : ''} beyond the 25-job limit were ignored.`;
+        }
         if (error_count > 0) {
           const errLines = errors.slice(0, 3).map((e: any) => `Row ${e.row}: ${e.message}`).join('\n');
-          msg += `\n\n⚠️ ${error_count} row${error_count !== 1 ? 's' : ''} skipped:\n${errLines}`;
-          if (error_count > 3) msg += `\n…and ${error_count - 3} more (see email for full list).`;
+          msg += `\n\n❌ ${error_count} row${error_count !== 1 ? 's' : ''} had errors:\n${errLines}`;
+          if (error_count > 3) msg += `\n…and ${error_count - 3} more (see email for details).`;
         }
-        Alert.alert('Upload Complete', msg, [
-          { text: 'View Listings', onPress: () => router.replace('/(provider-tabs)/listings' as any) },
+        Alert.alert('Jobs Submitted!', msg, [
+          { text: 'View My Jobs', onPress: () => router.replace('/(provider-tabs)/listings' as any) },
           { text: 'OK' },
         ]);
         qc.invalidateQueries({ queryKey: ['provider-jobs'] });
@@ -93,13 +96,13 @@ export default function BulkPostScreen() {
             <Text style={styles.bulkIcon}>📤</Text>
             <View style={styles.bulkHeaderText}>
               <Text style={styles.bulkTitle}>Bulk Job Upload</Text>
-              <Text style={styles.bulkSub}>Upload 25+ jobs at once via Excel or CSV</Text>
+              <Text style={styles.bulkSub}>Upload up to 25 jobs at once via Excel or CSV</Text>
             </View>
           </View>
 
           <View style={styles.bulkSteps}>
             <Text style={styles.bulkStep}>1. Download the template below</Text>
-            <Text style={styles.bulkStep}>2. Fill in your jobs (min. 25 rows)</Text>
+            <Text style={styles.bulkStep}>2. Fill in your jobs (max 25 rows per upload)</Text>
             <Text style={styles.bulkStep}>3. Upload the completed file</Text>
             <Text style={styles.bulkStep}>4. Jobs go to admin review — same as single listing</Text>
           </View>
@@ -131,7 +134,7 @@ export default function BulkPostScreen() {
             • skills_required: comma-separated (e.g. React,TypeScript){'\n'}
             • requirements: pipe-separated (e.g. 3 yrs exp|Strong communication){'\n'}
             • salary values: annual INR (e.g. 600000 for ₹6 LPA){'\n'}
-            • Minimum 25 rows required per upload
+            • Maximum 25 rows per upload (excess rows are ignored)
           </Text>
         </View>
 
