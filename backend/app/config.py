@@ -19,8 +19,9 @@ class Settings(BaseSettings):
 
     AWS_ACCESS_KEY_ID: str = ""
     AWS_SECRET_ACCESS_KEY: str = ""
-    AWS_REGION: str = "ap-south-1"
+    AWS_REGION: str = "auto"          # R2 uses "auto"; AWS uses e.g. "ap-south-1"
     S3_BUCKET_NAME: str = "cvpilot-resumes"
+    S3_ENDPOINT_URL: str = ""         # Set to R2 endpoint: https://<account_id>.r2.cloudflarestorage.com
     S3_PRESIGNED_URL_EXPIRY: int = 300
     LOCAL_STORAGE_PATH: str = "./uploads"
 

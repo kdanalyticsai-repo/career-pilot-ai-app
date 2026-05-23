@@ -17,12 +17,14 @@ EDITABLE_SECTIONS = {"contact", "summary", "experience", "skills", "education", 
 
 def _s3_client():
     import boto3
-    return boto3.client(
-        "s3",
+    kwargs = dict(
         region_name=settings.AWS_REGION,
         aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
         aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
     )
+    if settings.S3_ENDPOINT_URL:
+        kwargs["endpoint_url"] = settings.S3_ENDPOINT_URL
+    return boto3.client("s3", **kwargs)
 
 
 def _ensure_local_dir(path: str) -> None:
