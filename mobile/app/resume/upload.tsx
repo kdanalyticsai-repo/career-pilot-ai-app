@@ -5,11 +5,12 @@ import {
 } from 'react-native';
 import { router } from 'expo-router';
 import * as DocumentPicker from 'expo-document-picker';
+import * as FileSystem from 'expo-file-system/legacy';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQueryClient } from '@tanstack/react-query';
-import { api } from '@/services/api';
-import { uploadResumePdf } from '@/services/upload';
 import { Colors, Typography, Spacing, Radius, Shadow } from '@/constants/theme';
+import { API_URL } from '@/constants/config';
+import { storage } from '@/services/storage';
 
 export default function UploadResumeScreen() {
   const [fileName, setFileName] = useState<string | null>(null);
@@ -39,12 +40,27 @@ export default function UploadResumeScreen() {
 
     setIsUploading(true);
     try {
-      const { data: uploadData } = await api.post('/resumes/upload', {
-        filename: fileName,
-        name: resumeName.trim(),
-      });
+      const token = await storage.getAccessToken();
+      const result = await FileSystem.uploadAsync(
+        `${API_URL}/resumes/upload-file`,
+        fileUri,
+        {
+          httpMethod: 'POST',
+          uploadType: 1, // FileSystemUploadType.MULTIPART
+          fieldName: 'file',
+          parameters: { name: resumeName.trim() },
+          headers: { Authorization: `Bearer ${token ?? ''}` },
+          mimeType: 'application/pdf',
+        }
+      );
 
-      await uploadResumePdf(uploadData.upload_url, fileUri);
+      if (result.status < 200 || result.status >= 300) {
+        let detail = `Upload failed (${result.status})`;
+        try { detail = JSON.parse(result.body)?.detail ?? detail; } catch {}
+        const err: any = new Error(detail);
+        err.response = { status: result.status, data: { detail } };
+        throw err;
+      }
 
       await queryClient.invalidateQueries({ queryKey: ['resumes'] });
       Alert.alert('Uploaded!', 'Your resume is being analyzed. This takes about 30 seconds.', [
@@ -59,6 +75,8 @@ export default function UploadResumeScreen() {
         msg = 'Your session has expired. Please log out and sign in again.';
       } else if (status === 413) {
         msg = 'File is too large. Please use a PDF under 10 MB.';
+      } else if (status === 415) {
+        msg = 'Only PDF files are supported.';
       } else if (status === 400) {
         msg = 'This file could not be processed. Make sure it is a valid PDF and try again.';
       }
