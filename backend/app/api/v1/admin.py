@@ -510,3 +510,40 @@ async def verify_provider_pan(
     user.pan_verified = True
     await db.commit()
     return {"verified": True, "user_id": str(user_id), "company_pan": user.company_pan}
+
+
+@router.get("/storage-test")
+async def storage_test(_: User = Depends(_require_admin)):
+    """Diagnose S3/R2 storage configuration. Returns exactly what is configured and any connection error."""
+    result = {
+        "use_local_storage": settings.use_local_storage,
+        "S3_ENDPOINT_URL": settings.S3_ENDPOINT_URL or "(not set — boto3 will use AWS default)",
+        "S3_BUCKET_NAME": settings.S3_BUCKET_NAME,
+        "AWS_REGION": settings.AWS_REGION,
+        "AWS_ACCESS_KEY_ID": (settings.AWS_ACCESS_KEY_ID[:6] + "…") if settings.AWS_ACCESS_KEY_ID else "(not set)",
+        "AWS_SECRET_ACCESS_KEY": "set" if settings.AWS_SECRET_ACCESS_KEY else "(not set)",
+    }
+
+    if settings.use_local_storage:
+        result["status"] = "LOCAL_STORAGE — S3/R2 not configured (AWS_ACCESS_KEY_ID or AWS_SECRET_ACCESS_KEY missing)"
+        return result
+
+    try:
+        from app.services.resume_service import _s3_client
+        import io
+        client = _s3_client()
+        # Write a tiny test object
+        test_key = "_storage_test/ping.txt"
+        client.put_object(Bucket=settings.S3_BUCKET_NAME, Key=test_key, Body=b"ok", ContentType="text/plain")
+        # Read it back
+        obj = client.get_object(Bucket=settings.S3_BUCKET_NAME, Key=test_key)
+        content = obj["Body"].read()
+        # Clean up
+        client.delete_object(Bucket=settings.S3_BUCKET_NAME, Key=test_key)
+        result["status"] = "OK — S3/R2 is working correctly"
+        result["test_write_read"] = content.decode()
+    except Exception as exc:
+        result["status"] = "ERROR"
+        result["error"] = str(exc)
+
+    return result
