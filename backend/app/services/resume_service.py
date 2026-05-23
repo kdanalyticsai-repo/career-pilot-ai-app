@@ -59,6 +59,31 @@ class ResumeService:
 
         return resume, upload_url, str(resume.id)
 
+    async def upload_file_and_store(
+        self, user_id: uuid.UUID, filename: str, name: str, file_bytes: bytes
+    ) -> Resume:
+        """Upload PDF bytes directly — stores to S3/R2 or local disk without presigned URLs."""
+        file_key = f"resumes/{user_id}/{uuid.uuid4()}/{filename}"
+        resume = Resume(user_id=user_id, name=name, s3_key=file_key, status="processing")
+        self.db.add(resume)
+        await self.db.commit()
+        await self.db.refresh(resume)
+
+        if settings.use_local_storage:
+            local_path = os.path.join(settings.LOCAL_STORAGE_PATH, file_key)
+            _ensure_local_dir(os.path.dirname(local_path))
+            with open(local_path, "wb") as f:
+                f.write(file_bytes)
+        else:
+            _s3_client().put_object(
+                Bucket=settings.S3_BUCKET_NAME,
+                Key=file_key,
+                Body=file_bytes,
+                ContentType="application/pdf",
+            )
+
+        return resume
+
     async def save_local_file(self, resume_id: uuid.UUID, user_id: uuid.UUID, file_bytes: bytes) -> Resume:
         resume = await self.get_resume(resume_id, user_id)
         local_path = os.path.join(settings.LOCAL_STORAGE_PATH, resume.s3_key)

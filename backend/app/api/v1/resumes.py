@@ -1,5 +1,5 @@
 import uuid
-from fastapi import APIRouter, Depends, Request, HTTPException, Query
+from fastapi import APIRouter, Depends, Request, HTTPException, Query, UploadFile, File, Form
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.dependencies import get_db, get_current_active_user
@@ -28,6 +28,37 @@ async def upload_resume(
         upload_url=upload_url,
         task_id=task_id,
     )
+
+
+@router.post("/upload-file", status_code=http_status.HTTP_201_CREATED)
+async def upload_resume_file(
+    file: UploadFile = File(...),
+    name: str = Form(None),
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Multipart upload — mobile sends the PDF directly to the backend, which stores it in S3/R2."""
+    ALLOWED_TYPES = {"application/pdf", "application/octet-stream", "binary/octet-stream"}
+    if file.content_type and file.content_type not in ALLOWED_TYPES:
+        raise HTTPException(status_code=415, detail="Only PDF files are supported")
+
+    file_bytes = await file.read()
+    if len(file_bytes) > 10 * 1024 * 1024:
+        raise HTTPException(status_code=413, detail="File exceeds the 10 MB limit. Please compress and try again.")
+
+    filename = file.filename or "resume.pdf"
+    resume_name = name or filename.rsplit(".pdf", 1)[0] or "My Resume"
+
+    service = ResumeService(db)
+    resume = await service.upload_file_and_store(current_user.id, filename, resume_name, file_bytes)
+
+    from app.workers.resume_tasks import process_resume_task
+    try:
+        process_resume_task.delay(str(resume.id), resume.s3_key)
+    except Exception:
+        pass
+
+    return {"resume_id": str(resume.id)}
 
 
 @router.get("/upload/status/{resume_id}", response_model=ResumeStatusResponse)

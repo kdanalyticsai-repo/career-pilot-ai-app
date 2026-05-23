@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, StyleSheet, TextInput, TouchableOpacity } from 'react-native';
 import { router } from 'expo-router';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -28,6 +28,11 @@ export default function OnboardingStep1() {
   return (
     <SafeAreaView style={styles.safe}>
       <View style={styles.container}>
+        {/* Back */}
+        <TouchableOpacity style={styles.backRow} onPress={() => router.back()} activeOpacity={0.7}>
+          <Text style={styles.backText}>← Back</Text>
+        </TouchableOpacity>
+
         {/* Progress */}
         <View style={styles.progress}>
           <View style={[styles.progressStep, styles.progressActive]} />
@@ -115,6 +120,9 @@ const styles = StyleSheet.create({
   inputError: { borderColor: Colors.danger },
   errorRow: { marginTop: 5 },
   errorText: { ...Typography.caption, color: Colors.danger, fontWeight: '600' },
+
+  backRow: { marginBottom: Spacing.sm },
+  backText: { ...Typography.body, color: Colors.textSecondary, fontWeight: '600' },
 
   button: {
     backgroundColor: Colors.primary, borderRadius: Radius.lg,

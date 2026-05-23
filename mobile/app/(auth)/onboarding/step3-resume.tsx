@@ -2,11 +2,13 @@ import { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import * as DocumentPicker from 'expo-document-picker';
+import * as FileSystem from 'expo-file-system/legacy';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors, Typography, Spacing, Radius, Shadow } from '@/constants/theme';
 import { useAuthStore } from '@/stores/authStore';
 import { api } from '@/services/api';
-import { uploadResumePdf } from '@/services/upload';
+import { storage } from '@/services/storage';
+import { API_URL } from '@/constants/config';
 
 export default function OnboardingStep3() {
   const params = useLocalSearchParams();
@@ -26,16 +28,30 @@ export default function OnboardingStep3() {
     setIsUploading(true);
 
     try {
-      // 1. Get pre-signed S3 URL
-      const { data: uploadData } = await api.post('/resumes/upload', {
-        filename: file.name,
-        name: file.name.replace('.pdf', ''),
-      });
+      // 1. Upload PDF via multipart POST to backend (backend stores to S3/R2)
+      const token = await storage.getAccessToken();
+      const uploadResult = await FileSystem.uploadAsync(
+        `${API_URL}/resumes/upload-file`,
+        file.uri,
+        {
+          httpMethod: 'POST',
+          uploadType: 1, // FileSystemUploadType.MULTIPART
+          fieldName: 'file',
+          parameters: { name: file.name.replace('.pdf', '') },
+          headers: { Authorization: `Bearer ${token ?? ''}` },
+          mimeType: 'application/pdf',
+        }
+      );
 
-      // 2. Upload PDF directly to S3
-      await uploadResumePdf(uploadData.upload_url, file.uri);
+      if (uploadResult.status < 200 || uploadResult.status >= 300) {
+        let detail = `Upload failed (${uploadResult.status})`;
+        try { detail = JSON.parse(uploadResult.body)?.detail ?? detail; } catch {}
+        const err: any = new Error(`Upload failed (${uploadResult.status})`);
+        err.response = { status: uploadResult.status, data: { detail } };
+        throw err;
+      }
 
-      // 3. Complete onboarding
+      // 2. Complete onboarding
       await api.post('/users/me/onboarding', {
         name: params.name,
         phone: params.phone || null,
@@ -53,7 +69,7 @@ export default function OnboardingStep3() {
       router.replace('/(tabs)');
     } catch (err: any) {
       const status = err?.response?.status;
-      const isNetwork = !status && !err?.message?.includes('Upload');
+      const isNetwork = !status && !err?.message?.includes('Upload') && !err?.message?.includes('upload');
       if (isNetwork) {
         Alert.alert('No Connection', 'Please check your internet connection and try again.');
       } else if (status === 413) {
@@ -137,6 +153,10 @@ export default function OnboardingStep3() {
           )}
         </TouchableOpacity>
 
+        <TouchableOpacity style={styles.skipButton} onPress={skipForNow} activeOpacity={0.7} disabled={isUploading}>
+          <Text style={styles.skipText}>Skip for now →</Text>
+        </TouchableOpacity>
+
         {!fileName && !isUploading && (
           <View style={styles.tipBox}>
             <Text style={styles.tipIcon}>💡</Text>
@@ -154,10 +174,6 @@ export default function OnboardingStep3() {
             </View>
           ))}
         </View>
-
-        <TouchableOpacity style={styles.skipButton} onPress={skipForNow} activeOpacity={0.7}>
-          <Text style={styles.skipText}>Skip for now →</Text>
-        </TouchableOpacity>
       </View>
     </SafeAreaView>
   );
@@ -220,6 +236,6 @@ const styles = StyleSheet.create({
   benefitIcon: { fontSize: 14, color: Colors.primary },
   benefitText: { ...Typography.body, color: Colors.text },
 
-  skipButton: { alignItems: 'center', padding: Spacing.md, marginTop: Spacing.lg, marginBottom: Spacing.lg },
+  skipButton: { alignItems: 'center', padding: Spacing.md, marginTop: Spacing.sm, marginBottom: Spacing.sm },
   skipText: { ...Typography.label, color: Colors.textMuted, fontWeight: '600' },
 });
