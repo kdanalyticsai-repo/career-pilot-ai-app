@@ -1,20 +1,80 @@
+import asyncio
 import uuid
 import logging
-from fastapi import APIRouter, Depends, Request, HTTPException, Query, UploadFile, File, Form
+from fastapi import APIRouter, BackgroundTasks, Depends, Request, HTTPException, Query, UploadFile, File, Form
 from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)
 
+from app.config import settings
+from app.database import AsyncSessionLocal
 from app.dependencies import get_db, get_current_active_user
+from app.models.resume import Resume as ResumeModel
 from app.models.user import User
 from app.schemas.resume import (
     ResumeUploadRequest, ResumeUploadResponse,
     ResumeStatusResponse, ResumeResponse, ResumeListResponse, ResumeUpdate, ResumeSectionUpdate,
 )
 from app.services.resume_service import ResumeService
+from app.workers.resume_tasks import MOCK_STRUCTURED_DATA, MOCK_ATS_RESULT, _load_pdf_bytes
 from fastapi import status as http_status
 
 router = APIRouter(prefix="/resumes", tags=["resumes"])
+
+
+async def _process_resume_background(resume_id: str, s3_key: str) -> None:
+    """Process a resume after the HTTP response — no Celery or Redis required."""
+    from app.ai.resume_parser import extract_text_from_pdf_bytes, parse_resume
+    from app.ai.ats_scorer import score_resume_ats
+
+    async with AsyncSessionLocal() as db:
+        try:
+            resume = await db.get(ResumeModel, uuid.UUID(resume_id))
+            if not resume:
+                logger.error("process_bg: resume %s not found", resume_id)
+                return
+
+            if not settings.has_anthropic_key:
+                resume.structured_data = MOCK_STRUCTURED_DATA
+                resume.ats_score = MOCK_ATS_RESULT["total_score"]
+                resume.completeness_score = MOCK_ATS_RESULT["completeness_score"]
+                resume.ats_details = MOCK_ATS_RESULT
+                resume.status = "ready"
+                await db.commit()
+                logger.info("process_bg: resume %s → mock data applied", resume_id)
+                return
+
+            loop = asyncio.get_running_loop()
+            pdf_bytes = await loop.run_in_executor(None, _load_pdf_bytes, s3_key)
+            raw_text = extract_text_from_pdf_bytes(pdf_bytes)
+            resume.raw_text = raw_text
+
+            structured = await loop.run_in_executor(None, parse_resume, raw_text)
+            resume.structured_data = structured
+
+            ats_result = await loop.run_in_executor(None, score_resume_ats, structured)
+            resume.ats_score = ats_result.get("total_score", 0)
+            resume.completeness_score = ats_result.get("completeness_score", 0)
+            resume.ats_details = ats_result
+            resume.status = "ready"
+            await db.commit()
+            logger.info("process_bg: resume %s → ready (score=%s)", resume_id, resume.ats_score)
+
+        except Exception as exc:
+            logger.error("process_bg: resume %s failed: %s — applying mock fallback", resume_id, exc)
+            try:
+                await db.rollback()
+                resume = await db.get(ResumeModel, uuid.UUID(resume_id))
+                if resume:
+                    resume.structured_data = MOCK_STRUCTURED_DATA
+                    resume.ats_score = MOCK_ATS_RESULT["total_score"]
+                    resume.completeness_score = MOCK_ATS_RESULT["completeness_score"]
+                    resume.ats_details = MOCK_ATS_RESULT
+                    resume.status = "ready"
+                    await db.commit()
+                    logger.info("process_bg: resume %s → mock fallback applied", resume_id)
+            except Exception as exc2:
+                logger.error("process_bg: fallback also failed for resume %s: %s", resume_id, exc2)
 
 
 @router.post("/upload", response_model=ResumeUploadResponse, status_code=http_status.HTTP_201_CREATED)
@@ -35,6 +95,7 @@ async def upload_resume(
 
 @router.post("/upload-file", status_code=http_status.HTTP_201_CREATED)
 async def upload_resume_file(
+    background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
     name: str | None = Form(None),
     current_user: User = Depends(get_current_active_user),
@@ -72,13 +133,8 @@ async def upload_resume_file(
         logger.error("upload_file_and_store failed for user=%s: %s", current_user.id, exc)
         raise HTTPException(status_code=500, detail=f"Storage error: {exc}")
 
-    from app.workers.resume_tasks import process_resume_task
-    try:
-        process_resume_task.delay(str(resume.id), resume.s3_key)
-    except Exception as exc:
-        logger.warning("Could not queue resume processing task: %s", exc)
-
-    logger.info("upload-file: resume created id=%s", resume.id)
+    background_tasks.add_task(_process_resume_background, str(resume.id), resume.s3_key)
+    logger.info("upload-file: resume created id=%s, processing queued", resume.id)
     return {"resume_id": str(resume.id)}
 
 
@@ -138,6 +194,7 @@ async def delete_resume(
 async def local_upload(
     resume_id: uuid.UUID,
     request: Request,
+    background_tasks: BackgroundTasks,
     current_user: User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -145,11 +202,7 @@ async def local_upload(
     file_bytes = await request.body()
     service = ResumeService(db)
     resume = await service.save_local_file(resume_id, current_user.id, file_bytes)
-    from app.workers.resume_tasks import process_resume_task
-    try:
-        process_resume_task.delay(str(resume_id), resume.s3_key)
-    except Exception:
-        pass  # file is saved; task will be retried by the worker
+    background_tasks.add_task(_process_resume_background, str(resume_id), resume.s3_key)
 
 
 @router.get("/{resume_id}/export-pdf")

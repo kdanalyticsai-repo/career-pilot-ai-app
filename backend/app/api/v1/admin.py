@@ -512,6 +512,25 @@ async def verify_provider_pan(
     return {"verified": True, "user_id": str(user_id), "company_pan": user.company_pan}
 
 
+@router.post("/resumes/reprocess-stuck")
+async def reprocess_stuck_resumes(
+    _: User = Depends(_require_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Re-queue all resumes stuck in 'processing' status."""
+    from app.api.v1.resumes import _process_resume_background
+    result = await db.execute(
+        select(Resume).where(Resume.status == "processing")
+    )
+    stuck = result.scalars().all()
+    if not stuck:
+        return {"requeued": 0, "message": "No stuck resumes found"}
+    import asyncio
+    for r in stuck:
+        asyncio.ensure_future(_process_resume_background(str(r.id), r.s3_key))
+    return {"requeued": len(stuck), "resume_ids": [str(r.id) for r in stuck]}
+
+
 @router.get("/storage-test")
 async def storage_test(key: str | None = None):
     """Diagnose S3/R2 storage configuration. Pass ?key=ADMIN_PASSWORD to authenticate."""
