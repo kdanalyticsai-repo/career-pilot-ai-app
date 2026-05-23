@@ -450,13 +450,17 @@ async def get_applicant_detail(
     }
 
 
-@router.get("/applicants/{application_id}/resume-url")
-async def get_applicant_resume_url(
+@router.get("/applicants/{application_id}/resume-download")
+async def download_applicant_resume(
     application_id: uuid.UUID,
     current_user: User = Depends(require_role("job_provider")),
     db: AsyncSession = Depends(get_db),
 ):
-    """Generate a presigned S3 URL so the provider can download the applicant's resume PDF."""
+    """Stream the applicant's resume PDF directly (works with both local and S3 storage)."""
+    import os
+    from fastapi.responses import FileResponse, StreamingResponse
+    from app.config import settings as _settings
+
     apps_result = await db.execute(
         select(Application, User, Job)
         .join(User, Application.user_id == User.id)
@@ -479,18 +483,24 @@ async def get_applicant_resume_url(
     if not resume or not resume.s3_key:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No resume found for this applicant")
 
-    from app.services.resume_service import _s3_client
-    from app.config import settings as _settings
+    safe_name = (resume.name or "resume").replace("/", "_") + ".pdf"
+
+    if _settings.use_local_storage:
+        local_path = os.path.join(_settings.LOCAL_STORAGE_PATH, resume.s3_key)
+        if not os.path.exists(local_path):
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Resume file not found on server")
+        return FileResponse(path=local_path, media_type="application/pdf", filename=safe_name)
+
     try:
-        url = _s3_client().generate_presigned_url(
-            "get_object",
-            Params={"Bucket": _settings.S3_BUCKET_NAME, "Key": resume.s3_key},
-            ExpiresIn=3600,
+        from app.services.resume_service import _s3_client
+        obj = _s3_client().get_object(Bucket=_settings.S3_BUCKET_NAME, Key=resume.s3_key)
+        return StreamingResponse(
+            content=obj["Body"].iter_chunks(),
+            media_type="application/pdf",
+            headers={"Content-Disposition": f'attachment; filename="{safe_name}"'},
         )
     except Exception:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Could not generate download link")
-
-    return {"url": url, "filename": (resume.name or "resume") + ".pdf"}
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Could not retrieve resume")
 
 
 @router.get("/jobs/{job_id}/applicants")

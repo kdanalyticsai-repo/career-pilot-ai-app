@@ -1,9 +1,13 @@
 import { useState } from 'react';
+import { Platform } from 'react-native';
 import { View, Text, StyleSheet, ScrollView, ActivityIndicator, TouchableOpacity, Clipboard, Alert, Linking } from 'react-native';
+import * as FileSystem from 'expo-file-system/legacy';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, router } from 'expo-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/services/api';
+import { storage } from '@/services/storage';
+import { API_URL } from '@/constants/config';
 import { Colors, Typography, Spacing, Radius, Shadow } from '@/constants/theme';
 
 export default function ApplicantDetailScreen() {
@@ -43,11 +47,26 @@ export default function ApplicantDetailScreen() {
   const handleDownloadResume = async () => {
     setDownloadingResume(true);
     try {
-      const res = await api.get(`/provider/applicants/${applicationId}/resume-url`);
-      await Linking.openURL(res.data.url);
+      const token = await storage.getAccessToken();
+      const safeName = (applicant.resume_name ?? 'resume').replace(/[^a-zA-Z0-9._-]/g, '_') + '.pdf';
+      const localUri = (FileSystem.cacheDirectory ?? '') + safeName;
+
+      const { status } = await FileSystem.downloadAsync(
+        `${API_URL}/provider/applicants/${applicationId}/resume-download`,
+        localUri,
+        { headers: token ? { Authorization: `Bearer ${token}` } : {} },
+      );
+
+      if (status !== 200) throw new Error('Download failed');
+
+      if (Platform.OS === 'android') {
+        const contentUri = await FileSystem.getContentUriAsync(localUri);
+        await Linking.openURL(contentUri);
+      } else {
+        await Linking.openURL(localUri);
+      }
     } catch (err: any) {
-      const detail = err?.response?.data?.detail ?? 'Could not generate download link. Please try again.';
-      Alert.alert('Download Failed', detail);
+      Alert.alert('Download Failed', 'Could not download the resume. Please try again.');
     } finally {
       setDownloadingResume(false);
     }
