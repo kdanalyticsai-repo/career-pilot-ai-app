@@ -9,16 +9,86 @@ import { Colors, Typography, Spacing, Radius, Shadow } from '@/constants/theme';
 export default function TailorScreen() {
   const { id: jobId } = useLocalSearchParams<{ id: string }>();
   const [result, setResult] = useState<any>(null);
+  const [errorMsg, setErrorMsg] = useState('');
 
   const { data: job } = useQuery({
     queryKey: ['job', jobId],
     queryFn: () => api.get(`/jobs/${jobId}`).then((r) => r.data),
   });
 
-  const { mutate: tailor, isPending, isError } = useMutation({
-    mutationFn: () => api.post('/ai/tailor', { job_id: jobId }),
-    onSuccess: (res) => setResult(res.data),
+  const { data: resumeData, isLoading: resumesLoading } = useQuery({
+    queryKey: ['resumes'],
+    queryFn: () => api.get('/resumes').then((r) => r.data),
+    staleTime: 30_000,
   });
+
+  const resumes: any[] = resumeData?.resumes ?? [];
+  const primary = resumes.find((r) => r.is_primary) ?? resumes[0] ?? null;
+  const noResume = !resumesLoading && !primary;
+  const resumeProcessing = !resumesLoading && primary && primary.status !== 'ready';
+
+  const { mutate: tailor, isPending } = useMutation({
+    mutationFn: () => api.post('/ai/tailor', { job_id: jobId }),
+    onSuccess: (res) => { setErrorMsg(''); setResult(res.data); },
+    onError: (err: any) => {
+      const status = err?.response?.status;
+      const detail = err?.response?.data?.detail ?? '';
+      if (status === 404 || detail.toLowerCase().includes('no resume')) {
+        setErrorMsg('no_resume');
+      } else if (status === 400 && detail.toLowerCase().includes('processing')) {
+        setErrorMsg('processing');
+      } else {
+        setErrorMsg('generic');
+      }
+    },
+  });
+
+  // No resume uploaded at all
+  if (noResume) {
+    return (
+      <SafeAreaView style={styles.safe} edges={['bottom']}>
+        <ScrollView contentContainerStyle={styles.container}>
+          <View style={[styles.jobCard, Shadow.sm]}>
+            <Text style={styles.jobTitle}>{job?.title ?? 'Loading…'}</Text>
+            <Text style={styles.company}>{job?.company}</Text>
+          </View>
+          <View style={[styles.gateCard, Shadow.sm]}>
+            <Text style={styles.gateIcon}>📄</Text>
+            <Text style={styles.gateTitle}>Upload a Resume First</Text>
+            <Text style={styles.gateBody}>
+              To tailor your resume for this job, you need to upload your resume first.
+              Our AI will then rewrite it to match this role.
+            </Text>
+            <TouchableOpacity style={styles.gateBtn} onPress={() => router.push('/resume/upload')}>
+              <Text style={styles.gateBtnText}>Upload Resume</Text>
+            </TouchableOpacity>
+          </View>
+        </ScrollView>
+      </SafeAreaView>
+    );
+  }
+
+  // Resume still being analyzed
+  if (resumeProcessing) {
+    return (
+      <SafeAreaView style={styles.safe} edges={['bottom']}>
+        <ScrollView contentContainerStyle={styles.container}>
+          <View style={[styles.jobCard, Shadow.sm]}>
+            <Text style={styles.jobTitle}>{job?.title ?? 'Loading…'}</Text>
+            <Text style={styles.company}>{job?.company}</Text>
+          </View>
+          <View style={[styles.gateCard, Shadow.sm]}>
+            <ActivityIndicator color={Colors.primary} size="large" style={{ marginBottom: Spacing.md }} />
+            <Text style={styles.gateTitle}>Resume Being Analyzed</Text>
+            <Text style={styles.gateBody}>
+              Your resume is still being analyzed by AI. This usually takes under 30 seconds.
+              Come back once it's ready to tailor it for this job.
+            </Text>
+          </View>
+        </ScrollView>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.safe} edges={['bottom']}>
@@ -47,7 +117,23 @@ export default function TailorScreen() {
             <TouchableOpacity style={styles.tailorBtn} onPress={() => tailor()}>
               <Text style={styles.tailorBtnText}>Tailor Resume for This Job</Text>
             </TouchableOpacity>
-            {isError && <Text style={styles.errorText}>Failed to tailor. Please try again.</Text>}
+
+            {errorMsg === 'no_resume' && (
+              <View style={styles.errorBox}>
+                <Text style={styles.errorBoxText}>No resume found. Please upload a resume first.</Text>
+                <TouchableOpacity onPress={() => router.push('/resume/upload')} style={styles.errorLink}>
+                  <Text style={styles.errorLinkText}>Upload Resume →</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+            {errorMsg === 'processing' && (
+              <View style={styles.errorBox}>
+                <Text style={styles.errorBoxText}>Your resume is still being analyzed. Please wait a moment and try again.</Text>
+              </View>
+            )}
+            {errorMsg === 'generic' && (
+              <Text style={styles.errorText}>Failed to tailor. Please try again.</Text>
+            )}
           </View>
         )}
 
@@ -161,6 +247,32 @@ const styles = StyleSheet.create({
   tailorBtn: { backgroundColor: Colors.primary, borderRadius: Radius.md, padding: Spacing.md, alignItems: 'center' },
   tailorBtnText: { ...Typography.label, color: Colors.textInverse, fontWeight: '700' },
   errorText: { ...Typography.bodySmall, color: Colors.danger, marginTop: Spacing.sm, textAlign: 'center' },
+
+  errorBox: {
+    marginTop: Spacing.sm,
+    backgroundColor: Colors.danger + '10', borderRadius: Radius.md,
+    borderWidth: 1, borderColor: Colors.danger + '30',
+    padding: Spacing.md, gap: Spacing.xs,
+  },
+  errorBoxText: { ...Typography.bodySmall, color: Colors.danger, textAlign: 'center' },
+  errorLink: { alignItems: 'center', marginTop: 4 },
+  errorLinkText: { ...Typography.label, color: Colors.primary, fontSize: 13 },
+
+  gateCard: {
+    backgroundColor: Colors.surface, borderRadius: Radius.xl,
+    padding: Spacing.xl, alignItems: 'center', gap: Spacing.sm,
+  },
+  gateIcon: { fontSize: 48, marginBottom: Spacing.sm },
+  gateTitle: { ...Typography.h3, color: Colors.text, textAlign: 'center' },
+  gateBody: { ...Typography.body, color: Colors.textSecondary, textAlign: 'center', lineHeight: 22 },
+  gateBtn: {
+    marginTop: Spacing.md,
+    backgroundColor: Colors.primary, borderRadius: Radius.lg,
+    paddingVertical: 14, paddingHorizontal: Spacing.xl,
+    alignSelf: 'stretch', alignItems: 'center',
+    ...Shadow.sm,
+  },
+  gateBtnText: { ...Typography.label, color: Colors.textInverse, fontWeight: '700', fontSize: 15 },
 
   loadingCard: { backgroundColor: Colors.surface, borderRadius: Radius.lg, padding: Spacing.xxl, alignItems: 'center', gap: Spacing.md },
   loadingText: { ...Typography.label, color: Colors.text },
