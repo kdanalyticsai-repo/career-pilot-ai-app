@@ -10,6 +10,7 @@ from pydantic import BaseModel
 from app.dependencies import get_db, require_role
 from app.models.user import User
 from app.models.job import Job, Application
+from app.models.resume import Resume
 from app.services.email_service import send_listing_submitted_email, send_bulk_upload_email
 
 _VALID_JOB_TYPES = {"full_time", "part_time", "contract"}
@@ -429,14 +430,23 @@ async def get_applicant_detail(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not your listing")
     if job.applicants_access != "approved":
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Applicant access not approved for this listing")
+
+    resume_result = await db.execute(
+        select(Resume).where(Resume.user_id == user.id).order_by(Resume.id.desc()).limit(1)
+    )
+    resume = resume_result.scalar_one_or_none()
+
     return {
         "application_id": str(app.id),
         "applicant_name": user.name,
         "applicant_email": user.email,
+        "applicant_phone": user.phone,
         "applied_at": app.applied_at.isoformat(),
         "status": app.status,
         "job_title": job.title,
         "job_company": job.company,
+        "has_resume": resume is not None,
+        "resume_name": resume.name if resume else None,
     }
 
 

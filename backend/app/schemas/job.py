@@ -23,6 +23,7 @@ class JobResponse(BaseModel):
     match_score: int | None = None
     match_details: dict | None = None
     is_saved: bool = False
+    is_applied: bool = False
 
     model_config = {"from_attributes": True}
 

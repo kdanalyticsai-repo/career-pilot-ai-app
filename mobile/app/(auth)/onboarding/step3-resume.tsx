@@ -91,7 +91,7 @@ export default function OnboardingStep3() {
   ];
 
   return (
-    <SafeAreaView style={styles.safe}>
+    <SafeAreaView style={styles.safe} edges={['bottom']}>
       <View style={styles.container}>
         <View style={styles.progress}>
           <View style={[styles.progressStep, styles.progressDone]} />

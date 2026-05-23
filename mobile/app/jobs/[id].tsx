@@ -224,30 +224,38 @@ export default function JobDetailScreen() {
 
       {/* Sticky footer */}
       <View style={[styles.footer, Shadow.md]}>
-        <Text style={styles.applyNote}>
-          Apply on the original platform first, then mark it here to track your progress.
-        </Text>
+        {job.is_applied ? (
+          <View style={styles.appliedBanner}>
+            <Text style={styles.appliedBannerIcon}>✓</Text>
+            <Text style={styles.appliedBannerText}>You have already applied for this job</Text>
+          </View>
+        ) : (
+          <Text style={styles.applyNote}>
+            Apply on the original platform first, then mark it here to track your progress.
+          </Text>
+        )}
         <View style={styles.footerButtons}>
           <TouchableOpacity style={styles.saveFooterBtn} onPress={() => toggleSave()} disabled={isSaving}>
             <Text style={[styles.saveFooterText, { color: job.is_saved ? Colors.warning : Colors.textSecondary }]}>
               {job.is_saved ? '★ Saved' : '☆ Save'}
             </Text>
           </TouchableOpacity>
+          {job.external_url ? (
+            <TouchableOpacity
+              style={styles.viewOriginalBtn}
+              onPress={() => Linking.openURL(job.external_url)}
+            >
+              <Text style={styles.viewOriginalBtnText}>View Original</Text>
+            </TouchableOpacity>
+          ) : null}
           <TouchableOpacity
-            style={[styles.viewOriginalBtn, !job.external_url && styles.viewOriginalBtnDisabled]}
-            onPress={() => job.external_url && Linking.openURL(job.external_url)}
-            disabled={!job.external_url}
+            style={[styles.applyBtn, Shadow.sm, (isApplying || job.is_applied) && styles.applyBtnDisabled]}
+            onPress={() => !job.is_applied && apply()}
+            disabled={isApplying || job.is_applied}
           >
-            <Text style={[styles.viewOriginalBtnText, !job.external_url && { color: Colors.textMuted }]}>
-              View Original
+            <Text style={styles.applyBtnText}>
+              {job.is_applied ? '✓ Applied' : isApplying ? 'Tracking…' : 'Apply & Track'}
             </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.applyBtn, Shadow.sm, isApplying && styles.applyBtnDisabled]}
-            onPress={() => apply()}
-            disabled={isApplying}
-          >
-            <Text style={styles.applyBtnText}>{isApplying ? 'Tracking…' : 'Apply & Track'}</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -362,6 +370,14 @@ const styles = StyleSheet.create({
     padding: Spacing.md, gap: Spacing.sm,
   },
   applyNote: { ...Typography.caption, color: Colors.textMuted, textAlign: 'center', marginBottom: 4 },
+  appliedBanner: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    gap: 6, backgroundColor: Colors.tertiary + '15', borderRadius: Radius.md,
+    paddingVertical: 8, paddingHorizontal: Spacing.md, marginBottom: 4,
+    borderWidth: 1, borderColor: Colors.tertiary + '30',
+  },
+  appliedBannerIcon: { fontSize: 14, color: Colors.tertiary, fontWeight: '700' },
+  appliedBannerText: { ...Typography.caption, color: Colors.tertiary, fontWeight: '600' },
   footerButtons: { flexDirection: 'row', gap: Spacing.sm, alignItems: 'center' },
   saveFooterBtn: { paddingHorizontal: Spacing.sm, paddingVertical: 10 },
   saveFooterText: { ...Typography.label, fontWeight: '700' },

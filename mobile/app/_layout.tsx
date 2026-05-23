@@ -85,6 +85,7 @@ export default function RootLayout() {
               <Stack.Screen name="profile/settings" options={{ headerShown: true, title: 'Settings' }} />
               <Stack.Screen name="paywall" options={{ headerShown: false, presentation: 'modal' }} />
               <Stack.Screen name="provider/jobs/[id]" options={{ headerShown: true, title: 'Listing Details' }} />
+              <Stack.Screen name="provider/applicant/[id]" options={{ headerShown: true, title: 'Applicant' }} />
             </Stack>
           </PaperProvider>
         </QueryClientProvider>

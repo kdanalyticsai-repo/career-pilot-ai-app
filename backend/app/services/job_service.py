@@ -4,7 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, delete
 from fastapi import HTTPException, status
 
-from app.models.job import Job, JobMatch, SavedJob
+from app.models.job import Job, JobMatch, SavedJob, Application
 from app.models.resume import Resume
 from app.schemas.job import JobFilter, JobResponse
 
@@ -79,7 +79,7 @@ class JobService:
         matches = result.scalars().all()
         return {str(m.job_id): (m.match_score, m.match_details or {}) for m in matches}
 
-    def _enrich(self, job: Job, match_score: int | None, match_details: dict | None, is_saved: bool) -> JobResponse:
+    def _enrich(self, job: Job, match_score: int | None, match_details: dict | None, is_saved: bool, is_applied: bool = False) -> JobResponse:
         return JobResponse(
             id=job.id,
             title=job.title,
@@ -99,6 +99,7 @@ class JobService:
             match_score=match_score,
             match_details=match_details,
             is_saved=is_saved,
+            is_applied=is_applied,
         )
 
     async def list_jobs(self, user_id: uuid.UUID, filters: JobFilter) -> list[JobResponse]:
@@ -165,7 +166,12 @@ class JobService:
             else:
                 score, details = compute_match_score(resume.structured_data, job)
 
-        return self._enrich(job, score, details, str(job.id) in saved_ids)
+        applied_result = await self.db.execute(
+            select(Application).where(Application.job_id == job_id, Application.user_id == user_id)
+        )
+        is_applied = applied_result.scalar_one_or_none() is not None
+
+        return self._enrich(job, score, details, str(job.id) in saved_ids, is_applied)
 
     async def save_job(self, job_id: uuid.UUID, user_id: uuid.UUID) -> None:
         result = await self.db.execute(select(Job).where(Job.id == job_id))

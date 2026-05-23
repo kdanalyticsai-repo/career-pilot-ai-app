@@ -1,14 +1,15 @@
 import { View, Text, StyleSheet, ScrollView, ActivityIndicator, TouchableOpacity, Clipboard, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, router } from 'expo-router';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/services/api';
 import { Colors, Typography, Spacing, Radius, Shadow } from '@/constants/theme';
 
 export default function ApplicantDetailScreen() {
   const { id: applicationId } = useLocalSearchParams<{ id: string }>();
+  const qc = useQueryClient();
 
-  const { data: applicant, isLoading, isError } = useQuery({
+  const { data: applicant, isLoading, isError, refetch, isFetching } = useQuery({
     queryKey: ['applicant-detail', applicationId],
     queryFn: () => api.get(`/provider/applicants/${applicationId}`).then(r => r.data),
     retry: false,
@@ -28,7 +29,7 @@ export default function ApplicantDetailScreen() {
         <View style={styles.errorState}>
           <Text style={styles.errorIcon}>⚠️</Text>
           <Text style={styles.errorTitle}>Could not load applicant</Text>
-          <Text style={styles.errorBody}>This may be a permissions issue. Ensure your listing has admin-approved applicant access.</Text>
+          <Text style={styles.errorBody}>Ensure your listing has admin-approved applicant access.</Text>
           <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
             <Text style={styles.backBtnText}>Go Back</Text>
           </TouchableOpacity>
@@ -58,7 +59,7 @@ export default function ApplicantDetailScreen() {
           <Text style={styles.appliedFor}>Applied for: {applicant.job_title} · {applicant.job_company}</Text>
           <View style={[styles.statusChip, { backgroundColor: Colors.tertiary + '18' }]}>
             <Text style={[styles.statusChipText, { color: Colors.tertiary }]}>
-              {applicant.status?.charAt(0).toUpperCase() + applicant.status?.slice(1) ?? 'Applied'}
+              {applicant.status ? applicant.status.charAt(0).toUpperCase() + applicant.status.slice(1) : 'Applied'}
             </Text>
           </View>
         </View>
@@ -70,7 +71,7 @@ export default function ApplicantDetailScreen() {
           <View style={styles.infoRow}>
             <Text style={styles.infoLabel}>Email</Text>
             <View style={styles.infoValueRow}>
-              <Text style={styles.infoValue}>{applicant.applicant_email}</Text>
+              <Text style={styles.infoValue} numberOfLines={1}>{applicant.applicant_email}</Text>
               <TouchableOpacity
                 onPress={() => {
                   Clipboard.setString(applicant.applicant_email);
@@ -82,11 +83,53 @@ export default function ApplicantDetailScreen() {
             </View>
           </View>
 
-          <View style={[styles.infoRow, styles.infoRowLast]}>
+          {applicant.applicant_phone ? (
+            <View style={styles.infoRow}>
+              <Text style={styles.infoLabel}>Phone</Text>
+              <View style={styles.infoValueRow}>
+                <Text style={styles.infoValue}>{applicant.applicant_phone}</Text>
+                <TouchableOpacity
+                  onPress={() => {
+                    Clipboard.setString(applicant.applicant_phone);
+                    Alert.alert('Copied', 'Phone number copied to clipboard');
+                  }}
+                >
+                  <Text style={styles.copyBtn}>Copy</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          ) : null}
+
+          <View style={[styles.infoRow, { borderBottomWidth: 0 }]}>
             <Text style={styles.infoLabel}>Applied On</Text>
             <Text style={styles.infoValue}>{appliedDate}</Text>
           </View>
         </View>
+
+        {/* Resume info */}
+        <View style={[styles.infoCard, Shadow.sm]}>
+          <Text style={styles.infoCardTitle}>Resume</Text>
+          {applicant.has_resume ? (
+            <View style={styles.resumeRow}>
+              <Text style={styles.resumeIcon}>📄</Text>
+              <Text style={styles.resumeName}>{applicant.resume_name ?? 'Resume uploaded'}</Text>
+            </View>
+          ) : (
+            <Text style={styles.noResume}>No resume uploaded</Text>
+          )}
+        </View>
+
+        {/* Refresh */}
+        <TouchableOpacity
+          style={[styles.refreshBtn, isFetching && { opacity: 0.6 }]}
+          onPress={() => refetch()}
+          disabled={isFetching}
+          activeOpacity={0.8}
+        >
+          {isFetching
+            ? <ActivityIndicator size="small" color={Colors.primary} />
+            : <Text style={styles.refreshBtnText}>↻  Refresh</Text>}
+        </TouchableOpacity>
 
       </ScrollView>
     </SafeAreaView>
@@ -100,7 +143,7 @@ const styles = StyleSheet.create({
   screenLabel: {
     ...Typography.caption, color: Colors.textMuted,
     textTransform: 'uppercase', letterSpacing: 1, fontWeight: '700',
-    fontSize: 11, textAlign: 'center', marginBottom: Spacing.xs,
+    fontSize: 11, textAlign: 'center', marginTop: Spacing.sm,
   },
 
   profileCard: {
@@ -130,11 +173,21 @@ const styles = StyleSheet.create({
   infoRow: {
     paddingVertical: Spacing.sm, borderBottomWidth: 1, borderBottomColor: Colors.borderSubtle,
   },
-  infoRowLast: { borderBottomWidth: 0 },
   infoLabel: { ...Typography.caption, color: Colors.textMuted, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4 },
   infoValueRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   infoValue: { ...Typography.body, color: Colors.text, flex: 1 },
   copyBtn: { ...Typography.caption, color: Colors.primary, fontWeight: '700', paddingLeft: Spacing.sm },
+
+  resumeRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, paddingTop: Spacing.xs },
+  resumeIcon: { fontSize: 22 },
+  resumeName: { ...Typography.body, color: Colors.text, flex: 1 },
+  noResume: { ...Typography.body, color: Colors.textMuted, fontStyle: 'italic' },
+
+  refreshBtn: {
+    borderWidth: 1.5, borderColor: Colors.primary + '50', borderRadius: Radius.lg,
+    paddingVertical: 12, alignItems: 'center', backgroundColor: Colors.primary + '08',
+  },
+  refreshBtnText: { ...Typography.label, color: Colors.primary, fontWeight: '700' },
 
   errorState: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: Spacing.xl, gap: Spacing.md },
   errorIcon: { fontSize: 40 },

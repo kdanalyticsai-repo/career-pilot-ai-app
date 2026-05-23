@@ -1,26 +1,35 @@
 import { useState } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, ScrollView,
-  Alert, ActivityIndicator, Linking,
+  Alert, ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQueryClient } from '@tanstack/react-query';
 import { router } from 'expo-router';
 import * as DocumentPicker from 'expo-document-picker';
+import * as FileSystem from 'expo-file-system';
 import { api } from '@/services/api';
 import { Colors, Typography, Spacing, Radius, HeroColors, Shadow } from '@/constants/theme';
 
-const API_BASE = process.env.EXPO_PUBLIC_API_URL ?? 'https://cvpilot-backend-hop4.onrender.com';
-const TEMPLATE_URL = `${API_BASE}/api/v1/provider/jobs/bulk-template`;
+const CSV_TEMPLATE = [
+  'title,company,location,description,job_type,experience_level,remote_type,salary_min,salary_max,skills_required,requirements,vacancies',
+  'Senior React Developer,Acme Corp,Bangalore,We are seeking an experienced React developer to join our growing team.,full_time,senior,hybrid,800000,1200000,"React,TypeScript,Redux",3+ years React experience|Strong communication skills,2',
+  'Python Backend Engineer,Tech Startup,Mumbai,Build scalable REST APIs for our fintech platform.,full_time,mid,remote,600000,900000,"Python,FastAPI,PostgreSQL",2+ years Python experience|API design knowledge,1',
+  'UI/UX Designer,Design Agency,Delhi,Create intuitive user experiences for our clients.,contract,mid,onsite,500000,700000,"Figma,Adobe XD,Sketch",Portfolio required|3+ years UX design experience,3',
+].join('\n');
 
 export default function BulkPostScreen() {
   const qc = useQueryClient();
   const [uploading, setUploading] = useState(false);
 
-  const handleDownloadTemplate = () => {
-    Linking.openURL(TEMPLATE_URL).catch(() =>
-      Alert.alert('Error', 'Could not open the template URL. Please check your connection.')
-    );
+  const handleDownloadTemplate = async () => {
+    try {
+      const fileUri = (FileSystem.cacheDirectory ?? '') + 'proaicv_jobs_template.csv';
+      await FileSystem.writeAsStringAsync(fileUri, CSV_TEMPLATE, { encoding: FileSystem.EncodingType.UTF8 });
+      await FileSystem.shareAsync(fileUri, { mimeType: 'text/csv', dialogTitle: 'Save ProAICV Jobs Template' });
+    } catch {
+      Alert.alert('Error', 'Could not generate the template. Please try again.');
+    }
   };
 
   const handleBulkUpload = async () => {

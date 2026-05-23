@@ -21,12 +21,23 @@ export default function AllApplicantsScreen() {
     );
   }
 
+  const totalApplicants = jobsWithApplicants.reduce((sum, j) => sum + (j.applicant_count ?? 0), 0);
+
   return (
     <SafeAreaView style={styles.safe} edges={['bottom']}>
       <FlatList
         data={jobsWithApplicants}
         keyExtractor={item => item.id}
         contentContainerStyle={styles.list}
+        ListHeaderComponent={totalApplicants > 0 ? (
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionHeaderLabel}>APPLICANTS</Text>
+            <View style={styles.sectionHeaderTile}>
+              <Text style={styles.sectionHeaderCount}>{totalApplicants}</Text>
+              <Text style={styles.sectionHeaderSub}>total applied</Text>
+            </View>
+          </View>
+        ) : null}
         ListEmptyComponent={
           <View style={styles.empty}>
             <Text style={styles.emptyIcon}>👥</Text>
@@ -61,6 +72,18 @@ export default function AllApplicantsScreen() {
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: Colors.background },
   list: { padding: Spacing.md, gap: Spacing.md, paddingBottom: Spacing.xxl },
+
+  sectionHeader: { alignItems: 'center', gap: Spacing.sm, paddingVertical: Spacing.md, marginBottom: Spacing.xs },
+  sectionHeaderLabel: {
+    ...Typography.caption, color: Colors.textMuted,
+    textTransform: 'uppercase', letterSpacing: 1, fontWeight: '700', fontSize: 11,
+  },
+  sectionHeaderTile: {
+    backgroundColor: Colors.primary + '12', borderRadius: Radius.lg,
+    paddingHorizontal: Spacing.xxl, paddingVertical: Spacing.sm, alignItems: 'center', minWidth: 100,
+  },
+  sectionHeaderCount: { fontSize: 32, fontWeight: '800', color: Colors.primary, letterSpacing: -1 },
+  sectionHeaderSub: { ...Typography.caption, color: Colors.primary, fontWeight: '600' },
 
   card: {
     backgroundColor: Colors.surface, borderRadius: Radius.lg,
