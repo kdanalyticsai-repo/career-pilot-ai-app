@@ -11,7 +11,7 @@ from app.dependencies import get_db, require_role
 from app.models.user import User
 from app.models.job import Job, Application
 from app.models.resume import Resume
-from app.services.email_service import send_listing_submitted_email, send_bulk_upload_email
+from app.services.email_service import send_listing_submitted_email, send_bulk_upload_email, send_admin_notification_email
 
 _VALID_JOB_TYPES = {"full_time", "part_time", "contract"}
 _VALID_EXP_LEVELS = {"entry", "mid", "senior", "lead"}
@@ -108,6 +108,12 @@ async def create_job(
     await db.commit()
     await db.refresh(job)
     await send_listing_submitted_email(current_user.email, current_user.name or "", job.title, job.company or "")
+    await send_admin_notification_email(
+        f"New job listing pending review — {job.title}",
+        f"<p><strong>{current_user.name or current_user.email}</strong> submitted a new job listing pending your approval.</p>"
+        f"<ul><li><strong>Title:</strong> {job.title}</li><li><strong>Company:</strong> {job.company}</li>"
+        f"<li><strong>Location:</strong> {job.location}</li><li><strong>Provider:</strong> {current_user.email}</li></ul>",
+    )
     return _job_to_dict(job)
 
 
@@ -337,6 +343,15 @@ async def bulk_upload_jobs(
         current_user.email, current_user.name or "",
         submitted=total_submitted, success_count=success_count, errors=errors,
     )
+    if success_count > 0:
+        await send_admin_notification_email(
+            f"Bulk job upload — {success_count} listing(s) pending review",
+            f"<p><strong>{current_user.name or current_user.email}</strong> uploaded a bulk job file.</p>"
+            f"<ul><li><strong>Jobs submitted for review:</strong> {success_count}</li>"
+            f"<li><strong>Rows in file:</strong> {total_submitted}</li>"
+            f"<li><strong>Errors:</strong> {len(errors)}</li>"
+            f"<li><strong>Provider:</strong> {current_user.email}</li></ul>",
+        )
 
     return {
         "submitted": total_submitted,
@@ -406,6 +421,13 @@ async def request_applicant_access(
         return {"applicants_access": job.applicants_access, "message": "Request already submitted."}
     job.applicants_access = "pending"
     await db.commit()
+    await send_admin_notification_email(
+        f"Applicant access request — {job.title}",
+        f"<p><strong>{current_user.name or current_user.email}</strong> has requested access to applicant details for their listing.</p>"
+        f"<ul><li><strong>Job:</strong> {job.title}</li><li><strong>Company:</strong> {job.company}</li>"
+        f"<li><strong>Provider:</strong> {current_user.email}</li></ul>"
+        f"<p>Please review and approve or reject this request in the admin dashboard.</p>",
+    )
     return {"applicants_access": "pending", "message": "Access request submitted. Admin will review shortly."}
 
 

@@ -352,6 +352,7 @@ async def list_users(
         select(
             User.id, User.email, User.name, User.subscription, User.created_at,
             User.role, User.phone, User.company_pan, User.company_reg_no, User.gstin,
+            User.pro_expires_at,
         )
         .order_by(User.created_at.desc())
         .limit(limit)
@@ -371,6 +372,7 @@ async def list_users(
                 "company_pan": r[7],
                 "company_reg_no": r[8],
                 "gstin": r[9],
+                "pro_expires_at": r[10].isoformat() if r[10] else None,
             }
             for r in rows
         ],

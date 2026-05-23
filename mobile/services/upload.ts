@@ -11,11 +11,12 @@ export async function uploadResumePdf(uploadUrl: string, fileUri: string): Promi
   const result = await FileSystem.uploadAsync(uploadUrl, fileUri, {
     httpMethod: 'PUT',
     uploadType: 0, // FileSystemUploadType.BINARY_CONTENT
-    mimeType: 'application/pdf',
     headers,
   });
 
   if (result.status < 200 || result.status >= 300) {
-    throw new Error(`Upload failed: ${result.status} — ${result.body}`);
+    const err: any = new Error(`Storage upload failed (${result.status})`);
+    err.response = { status: result.status, data: { detail: result.body || `Upload failed with status ${result.status}` } };
+    throw err;
   }
 }

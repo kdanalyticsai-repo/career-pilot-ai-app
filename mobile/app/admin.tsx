@@ -238,12 +238,21 @@ export default function AdminScreen() {
       <View style={styles.modalBody}>
         <Text style={styles.modalTitle}>Pro Subscribers</Text>
         <Text style={styles.modalSub}>{proUsers.length} Pro member{proUsers.length !== 1 ? 's' : ''} found in recent signups</Text>
-        {proUsers.length === 0 ? <Text style={styles.emptyText}>No Pro subscribers in recent list</Text> : proUsers.map((u: any) => (
-          <View key={u.id} style={styles.detailRow}>
-            <Text style={styles.detailLabel} numberOfLines={1}>{u.name ?? '(no name)'}</Text>
-            <Text style={[styles.detailValue, { color: Colors.primary }]}>PRO</Text>
-          </View>
-        ))}
+        {proUsers.length === 0 ? <Text style={styles.emptyText}>No Pro subscribers in recent list</Text> : proUsers.map((u: any) => {
+          const joinedDate = u.created_at ? new Date(u.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '—';
+          const expiresDate = u.pro_expires_at ? new Date(u.pro_expires_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '—';
+          return (
+            <View key={u.id} style={[styles.detailRow, { flexDirection: 'column', alignItems: 'flex-start', gap: 2 }]}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', width: '100%' }}>
+                <Text style={styles.detailLabel} numberOfLines={1}>{u.name ?? '(no name)'}</Text>
+                <Text style={[styles.detailValue, { color: Colors.primary }]}>PRO</Text>
+              </View>
+              <Text style={[styles.detailLabel, { fontSize: 11, color: Colors.textMuted, fontWeight: '400' }]}>
+                Joined: {joinedDate}{'  '}Expires: {expiresDate}
+              </Text>
+            </View>
+          );
+        })}
       </View>
     ),
     jobs: (

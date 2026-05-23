@@ -51,7 +51,8 @@ class ResumeService:
                 Params={
                     "Bucket": settings.S3_BUCKET_NAME,
                     "Key": file_key,
-                    "ContentType": "application/pdf",
+                    # ContentType intentionally omitted so the presigned URL works
+                    # regardless of how the client sets the Content-Type header.
                 },
                 ExpiresIn=settings.S3_PRESIGNED_URL_EXPIRY,
             )

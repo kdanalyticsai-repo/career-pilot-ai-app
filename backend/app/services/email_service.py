@@ -329,6 +329,17 @@ async def send_bulk_upload_email(
     await _send(to_email, subject, _wrap("Bulk upload", body))
 
 
+async def send_admin_notification_email(subject: str, body_html: str) -> None:
+    """Send an action-required notification to all configured admin emails."""
+    admin_emails = [e.strip() for e in (settings.ADMIN_EMAILS or settings.ADMIN_EMAIL or "").split(",") if e.strip()]
+    if not admin_emails:
+        logger.info("No admin emails configured — skipping admin notification: %s", subject)
+        return
+    full_body = f"<h2>Admin Action Required</h2>{body_html}<div class='divider'></div><p style='color:{_MUTED};font-size:12px'>This is an automated notification from ProAICV.</p>"
+    for email in admin_emails:
+        await _send(email, f"[ProAICV Admin] {subject}", _wrap("Admin Notification", full_body))
+
+
 async def send_phone_otp_email(to_email: str, name: str, otp: str, phone: str) -> None:
     display = name or "there"
     body = f"""

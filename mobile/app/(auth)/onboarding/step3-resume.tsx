@@ -53,7 +53,8 @@ export default function OnboardingStep3() {
       router.replace('/(tabs)');
     } catch (err: any) {
       const status = err?.response?.status;
-      if (!status) {
+      const isNetwork = !status && !err?.message?.includes('Upload');
+      if (isNetwork) {
         Alert.alert('No Connection', 'Please check your internet connection and try again.');
       } else if (status === 413) {
         Alert.alert('File Too Large', 'Your PDF exceeds the 10 MB limit. Please compress it and try again.');
@@ -62,7 +63,8 @@ export default function OnboardingStep3() {
       } else if (status >= 500) {
         Alert.alert('Server Error', 'Our servers are having trouble processing your resume. Please try again.');
       } else {
-        Alert.alert('Upload Failed', 'Could not upload your resume. Please try again.');
+        const detail = err?.response?.data?.detail ?? err?.message ?? 'Could not upload your resume. Please try again.';
+        Alert.alert('Upload Failed', detail);
       }
       setFileName(null);
     } finally {
@@ -218,6 +220,6 @@ const styles = StyleSheet.create({
   benefitIcon: { fontSize: 14, color: Colors.primary },
   benefitText: { ...Typography.body, color: Colors.text },
 
-  skipButton: { alignItems: 'center', padding: Spacing.md, marginTop: 'auto' },
+  skipButton: { alignItems: 'center', padding: Spacing.md, marginTop: Spacing.lg, marginBottom: Spacing.lg },
   skipText: { ...Typography.label, color: Colors.textMuted, fontWeight: '600' },
 });
