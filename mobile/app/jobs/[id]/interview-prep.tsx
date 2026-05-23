@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
-import { useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams, router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { api } from '@/services/api';
@@ -16,15 +16,38 @@ export default function InterviewPrepScreen() {
   const [prep, setPrep] = useState<any>(null);
   const [activeTab, setActiveTab] = useState<'behavioral' | 'technical' | 'tips'>('behavioral');
   const [flipped, setFlipped] = useState<Record<number, boolean>>({});
+  const [errorMsg, setErrorMsg] = useState('');
 
   const { data: job } = useQuery({
     queryKey: ['job', jobId],
     queryFn: () => api.get(`/jobs/${jobId}`).then((r) => r.data),
   });
 
+  const { data: resumeData, isLoading: resumesLoading } = useQuery({
+    queryKey: ['resumes'],
+    queryFn: () => api.get('/resumes').then((r) => r.data),
+    staleTime: 30_000,
+  });
+
+  const resumes: any[] = resumeData?.resumes ?? [];
+  const primary = resumes.find((r) => r.is_primary) ?? resumes[0] ?? null;
+  const noResume = !resumesLoading && !primary;
+  const resumeProcessing = !resumesLoading && primary && primary.status !== 'ready';
+
   const { mutate: generate, isPending } = useMutation({
     mutationFn: () => api.post('/ai/interview-prep', { job_id: jobId }),
-    onSuccess: (res) => setPrep(res.data),
+    onSuccess: (res) => { setErrorMsg(''); setPrep(res.data); },
+    onError: (err: any) => {
+      const status = err?.response?.status;
+      const detail = err?.response?.data?.detail ?? '';
+      if (status === 404 || detail.toLowerCase().includes('no resume')) {
+        setErrorMsg('no_resume');
+      } else if (status === 400 && detail.toLowerCase().includes('processing')) {
+        setErrorMsg('processing');
+      } else {
+        setErrorMsg('generic');
+      }
+    },
   });
 
   const TABS = [
@@ -41,7 +64,35 @@ export default function InterviewPrepScreen() {
         <Text style={styles.headerCompany}>{job?.company}</Text>
       </View>
 
-      {!prep && !isPending && (
+      {!prep && !isPending && noResume && (
+        <View style={styles.centerContent}>
+          <View style={[styles.gateCard, Shadow.sm]}>
+            <Text style={styles.gateIcon}>📄</Text>
+            <Text style={styles.gateTitle}>Upload a Resume First</Text>
+            <Text style={styles.gateBody}>
+              To generate personalized interview questions, you need to upload your resume first.
+            </Text>
+            <TouchableOpacity style={styles.gateBtn} onPress={() => router.push('/resume/upload')}>
+              <Text style={styles.gateBtnText}>Upload Resume</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
+
+      {!prep && !isPending && resumeProcessing && (
+        <View style={styles.centerContent}>
+          <View style={[styles.gateCard, Shadow.sm]}>
+            <ActivityIndicator color={Colors.primary} size="large" style={{ marginBottom: Spacing.md }} />
+            <Text style={styles.gateTitle}>Resume Being Analyzed</Text>
+            <Text style={styles.gateBody}>
+              Your resume is still being analyzed by AI. This usually takes under 30 seconds.
+              Come back once it's ready to generate your interview prep.
+            </Text>
+          </View>
+        </View>
+      )}
+
+      {!prep && !isPending && !noResume && !resumeProcessing && (
         <View style={styles.centerContent}>
           <View style={[styles.card, Shadow.sm]}>
             <Text style={styles.cardTitle}>AI Interview Preparation</Text>
@@ -59,6 +110,22 @@ export default function InterviewPrepScreen() {
             <TouchableOpacity style={styles.generateBtn} onPress={() => generate()}>
               <Text style={styles.generateBtnText}>Generate Interview Prep</Text>
             </TouchableOpacity>
+            {errorMsg === 'no_resume' && (
+              <View style={styles.errorBox}>
+                <Text style={styles.errorBoxText}>No resume found. Please upload a resume first.</Text>
+                <TouchableOpacity onPress={() => router.push('/resume/upload')} style={styles.errorLink}>
+                  <Text style={styles.errorLinkText}>Upload Resume →</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+            {errorMsg === 'processing' && (
+              <View style={styles.errorBox}>
+                <Text style={styles.errorBoxText}>Your resume is still being analyzed. Please wait a moment and try again.</Text>
+              </View>
+            )}
+            {errorMsg === 'generic' && (
+              <Text style={styles.errorText}>Failed to generate prep. Please try again.</Text>
+            )}
           </View>
         </View>
       )}
@@ -207,6 +274,19 @@ const styles = StyleSheet.create({
   generateBtn: { backgroundColor: Colors.primary, borderRadius: Radius.md, padding: Spacing.md, alignItems: 'center' },
   generateBtnText: { ...Typography.label, color: Colors.textInverse, fontWeight: '700' },
   loadingText: { ...Typography.body, color: Colors.textSecondary, textAlign: 'center', marginTop: Spacing.md },
+
+  gateCard: { backgroundColor: Colors.surface, borderRadius: Radius.xl, padding: Spacing.xl, alignItems: 'center', gap: Spacing.sm },
+  gateIcon: { fontSize: 48, marginBottom: Spacing.sm },
+  gateTitle: { ...Typography.h3, color: Colors.text, textAlign: 'center' },
+  gateBody: { ...Typography.body, color: Colors.textSecondary, textAlign: 'center', lineHeight: 22 },
+  gateBtn: { marginTop: Spacing.md, backgroundColor: Colors.primary, borderRadius: Radius.lg, paddingVertical: 14, paddingHorizontal: Spacing.xl, alignSelf: 'stretch', alignItems: 'center' },
+  gateBtnText: { ...Typography.label, color: Colors.textInverse, fontWeight: '700', fontSize: 15 },
+
+  errorBox: { marginTop: Spacing.sm, backgroundColor: Colors.danger + '10', borderRadius: Radius.md, borderWidth: 1, borderColor: Colors.danger + '30', padding: Spacing.md, gap: Spacing.xs },
+  errorBoxText: { ...Typography.bodySmall, color: Colors.danger, textAlign: 'center' },
+  errorLink: { alignItems: 'center', marginTop: 4 },
+  errorLinkText: { ...Typography.label, color: Colors.primary, fontSize: 13 },
+  errorText: { ...Typography.bodySmall, color: Colors.danger, marginTop: Spacing.sm, textAlign: 'center' },
 
   tabs: { flexDirection: 'row', backgroundColor: Colors.surface, borderBottomWidth: 1, borderBottomColor: Colors.border },
   tab: { flex: 1, paddingVertical: 14, alignItems: 'center' },
