@@ -1,6 +1,7 @@
 import uuid
 import os
 import shutil
+import logging
 from pathlib import Path
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, update, delete
@@ -11,6 +12,8 @@ from app.models.resume import Resume
 from app.models.job import JobMatch
 from app.schemas.resume import ResumeUploadRequest, ResumeUpdate, ResumeSectionUpdate
 from app.config import settings
+
+logger = logging.getLogger(__name__)
 
 EDITABLE_SECTIONS = {"contact", "summary", "experience", "skills", "education", "projects"}
 
@@ -69,18 +72,29 @@ class ResumeService:
         await self.db.commit()
         await self.db.refresh(resume)
 
-        if settings.use_local_storage:
+        saved_to_s3 = False
+        if not settings.use_local_storage:
+            try:
+                _s3_client().put_object(
+                    Bucket=settings.S3_BUCKET_NAME,
+                    Key=file_key,
+                    Body=file_bytes,
+                    ContentType="application/pdf",
+                )
+                saved_to_s3 = True
+                logger.info("Resume uploaded to S3/R2: %s", file_key)
+            except Exception as exc:
+                logger.error(
+                    "S3/R2 put_object failed (bucket=%s endpoint=%s): %s — falling back to local storage",
+                    settings.S3_BUCKET_NAME, settings.S3_ENDPOINT_URL or "AWS default", exc,
+                )
+
+        if not saved_to_s3:
             local_path = os.path.join(settings.LOCAL_STORAGE_PATH, file_key)
             _ensure_local_dir(os.path.dirname(local_path))
             with open(local_path, "wb") as f:
                 f.write(file_bytes)
-        else:
-            _s3_client().put_object(
-                Bucket=settings.S3_BUCKET_NAME,
-                Key=file_key,
-                Body=file_bytes,
-                ContentType="application/pdf",
-            )
+            logger.info("Resume saved locally (S3 not used or failed): %s", local_path)
 
         return resume
 

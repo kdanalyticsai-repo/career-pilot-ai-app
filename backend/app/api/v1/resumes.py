@@ -1,6 +1,9 @@
 import uuid
+import logging
 from fastapi import APIRouter, Depends, Request, HTTPException, Query, UploadFile, File, Form
 from sqlalchemy.ext.asyncio import AsyncSession
+
+logger = logging.getLogger(__name__)
 
 from app.dependencies import get_db, get_current_active_user
 from app.models.user import User
@@ -33,16 +36,29 @@ async def upload_resume(
 @router.post("/upload-file", status_code=http_status.HTTP_201_CREATED)
 async def upload_resume_file(
     file: UploadFile = File(...),
-    name: str = Form(None),
+    name: str | None = Form(None),
     current_user: User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_db),
 ):
     """Multipart upload — mobile sends the PDF directly to the backend, which stores it in S3/R2."""
+    logger.info(
+        "upload-file: user=%s filename=%s content_type=%s",
+        current_user.id, file.filename, file.content_type,
+    )
+
     ALLOWED_TYPES = {"application/pdf", "application/octet-stream", "binary/octet-stream"}
     if file.content_type and file.content_type not in ALLOWED_TYPES:
         raise HTTPException(status_code=415, detail="Only PDF files are supported")
 
-    file_bytes = await file.read()
+    try:
+        file_bytes = await file.read()
+    except Exception as exc:
+        logger.error("Failed to read uploaded file: %s", exc)
+        raise HTTPException(status_code=400, detail="Could not read the uploaded file. Please try again.")
+
+    if len(file_bytes) == 0:
+        raise HTTPException(status_code=400, detail="Uploaded file is empty. Please select a valid PDF.")
+
     if len(file_bytes) > 10 * 1024 * 1024:
         raise HTTPException(status_code=413, detail="File exceeds the 10 MB limit. Please compress and try again.")
 
@@ -50,14 +66,19 @@ async def upload_resume_file(
     resume_name = name or filename.rsplit(".pdf", 1)[0] or "My Resume"
 
     service = ResumeService(db)
-    resume = await service.upload_file_and_store(current_user.id, filename, resume_name, file_bytes)
+    try:
+        resume = await service.upload_file_and_store(current_user.id, filename, resume_name, file_bytes)
+    except Exception as exc:
+        logger.error("upload_file_and_store failed for user=%s: %s", current_user.id, exc)
+        raise HTTPException(status_code=500, detail=f"Storage error: {exc}")
 
     from app.workers.resume_tasks import process_resume_task
     try:
         process_resume_task.delay(str(resume.id), resume.s3_key)
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.warning("Could not queue resume processing task: %s", exc)
 
+    logger.info("upload-file: resume created id=%s", resume.id)
     return {"resume_id": str(resume.id)}
 
 
