@@ -588,32 +588,79 @@ export default function AdminScreen() {
 
       {/* ── User Detail Modal ── */}
       <Modal visible={!!selectedUser} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setSelectedUser(null)}>
-        {selectedUser && (
-          <SafeAreaView style={{ flex: 1, backgroundColor: Colors.background }}>
-            <ScrollView contentContainerStyle={{ padding: Spacing.lg, gap: Spacing.md, paddingBottom: Spacing.xxl }}>
-              <View style={styles.modalHeader}>
-                <Text style={[Typography.h3, { color: Colors.text }]}>User Detail</Text>
-                <TouchableOpacity onPress={() => setSelectedUser(null)}><Text style={styles.modalClose}>✕</Text></TouchableOpacity>
-              </View>
-              {([
-                ['Name', selectedUser.name],
-                ['Email', selectedUser.email],
-                ['Role', selectedUser.role],
-                ['Phone', selectedUser.phone],
-                ['Subscription', selectedUser.subscription],
-                ['Joined', selectedUser.created_at ? new Date(selectedUser.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' }) : '—'],
-              ] as [string, string | null][]).map(([label, value]) => value ? (
-                <View key={label} style={styles.detailRow}>
-                  <Text style={styles.detailLabel}>{label}</Text>
-                  <Text style={[styles.detailValue, label === 'Subscription' && selectedUser.subscription === 'pro' ? { color: Colors.primary, fontWeight: '700' } : {}]}>{value}</Text>
+        {selectedUser && (() => {
+          const fmt = (d: string) => new Date(d).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' });
+          const joinedDate = selectedUser.created_at ? fmt(selectedUser.created_at) : '—';
+
+          // Trial end = joined + 7 days
+          const trialEndDate = selectedUser.created_at
+            ? new Date(new Date(selectedUser.created_at).getTime() + 7 * 24 * 60 * 60 * 1000)
+            : null;
+          const trialEndsStr = trialEndDate ? fmt(trialEndDate.toISOString()) : '—';
+          const trialExpired = trialEndDate ? trialEndDate < new Date() : false;
+
+          const isSeeker = selectedUser.role === 'job_seeker';
+          const isFree = selectedUser.subscription === 'free';
+          const isPro = selectedUser.subscription === 'pro';
+
+          return (
+            <SafeAreaView style={{ flex: 1, backgroundColor: Colors.background }}>
+              <ScrollView contentContainerStyle={{ padding: Spacing.lg, gap: Spacing.md, paddingBottom: Spacing.xxl }}>
+                <View style={styles.modalHeader}>
+                  <Text style={[Typography.h3, { color: Colors.text }]}>User Detail</Text>
+                  <TouchableOpacity onPress={() => setSelectedUser(null)}><Text style={styles.modalClose}>✕</Text></TouchableOpacity>
                 </View>
-              ) : null)}
-              <TouchableOpacity style={styles.deleteBtnFull} onPress={() => confirmDeleteUser(selectedUser)} disabled={deletingUser}>
-                <Text style={styles.deleteBtnFullText}>{deletingUser ? 'Deleting...' : 'Delete User & All Data'}</Text>
-              </TouchableOpacity>
-            </ScrollView>
-          </SafeAreaView>
-        )}
+
+                {([
+                  ['Name', selectedUser.name],
+                  ['Email', selectedUser.email],
+                  ['Role', selectedUser.role],
+                  ['Phone', selectedUser.phone],
+                  ['Subscription', selectedUser.subscription],
+                  ['Joined', joinedDate],
+                ] as [string, string | null][]).map(([label, value]) => value ? (
+                  <View key={label} style={styles.detailRow}>
+                    <Text style={styles.detailLabel}>{label}</Text>
+                    <Text style={[
+                      styles.detailValue,
+                      isPro && label === 'Subscription' ? { color: Colors.primary, fontWeight: '700' } : {},
+                    ]}>{value}</Text>
+                  </View>
+                ) : null)}
+
+                {/* Trial end — free job seekers only */}
+                {isSeeker && isFree && (
+                  <View style={styles.detailRow}>
+                    <Text style={styles.detailLabel}>Trial ends</Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                      <View style={{
+                        width: 8, height: 8, borderRadius: 4,
+                        backgroundColor: trialExpired ? Colors.danger : Colors.tertiary,
+                      }} />
+                      <Text style={[styles.detailValue, { color: trialExpired ? Colors.danger : Colors.tertiary, fontWeight: '600' }]}>
+                        {trialEndsStr}
+                      </Text>
+                    </View>
+                  </View>
+                )}
+
+                {/* Pro expiry — pro users */}
+                {isPro && selectedUser.pro_expires_at && (
+                  <View style={styles.detailRow}>
+                    <Text style={styles.detailLabel}>Pro expires</Text>
+                    <Text style={[styles.detailValue, { color: Colors.primary, fontWeight: '600' }]}>
+                      {fmt(selectedUser.pro_expires_at)}
+                    </Text>
+                  </View>
+                )}
+
+                <TouchableOpacity style={styles.deleteBtnFull} onPress={() => confirmDeleteUser(selectedUser)} disabled={deletingUser}>
+                  <Text style={styles.deleteBtnFullText}>{deletingUser ? 'Deleting...' : 'Delete User & All Data'}</Text>
+                </TouchableOpacity>
+              </ScrollView>
+            </SafeAreaView>
+          );
+        })()}
       </Modal>
 
       {/* ── PAN Verification Modal ── */}
