@@ -513,8 +513,10 @@ async def verify_provider_pan(
 
 
 @router.get("/storage-test")
-async def storage_test(_: User = Depends(_require_admin)):
-    """Diagnose S3/R2 storage configuration. Returns exactly what is configured and any connection error."""
+async def storage_test(key: str | None = None):
+    """Diagnose S3/R2 storage configuration. Pass ?key=ADMIN_PASSWORD to authenticate."""
+    if not settings.ADMIN_PASSWORD or key != settings.ADMIN_PASSWORD:
+        raise HTTPException(status_code=403, detail="Pass ?key=<ADMIN_PASSWORD> to access this endpoint")
     result = {
         "use_local_storage": settings.use_local_storage,
         "S3_ENDPOINT_URL": settings.S3_ENDPOINT_URL or "(not set — boto3 will use AWS default)",
