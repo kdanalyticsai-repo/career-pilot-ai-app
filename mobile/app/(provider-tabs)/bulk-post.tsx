@@ -1,13 +1,12 @@
 import { useState } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, ScrollView,
-  Alert, ActivityIndicator,
+  Alert, ActivityIndicator, Share,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQueryClient } from '@tanstack/react-query';
 import { router } from 'expo-router';
 import * as DocumentPicker from 'expo-document-picker';
-import * as FileSystem from 'expo-file-system';
 import { api } from '@/services/api';
 import { Colors, Typography, Spacing, Radius, HeroColors, Shadow } from '@/constants/theme';
 
@@ -24,11 +23,12 @@ export default function BulkPostScreen() {
 
   const handleDownloadTemplate = async () => {
     try {
-      const fileUri = (FileSystem.cacheDirectory ?? '') + 'proaicv_jobs_template.csv';
-      await FileSystem.writeAsStringAsync(fileUri, CSV_TEMPLATE, { encoding: FileSystem.EncodingType.UTF8 });
-      await FileSystem.shareAsync(fileUri, { mimeType: 'text/csv', dialogTitle: 'Save ProAICV Jobs Template' });
+      await Share.share({
+        title: 'ProAICV Jobs Template',
+        message: CSV_TEMPLATE,
+      });
     } catch {
-      Alert.alert('Error', 'Could not generate the template. Please try again.');
+      Alert.alert('Error', 'Could not share template. Please contact support.');
     }
   };
 

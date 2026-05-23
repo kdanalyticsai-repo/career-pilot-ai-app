@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, StatusBar } from 'react-native';
+import { useCallback, useState } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, StatusBar, RefreshControl } from 'react-native';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery } from '@tanstack/react-query';
@@ -32,14 +32,20 @@ function getTimeOfDay() {
 export default function HomeScreen() {
   const { user } = useAuthStore();
   const { getPrimaryResume } = useResumeStore();
-  const [appStats, setAppStats] = useState<AnalyticsSummary | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
   useResumes();
 
-  useEffect(() => {
-    apiClient.get('/analytics/dashboard')
-      .then(r => setAppStats(r.data.applications))
-      .catch(() => {});
-  }, []);
+  const { data: appStats, refetch: refetchStats } = useQuery<AnalyticsSummary>({
+    queryKey: ['dashboard-stats'],
+    queryFn: () => apiClient.get('/analytics/dashboard').then(r => r.data.applications),
+    staleTime: 30_000,
+  });
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await refetchStats();
+    setRefreshing(false);
+  }, [refetchStats]);
 
   const primaryResume = getPrimaryResume();
   const firstName = user?.name?.split(' ')[0] ?? 'there';
@@ -79,7 +85,11 @@ export default function HomeScreen() {
         </SafeAreaView>
       </View>
 
-      <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={styles.container}
+        showsVerticalScrollIndicator={false}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.primary} />}
+      >
 
         {/* Trial-ended upgrade banner */}
         {trialEnded && (

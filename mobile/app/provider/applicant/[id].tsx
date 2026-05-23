@@ -1,4 +1,5 @@
-import { View, Text, StyleSheet, ScrollView, ActivityIndicator, TouchableOpacity, Clipboard, Alert } from 'react-native';
+import { useState } from 'react';
+import { View, Text, StyleSheet, ScrollView, ActivityIndicator, TouchableOpacity, Clipboard, Alert, Linking } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, router } from 'expo-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -8,6 +9,7 @@ import { Colors, Typography, Spacing, Radius, Shadow } from '@/constants/theme';
 export default function ApplicantDetailScreen() {
   const { id: applicationId } = useLocalSearchParams<{ id: string }>();
   const qc = useQueryClient();
+  const [downloadingResume, setDownloadingResume] = useState(false);
 
   const { data: applicant, isLoading, isError, refetch, isFetching } = useQuery({
     queryKey: ['applicant-detail', applicationId],
@@ -37,6 +39,19 @@ export default function ApplicantDetailScreen() {
       </SafeAreaView>
     );
   }
+
+  const handleDownloadResume = async () => {
+    setDownloadingResume(true);
+    try {
+      const res = await api.get(`/provider/applicants/${applicationId}/resume-url`);
+      await Linking.openURL(res.data.url);
+    } catch (err: any) {
+      const detail = err?.response?.data?.detail ?? 'Could not generate download link. Please try again.';
+      Alert.alert('Download Failed', detail);
+    } finally {
+      setDownloadingResume(false);
+    }
+  };
 
   const initial = (applicant.applicant_name ?? applicant.applicant_email ?? '?')[0].toUpperCase();
   const appliedDate = new Date(applicant.applied_at).toLocaleDateString('en-IN', {
@@ -110,9 +125,22 @@ export default function ApplicantDetailScreen() {
         <View style={[styles.infoCard, Shadow.sm]}>
           <Text style={styles.infoCardTitle}>Resume</Text>
           {applicant.has_resume ? (
-            <View style={styles.resumeRow}>
-              <Text style={styles.resumeIcon}>📄</Text>
-              <Text style={styles.resumeName}>{applicant.resume_name ?? 'Resume uploaded'}</Text>
+            <View style={styles.resumeBlock}>
+              <View style={styles.resumeRow}>
+                <Text style={styles.resumeIcon}>📄</Text>
+                <Text style={styles.resumeName}>{applicant.resume_name ?? 'Resume uploaded'}</Text>
+              </View>
+              <TouchableOpacity
+                style={[styles.downloadBtn, downloadingResume && { opacity: 0.6 }]}
+                onPress={handleDownloadResume}
+                disabled={downloadingResume}
+                activeOpacity={0.8}
+              >
+                {downloadingResume
+                  ? <ActivityIndicator size="small" color={Colors.primary} />
+                  : <Text style={styles.downloadBtnText}>↓  Download Resume PDF</Text>
+                }
+              </TouchableOpacity>
             </View>
           ) : (
             <Text style={styles.noResume}>No resume uploaded</Text>
@@ -178,10 +206,16 @@ const styles = StyleSheet.create({
   infoValue: { ...Typography.body, color: Colors.text, flex: 1 },
   copyBtn: { ...Typography.caption, color: Colors.primary, fontWeight: '700', paddingLeft: Spacing.sm },
 
-  resumeRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, paddingTop: Spacing.xs },
+  resumeBlock: { gap: Spacing.sm, paddingTop: Spacing.xs },
+  resumeRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
   resumeIcon: { fontSize: 22 },
   resumeName: { ...Typography.body, color: Colors.text, flex: 1 },
   noResume: { ...Typography.body, color: Colors.textMuted, fontStyle: 'italic' },
+  downloadBtn: {
+    borderWidth: 1, borderColor: Colors.primary + '50', borderRadius: Radius.md,
+    paddingVertical: 10, alignItems: 'center', backgroundColor: Colors.primaryLight,
+  },
+  downloadBtnText: { ...Typography.label, color: Colors.primary, fontWeight: '700' },
 
   refreshBtn: {
     borderWidth: 1.5, borderColor: Colors.primary + '50', borderRadius: Radius.lg,

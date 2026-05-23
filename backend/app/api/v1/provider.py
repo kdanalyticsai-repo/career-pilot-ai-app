@@ -450,6 +450,49 @@ async def get_applicant_detail(
     }
 
 
+@router.get("/applicants/{application_id}/resume-url")
+async def get_applicant_resume_url(
+    application_id: uuid.UUID,
+    current_user: User = Depends(require_role("job_provider")),
+    db: AsyncSession = Depends(get_db),
+):
+    """Generate a presigned S3 URL so the provider can download the applicant's resume PDF."""
+    apps_result = await db.execute(
+        select(Application, User, Job)
+        .join(User, Application.user_id == User.id)
+        .join(Job, Application.job_id == Job.id)
+        .where(Application.id == application_id)
+    )
+    row = apps_result.first()
+    if not row:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Application not found")
+    app, user, job = row
+    if job.posted_by != current_user.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not your listing")
+    if job.applicants_access != "approved":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Applicant access not approved for this listing")
+
+    resume_result = await db.execute(
+        select(Resume).where(Resume.user_id == user.id).order_by(Resume.id.desc()).limit(1)
+    )
+    resume = resume_result.scalar_one_or_none()
+    if not resume or not resume.s3_key:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No resume found for this applicant")
+
+    from app.services.resume_service import _s3_client
+    from app.config import settings as _settings
+    try:
+        url = _s3_client().generate_presigned_url(
+            "get_object",
+            Params={"Bucket": _settings.S3_BUCKET_NAME, "Key": resume.s3_key},
+            ExpiresIn=3600,
+        )
+    except Exception:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Could not generate download link")
+
+    return {"url": url, "filename": (resume.name or "resume") + ".pdf"}
+
+
 @router.get("/jobs/{job_id}/applicants")
 async def get_applicants(
     job_id: uuid.UUID,
