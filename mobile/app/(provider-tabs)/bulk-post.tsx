@@ -8,11 +8,12 @@ import { useQueryClient } from '@tanstack/react-query';
 import { router } from 'expo-router';
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system/legacy';
-import { StorageAccessFramework } from 'expo-file-system';
 import { api } from '@/services/api';
 import { API_URL } from '@/constants/config';
 import { Colors, Typography, Spacing, Radius, HeroColors, Shadow } from '@/constants/theme';
 
+// SAF lives in the legacy export, not the main expo-file-system entry
+const SAF = FileSystem.StorageAccessFramework;
 
 export default function BulkPostScreen() {
   const qc = useQueryClient();
@@ -23,7 +24,7 @@ export default function BulkPostScreen() {
     if (downloading) return;
     setDownloading(true);
     try {
-      // Step 1: download to app cache
+      // Step 1: download xlsx to app cache
       const cachedUri = `${FileSystem.cacheDirectory}bulk_template.xlsx`;
       const { uri, status } = await FileSystem.downloadAsync(
         `${API_URL}/provider/jobs/bulk-template`,
@@ -31,24 +32,24 @@ export default function BulkPostScreen() {
       );
       if (status !== 200) throw new Error('Server error');
 
-      // Step 2: let user pick where to save via Android folder picker
-      const perm = await StorageAccessFramework.requestDirectoryPermissionsAsync();
+      // Step 2: Android folder picker — user chooses where to save
+      const perm = await SAF.requestDirectoryPermissionsAsync();
       if (!perm.granted) { setDownloading(false); return; }
 
       // Step 3: create the file in chosen folder
-      const destUri = await StorageAccessFramework.createFileAsync(
+      const destUri = await SAF.createFileAsync(
         perm.directoryUri,
         'proaicv_bulk_template.xlsx',
         'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
       );
 
-      // Step 4: copy cached file to destination as base64
+      // Step 4: read cached file as base64 and write to destination
       const base64 = await FileSystem.readAsStringAsync(uri, { encoding: 'base64' as any });
-      await StorageAccessFramework.writeAsStringAsync(destUri, base64, { encoding: 'base64' as any });
+      await SAF.writeAsStringAsync(destUri, base64, { encoding: 'base64' as any });
 
       Alert.alert('Downloaded!', 'Template saved. Open it with Google Sheets or WPS Office.');
-    } catch {
-      Alert.alert('Error', 'Could not download template. Please try again.');
+    } catch (err: any) {
+      Alert.alert('Error', err?.message ?? 'Could not download template. Please try again.');
     } finally {
       setDownloading(false);
     }
