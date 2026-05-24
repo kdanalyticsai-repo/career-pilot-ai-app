@@ -6,8 +6,6 @@ import { useAuthStore } from '@/stores/authStore';
 import { Colors, Typography, Spacing, Radius, Shadow, HeroColors } from '@/constants/theme';
 
 const SUPPORT_EMAIL = 'info@kdaanalytics.com';
-const PRIVACY_URL = 'https://cvpilot.kdaanalytics.com/privacy';
-const TERMS_URL = 'https://cvpilot.kdaanalytics.com/terms';
 
 const FAQ_ITEMS = [
   {
@@ -106,8 +104,8 @@ export default function ProviderProfileScreen() {
 
         {menuSection('Quick Links', [
           { icon: '📞', title: 'Contact Us', onPress: () => Linking.openURL(`mailto:${SUPPORT_EMAIL}`) },
-          { icon: '📋', title: 'Terms & Conditions', onPress: () => Linking.openURL(TERMS_URL).catch(() => Alert.alert('Error', 'Could not open link.')) },
-          { icon: '🔒', title: 'Privacy Policy', onPress: () => Linking.openURL(PRIVACY_URL).catch(() => Alert.alert('Error', 'Could not open link.')) },
+          { icon: '📋', title: 'Terms & Conditions', onPress: () => router.push('/terms' as any) },
+          { icon: '🔒', title: 'Privacy Policy', onPress: () => router.push('/privacy' as any) },
           { icon: 'ℹ️', title: 'About ProAICV', sub: 'v1.0.0', onPress: () => {} },
         ])}
 
