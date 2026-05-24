@@ -141,38 +141,35 @@ async def sync_from_themuse(
     return {"synced": count, "source": "themuse"}
 
 
-@router.post("/sync-findwork", response_model=dict)
-async def sync_from_findwork(
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
-):
-    from app.services.findwork_service import FindworkService
-    count = await FindworkService().sync_jobs_to_db(db)
-    return {"synced": count, "source": "findwork"}
-
-
 @router.post("/sync-all", response_model=dict)
 async def sync_all_sources(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
+    import asyncio
+    from app.database import AsyncSessionLocal
     from app.services.adzuna_service import AdzunaService
     from app.services.remotive_service import RemotiveService
     from app.services.jobicy_service import JobicyService
     from app.services.serpapi_service import SerpApiService
     from app.services.jooble_service import JoobleService
     from app.services.themuse_service import TheMuseService
-    from app.services.findwork_service import FindworkService
     from app.services.notification_service import get_user_push_tokens, send_push_notifications
 
-    adzuna = await AdzunaService().sync_jobs_to_db(db)
-    remotive = await RemotiveService().sync_jobs_to_db(db)
-    jobicy = await JobicyService().sync_jobs_to_db(db)
-    serpapi = await SerpApiService().sync_jobs_to_db(db)
-    jooble = await JoobleService().sync_jobs_to_db(db)
-    themuse = await TheMuseService().sync_jobs_to_db(db)
-    findwork = await FindworkService().sync_jobs_to_db(db)
-    total = adzuna + remotive + jobicy + serpapi + jooble + themuse + findwork
+    # Each service gets its own session — safe for concurrent execution
+    async def run(service_cls):
+        async with AsyncSessionLocal() as session:
+            return await service_cls().sync_jobs_to_db(session)
+
+    adzuna, remotive, jobicy, serpapi, jooble, themuse = await asyncio.gather(
+        run(AdzunaService),
+        run(RemotiveService),
+        run(JobicyService),
+        run(SerpApiService),
+        run(JoobleService),
+        run(TheMuseService),
+    )
+    total = adzuna + remotive + jobicy + serpapi + jooble + themuse
 
     if total > 0:
         tokens = await get_user_push_tokens(db, current_user.id)
@@ -193,6 +190,5 @@ async def sync_all_sources(
             "serpapi": serpapi,
             "jooble": jooble,
             "themuse": themuse,
-            "findwork": findwork,
         },
     }
