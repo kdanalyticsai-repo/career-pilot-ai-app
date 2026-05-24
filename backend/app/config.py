@@ -55,6 +55,12 @@ class Settings(BaseSettings):
     SENTRY_DSN: str = ""
     ADMIN_EMAILS: str = ""  # comma-separated, e.g. "admin@cvpilot.app,sunildubeym1306@gmail.com"
 
+    # SerpApi — Google Jobs search results (serpapi.com)
+    SERPAPI_API_KEY: str = ""
+
+    # Jooble — 140K+ job board aggregator (jooble.org)
+    JOOBLE_API_KEY: str = ""
+
     # Fast2SMS for phone OTP delivery
     FAST2SMS_API_KEY: str = ""
     ADMIN_EMAIL: str = ""   # single admin email for the dedicated admin login flow

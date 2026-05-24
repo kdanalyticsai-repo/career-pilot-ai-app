@@ -111,6 +111,46 @@ async def sync_from_jobicy(
     return {"synced": count, "source": "jobicy"}
 
 
+@router.post("/sync-serpapi", response_model=dict)
+async def sync_from_serpapi(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    from app.services.serpapi_service import SerpApiService
+    count = await SerpApiService().sync_jobs_to_db(db)
+    return {"synced": count, "source": "serpapi"}
+
+
+@router.post("/sync-jooble", response_model=dict)
+async def sync_from_jooble(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    from app.services.jooble_service import JoobleService
+    count = await JoobleService().sync_jobs_to_db(db)
+    return {"synced": count, "source": "jooble"}
+
+
+@router.post("/sync-themuse", response_model=dict)
+async def sync_from_themuse(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    from app.services.themuse_service import TheMuseService
+    count = await TheMuseService().sync_jobs_to_db(db)
+    return {"synced": count, "source": "themuse"}
+
+
+@router.post("/sync-findwork", response_model=dict)
+async def sync_from_findwork(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    from app.services.findwork_service import FindworkService
+    count = await FindworkService().sync_jobs_to_db(db)
+    return {"synced": count, "source": "findwork"}
+
+
 @router.post("/sync-all", response_model=dict)
 async def sync_all_sources(
     current_user: User = Depends(get_current_user),
@@ -119,12 +159,20 @@ async def sync_all_sources(
     from app.services.adzuna_service import AdzunaService
     from app.services.remotive_service import RemotiveService
     from app.services.jobicy_service import JobicyService
+    from app.services.serpapi_service import SerpApiService
+    from app.services.jooble_service import JoobleService
+    from app.services.themuse_service import TheMuseService
+    from app.services.findwork_service import FindworkService
     from app.services.notification_service import get_user_push_tokens, send_push_notifications
 
     adzuna = await AdzunaService().sync_jobs_to_db(db)
     remotive = await RemotiveService().sync_jobs_to_db(db)
     jobicy = await JobicyService().sync_jobs_to_db(db)
-    total = adzuna + remotive + jobicy
+    serpapi = await SerpApiService().sync_jobs_to_db(db)
+    jooble = await JoobleService().sync_jobs_to_db(db)
+    themuse = await TheMuseService().sync_jobs_to_db(db)
+    findwork = await FindworkService().sync_jobs_to_db(db)
+    total = adzuna + remotive + jobicy + serpapi + jooble + themuse + findwork
 
     if total > 0:
         tokens = await get_user_push_tokens(db, current_user.id)
@@ -138,5 +186,13 @@ async def sync_all_sources(
 
     return {
         "synced": total,
-        "breakdown": {"adzuna": adzuna, "remotive": remotive, "jobicy": jobicy},
+        "breakdown": {
+            "adzuna": adzuna,
+            "remotive": remotive,
+            "jobicy": jobicy,
+            "serpapi": serpapi,
+            "jooble": jooble,
+            "themuse": themuse,
+            "findwork": findwork,
+        },
     }
