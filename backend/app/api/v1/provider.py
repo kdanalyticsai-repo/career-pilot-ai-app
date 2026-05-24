@@ -1,13 +1,15 @@
 import uuid
 import csv
 import io
-from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status, UploadFile, File
 from fastapi.responses import Response
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 from pydantic import BaseModel
 
 from app.dependencies import get_db, require_role
+from app.core.security import decode_access_token
 from app.models.user import User
 from app.models.job import Job, Application
 from app.models.resume import Resume
@@ -472,16 +474,33 @@ async def get_applicant_detail(
     }
 
 
+_optional_bearer = HTTPBearer(auto_error=False)
+
+
 @router.get("/applicants/{application_id}/resume-download")
 async def download_applicant_resume(
     application_id: uuid.UUID,
-    current_user: User = Depends(require_role("job_provider")),
+    token: str | None = Query(None),
+    credentials: HTTPAuthorizationCredentials | None = Depends(_optional_bearer),
     db: AsyncSession = Depends(get_db),
 ):
     """Stream the applicant's resume PDF directly (works with both local and S3 storage)."""
     import os
     from fastapi.responses import FileResponse, StreamingResponse
     from app.config import settings as _settings
+
+    # Auth: accept Bearer header OR ?token= query param (for browser/WebBrowser access)
+    access_token = credentials.credentials if credentials else token
+    if not access_token:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
+    payload = decode_access_token(access_token)
+    if not payload:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired token")
+    user_id = payload.get("sub")
+    user_result = await db.execute(select(User).where(User.id == user_id))
+    current_user = user_result.scalar_one_or_none()
+    if not current_user or current_user.role != "job_provider":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
 
     apps_result = await db.execute(
         select(Application, User, Job)

@@ -18,6 +18,7 @@ class UserResponse(BaseModel):
     gstin: str | None = None
     total_vacancies: int | None = None
     pan_verified: bool = False
+    pro_plan_type: str | None = None
     created_at: datetime
     trial_ends_at: datetime | None = None  # populated by the endpoint, not a DB column
 

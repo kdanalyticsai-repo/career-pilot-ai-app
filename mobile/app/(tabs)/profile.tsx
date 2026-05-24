@@ -153,6 +153,14 @@ export default function ProfileTab() {
             </View>
             <View style={styles.proBannerText}>
               <Text style={styles.proBannerTitle}>Pro Member — All features unlocked</Text>
+              {usageData?.pro_plan_type ? (
+                <Text style={styles.proBannerSub}>
+                  {usageData.pro_plan_type === 'monthly' ? '₹199/month' :
+                   usageData.pro_plan_type === 'quarterly' ? '₹499/quarter' :
+                   usageData.pro_plan_type === 'yearly' ? '₹1,499/year' :
+                   usageData.pro_plan_type} plan
+                </Text>
+              ) : null}
               {usageData?.pro_expires_at ? (
                 <Text style={styles.proBannerSub}>
                   Expires {new Date(usageData.pro_expires_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}

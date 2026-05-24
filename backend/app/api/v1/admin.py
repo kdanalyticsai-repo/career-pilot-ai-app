@@ -63,8 +63,21 @@ async def get_stats(
     resume_result = await db.execute(select(func.count(Resume.id)))
     total_resumes = resume_result.scalar() or 0
 
-    # Revenue simulation
-    monthly_revenue_inr = pro_users * 199
+    # Revenue by plan type
+    PLAN_PRICES = {"monthly": 199, "quarterly": 499, "yearly": 1499}
+    plan_rev_result = await db.execute(
+        select(User.pro_plan_type, func.count(User.id))
+        .where(User.subscription == "pro")
+        .group_by(User.pro_plan_type)
+    )
+    plan_breakdown = {row[0] or "monthly": row[1] for row in plan_rev_result.all()}
+    monthly_revenue_inr = sum(
+        count * PLAN_PRICES.get(ptype, 199) for ptype, count in plan_breakdown.items()
+    )
+    plan_breakdown_detail = {
+        ptype: {"count": count, "price": PLAN_PRICES.get(ptype, 199)}
+        for ptype, count in plan_breakdown.items()
+    }
 
     # Recent signups (last 7 days)
     from datetime import datetime, timezone, timedelta
@@ -115,6 +128,7 @@ async def get_stats(
             "monthly_inr": monthly_revenue_inr,
             "monthly_usd": round(monthly_revenue_inr / 83, 2),
             "pro_subscribers": pro_users,
+            "by_plan": plan_breakdown_detail,
         },
         "jobs": {
             "total_active": total_jobs,
@@ -352,7 +366,7 @@ async def list_users(
         select(
             User.id, User.email, User.name, User.subscription, User.created_at,
             User.role, User.phone, User.company_pan, User.company_reg_no, User.gstin,
-            User.pro_expires_at,
+            User.pro_expires_at, User.pro_plan_type,
         )
         .order_by(User.created_at.desc())
         .limit(limit)
@@ -373,6 +387,7 @@ async def list_users(
                 "company_reg_no": r[8],
                 "gstin": r[9],
                 "pro_expires_at": r[10].isoformat() if r[10] else None,
+                "pro_plan_type": r[11],
             }
             for r in rows
         ],

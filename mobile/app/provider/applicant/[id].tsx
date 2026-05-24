@@ -1,7 +1,6 @@
 import { useState } from 'react';
-import { Platform } from 'react-native';
-import { View, Text, StyleSheet, ScrollView, ActivityIndicator, TouchableOpacity, Clipboard, Alert, Linking } from 'react-native';
-import * as FileSystem from 'expo-file-system/legacy';
+import { View, Text, StyleSheet, ScrollView, ActivityIndicator, TouchableOpacity, Clipboard, Alert } from 'react-native';
+import * as WebBrowser from 'expo-web-browser';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, router } from 'expo-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -48,34 +47,10 @@ export default function ApplicantDetailScreen() {
     setDownloadingResume(true);
     try {
       const token = await storage.getAccessToken();
-      const safeName = (applicant.resume_name ?? 'resume').replace(/[^a-zA-Z0-9._-]/g, '_') + '.pdf';
-      const localUri = (FileSystem.cacheDirectory ?? '') + safeName;
-
-      const result = await FileSystem.downloadAsync(
-        `${API_URL}/provider/applicants/${applicationId}/resume-download`,
-        localUri,
-        { headers: token ? { Authorization: `Bearer ${token}` } : {} },
-      );
-
-      if (result.status !== 200) {
-        let serverMsg = 'Could not download the resume.';
-        try {
-          const body = await FileSystem.readAsStringAsync(localUri);
-          const json = JSON.parse(body);
-          if (json.detail) serverMsg = json.detail;
-        } catch {}
-        Alert.alert('Download Failed', serverMsg);
-        return;
-      }
-
-      if (Platform.OS === 'android') {
-        const contentUri = await FileSystem.getContentUriAsync(localUri);
-        await Linking.openURL(contentUri);
-      } else {
-        await Linking.openURL(localUri);
-      }
+      const url = `${API_URL}/provider/applicants/${applicationId}/resume-download?token=${token ?? ''}`;
+      await WebBrowser.openBrowserAsync(url);
     } catch (err: any) {
-      Alert.alert('Download Failed', 'Could not download the resume. Please try again.');
+      Alert.alert('Error', 'Could not open resume. Please try again.');
     } finally {
       setDownloadingResume(false);
     }

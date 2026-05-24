@@ -114,6 +114,7 @@ async def razorpay_webhook(request: Request, db: AsyncSession = Depends(get_db))
                 days = PLAN_CONFIG.get(plan, PLAN_CONFIG["monthly"])["days"]
                 user.subscription = "pro"
                 user.pro_expires_at = datetime.now(timezone.utc) + timedelta(days=days)
+                user.pro_plan_type = plan
                 await db.commit()
 
     return {"status": "ok"}
@@ -165,6 +166,7 @@ async def get_my_usage(
         "resume_uploads": features.get("resume_uploads"),
         "application_tracking": features.get("application_tracking"),
         "pro_expires_at": current_user.pro_expires_at.isoformat() if current_user.pro_expires_at else None,
+        "pro_plan_type": current_user.pro_plan_type,
     }
 
 

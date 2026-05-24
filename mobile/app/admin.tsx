@@ -227,11 +227,22 @@ export default function AdminScreen() {
   const statModalContent: Record<string, React.ReactNode> = {
     mrr: (
       <View style={styles.modalBody}>
-        <Text style={styles.modalTitle}>Estimated MRR</Text>
-        <Text style={styles.modalSub}>Monthly Recurring Revenue based on active Pro subscribers</Text>
-        <View style={styles.detailRow}><Text style={styles.detailLabel}>Pro subscribers</Text><Text style={styles.detailValue}>{rev.pro_subscribers ?? 0}</Text></View>
-        <View style={styles.detailRow}><Text style={styles.detailLabel}>Price per user</Text><Text style={styles.detailValue}>₹199/mo</Text></View>
-        <View style={[styles.detailRow, { borderBottomWidth: 0 }]}><Text style={[styles.detailLabel, { fontWeight: '700' }]}>Est. MRR</Text><Text style={[styles.detailValue, { color: Colors.primary, fontWeight: '700' }]}>₹{(rev.monthly_inr ?? 0).toLocaleString('en-IN')}</Text></View>
+        <Text style={styles.modalTitle}>Revenue Breakdown</Text>
+        <Text style={styles.modalSub}>Total revenue from active Pro subscribers by plan type</Text>
+        {Object.keys(rev.by_plan ?? {}).length === 0 ? (
+          <View style={styles.detailRow}><Text style={styles.detailLabel}>No Pro subscribers yet</Text><Text style={styles.detailValue}>—</Text></View>
+        ) : (
+          Object.entries(rev.by_plan ?? {}).map(([plan, data]: [string, any]) => (
+            <View key={plan} style={styles.detailRow}>
+              <Text style={styles.detailLabel}>{plan.charAt(0).toUpperCase() + plan.slice(1)} plan × {data.count}</Text>
+              <Text style={styles.detailValue}>₹{(data.count * data.price).toLocaleString('en-IN')}</Text>
+            </View>
+          ))
+        )}
+        <View style={[styles.detailRow, { borderBottomWidth: 0 }]}>
+          <Text style={[styles.detailLabel, { fontWeight: '700' }]}>Total Revenue</Text>
+          <Text style={[styles.detailValue, { color: Colors.primary, fontWeight: '700' }]}>₹{(rev.monthly_inr ?? 0).toLocaleString('en-IN')}</Text>
+        </View>
       </View>
     ),
     subs: (
@@ -332,7 +343,7 @@ export default function AdminScreen() {
         {/* Revenue */}
         <Text style={styles.sectionLabel}>REVENUE</Text>
         <View style={styles.row}>
-          <StatCard label="Est. MRR" value={`₹${(rev.monthly_inr ?? 0).toLocaleString('en-IN')}`} sub="Pro users × ₹199" onPress={() => setStatModal('mrr')} />
+          <StatCard label="Revenue" value={`₹${(rev.monthly_inr ?? 0).toLocaleString('en-IN')}`} sub={`${rev.pro_subscribers ?? 0} pro subscribers`} onPress={() => setStatModal('mrr')} />
           <StatCard label="Pro Subs" value={rev.pro_subscribers ?? 0} color={Colors.primary} onPress={() => setStatModal('subs')} />
         </View>
 
@@ -641,6 +652,19 @@ export default function AdminScreen() {
                         {trialEndsStr}
                       </Text>
                     </View>
+                  </View>
+                )}
+
+                {/* Pro plan type — pro users */}
+                {isPro && selectedUser.pro_plan_type && (
+                  <View style={styles.detailRow}>
+                    <Text style={styles.detailLabel}>Plan type</Text>
+                    <Text style={[styles.detailValue, { color: Colors.primary, fontWeight: '600' }]}>
+                      {selectedUser.pro_plan_type === 'monthly' ? 'Monthly (₹199/mo)' :
+                       selectedUser.pro_plan_type === 'quarterly' ? 'Quarterly (₹499/qtr)' :
+                       selectedUser.pro_plan_type === 'yearly' ? 'Yearly (₹1,499/yr)' :
+                       selectedUser.pro_plan_type}
+                    </Text>
                   </View>
                 )}
 

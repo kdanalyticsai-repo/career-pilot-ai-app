@@ -43,6 +43,7 @@ class User(Base):
     subscription: Mapped[str] = mapped_column(String(20), default="free")
     pro_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     razorpay_subscription_id: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    pro_plan_type: Mapped[str | None] = mapped_column(String(20), nullable=True)
     onboarded: Mapped[bool] = mapped_column(Boolean, default=False)
     reset_otp: Mapped[str | None] = mapped_column(String(6), nullable=True)
     reset_otp_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
