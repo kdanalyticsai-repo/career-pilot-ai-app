@@ -147,7 +147,9 @@ async def sync_all_sources(
     db: AsyncSession = Depends(get_db),
 ):
     import asyncio
+    from sqlalchemy import func as sqlfunc
     from app.database import AsyncSessionLocal
+    from app.models.job import Job as JobModel
     from app.services.adzuna_service import AdzunaService
     from app.services.remotive_service import RemotiveService
     from app.services.jobicy_service import JobicyService
@@ -178,18 +180,24 @@ async def sync_all_sources(
     ]
     total = adzuna + remotive + jobicy + serpapi + jooble + themuse
 
+    total_in_db_result = await db.execute(
+        sqlfunc.count(JobModel.id).select().where(JobModel.is_active == True)
+    )
+    total_in_db = total_in_db_result.scalar() or 0
+
     if total > 0:
         tokens = await get_user_push_tokens(db, current_user.id)
         if tokens:
             await send_push_notifications(
                 tokens,
                 title="New Jobs Available",
-                body=f"{total} new job{'s' if total != 1 else ''} added from live sources. Tap to explore!",
+                body=f"{total} new job{'s' if total != 1 else ''} added. {total_in_db} live jobs available!",
                 data={"type": "new_jobs", "count": total},
             )
 
     return {
         "synced": total,
+        "total_in_db": total_in_db,
         "breakdown": {
             "adzuna": adzuna,
             "remotive": remotive,
