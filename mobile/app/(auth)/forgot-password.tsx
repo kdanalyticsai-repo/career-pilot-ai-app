@@ -37,6 +37,7 @@ export default function ForgotPasswordScreen() {
           <Text style={styles.sentBody}>
             We sent a 6-digit reset code to{'\n'}
             <Text style={{ fontWeight: '700' }}>{email}</Text>
+            {'\n\n'}If you have a verified mobile number on your account, the code was also sent via SMS.
           </Text>
           <TouchableOpacity
             style={styles.button}

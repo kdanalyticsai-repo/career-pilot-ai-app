@@ -123,6 +123,8 @@ async def forgot_password(data: ForgotPasswordRequest, db: AsyncSession = Depend
     user.reset_otp_expires_at = datetime.now(timezone.utc) + timedelta(minutes=15)
     await db.commit()
     await send_password_reset_otp_email(user.email, user.name or "", otp)
+    if user.phone and user.phone_verified:
+        await send_otp_sms(user.phone, otp)
     return MessageResponse(message="If that email exists, a reset code has been sent.")
 
 
