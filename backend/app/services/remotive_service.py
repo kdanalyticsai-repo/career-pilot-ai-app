@@ -19,6 +19,12 @@ REMOTIVE_CATEGORIES = [
     "product",
     "design",
     "qa",
+    "marketing",
+    "finance-legal",
+    "customer-support",
+    "hr",
+    "writing",
+    "business-mgmt",
 ]
 
 
@@ -82,7 +88,7 @@ class RemotiveService:
         except Exception:
             return []
 
-    async def sync_jobs_to_db(self, db: AsyncSession, limit_per_category: int = 50) -> int:
+    async def sync_jobs_to_db(self, db: AsyncSession, limit_per_category: int = 100) -> int:
         count = 0
         seen_urls: set[str] = set()
 

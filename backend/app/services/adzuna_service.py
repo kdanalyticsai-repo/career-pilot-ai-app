@@ -11,6 +11,10 @@ TECH_QUERIES = [
     "software engineer", "python developer", "react developer",
     "data engineer", "backend developer", "frontend developer",
     "full stack developer", "devops engineer", "machine learning engineer",
+    "android developer", "ios developer", "mobile developer",
+    "product manager", "project manager", "business analyst",
+    "ui ux designer", "data scientist", "cloud engineer",
+    "cybersecurity engineer", "qa engineer",
 ]
 
 
@@ -108,7 +112,7 @@ class AdzunaService:
         except Exception:
             return []
 
-    async def sync_jobs_to_db(self, db: AsyncSession, max_per_query: int = 20) -> int:
+    async def sync_jobs_to_db(self, db: AsyncSession, max_per_query: int = 50) -> int:
         if not settings.has_adzuna_key:
             return 0
 
