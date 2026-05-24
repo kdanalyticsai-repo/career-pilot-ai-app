@@ -1,13 +1,13 @@
 import { useState } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, ScrollView,
-  Alert, ActivityIndicator,
+  Alert, ActivityIndicator, Platform, Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQueryClient } from '@tanstack/react-query';
 import { router } from 'expo-router';
 import * as DocumentPicker from 'expo-document-picker';
-import * as WebBrowser from 'expo-web-browser';
+import * as FileSystem from 'expo-file-system/legacy';
 import { api } from '@/services/api';
 import { API_URL } from '@/constants/config';
 import { Colors, Typography, Spacing, Radius, HeroColors, Shadow } from '@/constants/theme';
@@ -16,12 +16,29 @@ import { Colors, Typography, Spacing, Radius, HeroColors, Shadow } from '@/const
 export default function BulkPostScreen() {
   const qc = useQueryClient();
   const [uploading, setUploading] = useState(false);
+  const [downloading, setDownloading] = useState(false);
 
   const handleDownloadTemplate = async () => {
+    if (downloading) return;
+    setDownloading(true);
     try {
-      await WebBrowser.openBrowserAsync(`${API_URL}/provider/jobs/bulk-template`);
+      const dest = `${FileSystem.cacheDirectory}bulk_jobs_template.xlsx`;
+      const { uri, status } = await FileSystem.downloadAsync(
+        `${API_URL}/provider/jobs/bulk-template`,
+        dest
+      );
+      if (status !== 200) throw new Error('Server error');
+
+      if (Platform.OS === 'android') {
+        const contentUri = await (FileSystem as any).getContentUriAsync(uri);
+        await Linking.openURL(contentUri);
+      } else {
+        Alert.alert('Downloaded', 'Template saved. Open it from your Files app.');
+      }
     } catch {
-      Alert.alert('Error', 'Could not open template link. Please contact support.');
+      Alert.alert('Error', 'Could not download the template. Please try again.');
+    } finally {
+      setDownloading(false);
     }
   };
 
@@ -107,8 +124,8 @@ export default function BulkPostScreen() {
             <Text style={styles.bulkStep}>4. Jobs go to admin review — same as single listing</Text>
           </View>
 
-          <TouchableOpacity style={styles.templateBtn} onPress={handleDownloadTemplate} activeOpacity={0.8}>
-            <Text style={styles.templateBtnText}>↓  Download Sample Template (.xlsx)</Text>
+          <TouchableOpacity style={styles.templateBtn} onPress={handleDownloadTemplate} activeOpacity={0.8} disabled={downloading}>
+            <Text style={styles.templateBtnText}>{downloading ? 'Downloading...' : '↓  Download Sample Template (.xlsx)'}</Text>
           </TouchableOpacity>
 
           <TouchableOpacity

@@ -676,15 +676,9 @@ export default function AdminScreen() {
                 {isSeeker && isFree && (
                   <View style={styles.detailRow}>
                     <Text style={styles.detailLabel}>Trial expires on</Text>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                      <View style={{
-                        width: 8, height: 8, borderRadius: 4,
-                        backgroundColor: trialExpired ? Colors.danger : Colors.tertiary,
-                      }} />
-                      <Text style={[styles.detailValue, { color: trialExpired ? Colors.danger : Colors.tertiary, fontWeight: '600' }]}>
-                        {trialEndsStr}
-                      </Text>
-                    </View>
+                    <Text style={[styles.detailValue, { color: trialExpired ? Colors.danger : Colors.tertiary, fontWeight: '600' }]}>
+                      {trialEndsStr}{trialExpired ? ' (ended)' : ''}
+                    </Text>
                   </View>
                 )}
 
