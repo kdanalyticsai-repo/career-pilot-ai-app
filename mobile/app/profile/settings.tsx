@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import {
-  View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, ActivityIndicator,
+  View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, ActivityIndicator, Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
@@ -135,7 +135,7 @@ export default function SettingsScreen() {
           label: 'Privacy Policy',
           icon: '🔒',
           sub: 'How we handle your data',
-          onPress: () => router.push('/privacy' as any),
+          onPress: () => Linking.openURL('https://kdaanalytics.com/proaicv/privacy/'),
         },
         {
           label: 'Terms of Service',

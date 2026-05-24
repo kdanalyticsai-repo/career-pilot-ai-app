@@ -105,7 +105,7 @@ export default function ProviderProfileScreen() {
         {menuSection('Quick Links', [
           { icon: '📞', title: 'Contact Us', onPress: () => Linking.openURL(`mailto:${SUPPORT_EMAIL}`) },
           { icon: '📋', title: 'Terms & Conditions', onPress: () => router.push('/terms' as any) },
-          { icon: '🔒', title: 'Privacy Policy', onPress: () => router.push('/privacy' as any) },
+          { icon: '🔒', title: 'Privacy Policy', onPress: () => Linking.openURL('https://kdaanalytics.com/proaicv/privacy/') },
           { icon: 'ℹ️', title: 'About ProAICV', sub: 'v1.0.0', onPress: () => router.push('/about' as any) },
         ])}
 
