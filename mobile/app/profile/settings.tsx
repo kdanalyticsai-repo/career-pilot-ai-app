@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import {
-  View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, ActivityIndicator, Linking,
+  View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
@@ -135,14 +135,19 @@ export default function SettingsScreen() {
           label: 'Privacy Policy',
           icon: '🔒',
           sub: 'How we handle your data',
-          onPress: () => Linking.openURL('https://kdaanalytics.com/cvproai/privacy/'),
+          onPress: () => router.push('/privacy' as any),
         },
         {
           label: 'Terms of Service',
           icon: '📄',
           sub: 'Usage terms and conditions',
-          onPress: () =>
-            Alert.alert('Terms of Service', 'By using ProAICV you agree to use the service for lawful job-search purposes only. AI-generated content is for guidance and should be reviewed before use.'),
+          onPress: () => router.push('/terms' as any),
+        },
+        {
+          label: 'About ProAICV',
+          icon: 'ℹ️',
+          sub: 'App info, features & developer',
+          onPress: () => router.push('/about' as any),
         },
       ],
     },
