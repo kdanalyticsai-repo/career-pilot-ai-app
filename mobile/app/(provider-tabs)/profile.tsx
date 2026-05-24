@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert, ScrollView, Linking } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
+import * as WebBrowser from 'expo-web-browser';
 import { useAuthStore } from '@/stores/authStore';
 import { Colors, Typography, Spacing, Radius, Shadow, HeroColors } from '@/constants/theme';
 
@@ -106,8 +107,8 @@ export default function ProviderProfileScreen() {
 
         {menuSection('Quick Links', [
           { icon: '📞', title: 'Contact Us', onPress: () => Linking.openURL(`mailto:${SUPPORT_EMAIL}`) },
-          { icon: '📋', title: 'Terms & Conditions', onPress: () => Linking.openURL(TERMS_URL) },
-          { icon: '🔒', title: 'Privacy Policy', onPress: () => Linking.openURL(PRIVACY_URL) },
+          { icon: '📋', title: 'Terms & Conditions', onPress: () => WebBrowser.openBrowserAsync(TERMS_URL) },
+          { icon: '🔒', title: 'Privacy Policy', onPress: () => WebBrowser.openBrowserAsync(PRIVACY_URL) },
           { icon: 'ℹ️', title: 'About ProAICV', sub: 'v1.0.0', onPress: () => {} },
         ])}
 

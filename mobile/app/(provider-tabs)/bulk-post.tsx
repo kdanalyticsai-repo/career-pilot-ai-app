@@ -7,7 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQueryClient } from '@tanstack/react-query';
 import { router } from 'expo-router';
 import * as DocumentPicker from 'expo-document-picker';
-import { Linking } from 'react-native';
+import * as WebBrowser from 'expo-web-browser';
 import { api } from '@/services/api';
 import { API_URL } from '@/constants/config';
 import { Colors, Typography, Spacing, Radius, HeroColors, Shadow } from '@/constants/theme';
@@ -19,7 +19,7 @@ export default function BulkPostScreen() {
 
   const handleDownloadTemplate = async () => {
     try {
-      await Linking.openURL(`${API_URL}/provider/jobs/bulk-template`);
+      await WebBrowser.openBrowserAsync(`${API_URL}/provider/jobs/bulk-template`);
     } catch {
       Alert.alert('Error', 'Could not open template link. Please contact support.');
     }

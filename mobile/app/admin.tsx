@@ -494,7 +494,9 @@ export default function AdminScreen() {
                 </View>
                 <View style={[styles.planChip, user.subscription === 'pro' && styles.planChipPro]}>
                   <Text style={[styles.planChipText, user.subscription === 'pro' && styles.planChipTextPro]}>
-                    {user.subscription === 'pro' ? 'PRO' : 'FREE'}
+                    {user.subscription === 'pro'
+                      ? `PRO${user.pro_plan_type === 'monthly' ? ' ₹199' : user.pro_plan_type === 'quarterly' ? ' ₹499' : user.pro_plan_type === 'yearly' ? ' ₹1,499' : ''}`
+                      : 'FREE'}
                   </Text>
                 </View>
               </TouchableOpacity>
@@ -662,10 +664,18 @@ export default function AdminScreen() {
                   </View>
                 ) : null)}
 
-                {/* Trial end — free job seekers only */}
+                {/* Plan type row — free users */}
+                {isFree && (
+                  <View style={styles.detailRow}>
+                    <Text style={styles.detailLabel}>Plan type</Text>
+                    <Text style={[styles.detailValue, { color: Colors.textMuted, fontWeight: '600' }]}>Free</Text>
+                  </View>
+                )}
+
+                {/* Trial expiry — free job seekers only */}
                 {isSeeker && isFree && (
                   <View style={styles.detailRow}>
-                    <Text style={styles.detailLabel}>Trial ends</Text>
+                    <Text style={styles.detailLabel}>Trial expires on</Text>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                       <View style={{
                         width: 8, height: 8, borderRadius: 4,
@@ -691,8 +701,8 @@ export default function AdminScreen() {
                   </View>
                 )}
 
-                {/* Plan type setter for pro users with unknown plan */}
-                {isPro && (
+                {/* Plan type setter — only shown when pro_plan_type is unknown */}
+                {isPro && !selectedUser.pro_plan_type && (
                   <View style={{ paddingVertical: Spacing.sm, borderBottomWidth: 1, borderBottomColor: Colors.borderSubtle }}>
                     <Text style={[styles.detailLabel, { marginBottom: 8 }]}>Set Plan Type</Text>
                     <View style={{ flexDirection: 'row', gap: 8 }}>
