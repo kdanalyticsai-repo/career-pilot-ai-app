@@ -70,12 +70,15 @@ async def get_stats(
         .where(User.subscription == "pro")
         .group_by(User.pro_plan_type)
     )
-    plan_breakdown = {row[0] or "monthly": row[1] for row in plan_rev_result.all()}
+    plan_breakdown: dict[str, int] = {}
+    for row in plan_rev_result.all():
+        key = row[0] if row[0] else "unknown"
+        plan_breakdown[key] = plan_breakdown.get(key, 0) + row[1]
     monthly_revenue_inr = sum(
-        count * PLAN_PRICES.get(ptype, 199) for ptype, count in plan_breakdown.items()
+        count * PLAN_PRICES.get(ptype, 0) for ptype, count in plan_breakdown.items()
     )
     plan_breakdown_detail = {
-        ptype: {"count": count, "price": PLAN_PRICES.get(ptype, 199)}
+        ptype: {"count": count, "price": PLAN_PRICES.get(ptype, 0)}
         for ptype, count in plan_breakdown.items()
     }
 
@@ -505,6 +508,27 @@ async def reject_provider_pan(
     user.pan_verified = False
     await db.commit()
     return {"rejected": True, "user_id": str(user_id)}
+
+
+@router.post("/users/{user_id}/set-plan-type", status_code=200)
+async def set_user_plan_type(
+    user_id: uuid.UUID,
+    plan_type: str = Query(..., description="monthly | quarterly | yearly"),
+    _: User = Depends(_require_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Manually set the pro_plan_type for an existing pro subscriber (backfill only)."""
+    if plan_type not in ("monthly", "quarterly", "yearly"):
+        raise HTTPException(status_code=400, detail="plan_type must be monthly, quarterly, or yearly")
+    result = await db.execute(select(User).where(User.id == user_id))
+    user = result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    if user.subscription != "pro":
+        raise HTTPException(status_code=400, detail="User is not on Pro plan")
+    user.pro_plan_type = plan_type
+    await db.commit()
+    return {"user_id": str(user_id), "pro_plan_type": plan_type}
 
 
 @router.post("/users/{user_id}/verify-pan", status_code=200)

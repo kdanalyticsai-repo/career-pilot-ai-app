@@ -49,6 +49,7 @@ export default function AdminScreen() {
   const [selectedPanProvider, setSelectedPanProvider] = useState<any>(null); // PAN review
   const [selectedAccessJob, setSelectedAccessJob] = useState<any>(null);     // applicant access review
   const [statModal, setStatModal] = useState<string | null>(null);   // revenue/activity detail
+  const [settingPlanType, setSettingPlanType] = useState(false);
   const qc = useQueryClient();
 
   const handleSignOut = async () => { await logout(); router.replace('/role-select' as any); };
@@ -170,6 +171,21 @@ export default function AdminScreen() {
     onError: (err: any) => Alert.alert('Error', err?.response?.data?.detail ?? 'Failed to reject PAN.'),
   });
 
+  const setPlanType = async (userId: string, planType: string) => {
+    setSettingPlanType(true);
+    try {
+      await api.post(`/admin/users/${userId}/set-plan-type?plan_type=${planType}`);
+      await qc.invalidateQueries({ queryKey: ['admin-users'] });
+      await qc.invalidateQueries({ queryKey: ['admin-stats'] });
+      setSelectedUser((prev: any) => prev ? { ...prev, pro_plan_type: planType } : prev);
+      Alert.alert('Updated', `Plan type set to ${planType}.`);
+    } catch (err: any) {
+      Alert.alert('Error', err?.response?.data?.detail ?? 'Failed to update plan type.');
+    } finally {
+      setSettingPlanType(false);
+    }
+  };
+
   const confirmDeleteJob = (job: any) => {
     Alert.alert('Delete Listing', `Permanently delete "${job.title}"?`, [
       { text: 'Cancel', style: 'cancel' },
@@ -232,12 +248,19 @@ export default function AdminScreen() {
         {Object.keys(rev.by_plan ?? {}).length === 0 ? (
           <View style={styles.detailRow}><Text style={styles.detailLabel}>No Pro subscribers yet</Text><Text style={styles.detailValue}>—</Text></View>
         ) : (
-          Object.entries(rev.by_plan ?? {}).map(([plan, data]: [string, any]) => (
-            <View key={plan} style={styles.detailRow}>
-              <Text style={styles.detailLabel}>{plan.charAt(0).toUpperCase() + plan.slice(1)} plan × {data.count}</Text>
-              <Text style={styles.detailValue}>₹{(data.count * data.price).toLocaleString('en-IN')}</Text>
-            </View>
-          ))
+          Object.entries(rev.by_plan ?? {}).map(([plan, data]: [string, any]) => {
+            const isUnknown = plan === 'unknown';
+            return (
+              <View key={plan} style={styles.detailRow}>
+                <Text style={[styles.detailLabel, isUnknown && { color: Colors.warning }]}>
+                  {isUnknown ? `Unknown plan × ${data.count} (set via User Detail)` : `${plan.charAt(0).toUpperCase() + plan.slice(1)} plan × ${data.count}`}
+                </Text>
+                <Text style={[styles.detailValue, isUnknown && { color: Colors.warning }]}>
+                  {isUnknown ? '?' : `₹${(data.count * data.price).toLocaleString('en-IN')}`}
+                </Text>
+              </View>
+            );
+          })
         )}
         <View style={[styles.detailRow, { borderBottomWidth: 0 }]}>
           <Text style={[styles.detailLabel, { fontWeight: '700' }]}>Total Revenue</Text>
@@ -656,15 +679,40 @@ export default function AdminScreen() {
                 )}
 
                 {/* Pro plan type — pro users */}
-                {isPro && selectedUser.pro_plan_type && (
+                {isPro && (
                   <View style={styles.detailRow}>
                     <Text style={styles.detailLabel}>Plan type</Text>
-                    <Text style={[styles.detailValue, { color: Colors.primary, fontWeight: '600' }]}>
+                    <Text style={[styles.detailValue, { color: selectedUser.pro_plan_type ? Colors.primary : Colors.textMuted, fontWeight: '600' }]}>
                       {selectedUser.pro_plan_type === 'monthly' ? 'Monthly (₹199/mo)' :
                        selectedUser.pro_plan_type === 'quarterly' ? 'Quarterly (₹499/qtr)' :
                        selectedUser.pro_plan_type === 'yearly' ? 'Yearly (₹1,499/yr)' :
-                       selectedUser.pro_plan_type}
+                       'Unknown — set below'}
                     </Text>
+                  </View>
+                )}
+
+                {/* Plan type setter for pro users with unknown plan */}
+                {isPro && (
+                  <View style={{ paddingVertical: Spacing.sm, borderBottomWidth: 1, borderBottomColor: Colors.borderSubtle }}>
+                    <Text style={[styles.detailLabel, { marginBottom: 8 }]}>Set Plan Type</Text>
+                    <View style={{ flexDirection: 'row', gap: 8 }}>
+                      {(['monthly', 'quarterly', 'yearly'] as const).map((pt) => (
+                        <TouchableOpacity
+                          key={pt}
+                          style={[
+                            styles.planTypeBtn,
+                            selectedUser.pro_plan_type === pt && styles.planTypeBtnActive,
+                          ]}
+                          onPress={() => setPlanType(selectedUser.id, pt)}
+                          disabled={settingPlanType || selectedUser.pro_plan_type === pt}
+                          activeOpacity={0.75}
+                        >
+                          <Text style={[styles.planTypeBtnText, selectedUser.pro_plan_type === pt && styles.planTypeBtnTextActive]}>
+                            {pt === 'monthly' ? '₹199\nMonthly' : pt === 'quarterly' ? '₹499\nQuarterly' : '₹1499\nYearly'}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
                   </View>
                 )}
 
@@ -814,6 +862,15 @@ const styles = StyleSheet.create({
   detailRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: Colors.borderSubtle },
   detailLabel: { ...Typography.body, color: Colors.textSecondary, flex: 1 },
   detailValue: { ...Typography.body, color: Colors.text, fontWeight: '500', flex: 1, textAlign: 'right' },
+
+  planTypeBtn: {
+    flex: 1, borderRadius: Radius.md, paddingVertical: 8, paddingHorizontal: 4,
+    alignItems: 'center', borderWidth: 1.5, borderColor: Colors.borderSubtle,
+    backgroundColor: Colors.surfaceLow,
+  },
+  planTypeBtnActive: { borderColor: Colors.primary, backgroundColor: Colors.primary + '12' },
+  planTypeBtnText: { ...Typography.caption, color: Colors.textSecondary, textAlign: 'center', lineHeight: 16 },
+  planTypeBtnTextActive: { color: Colors.primary, fontWeight: '700' },
 
   approveBtn: { flex: 1, backgroundColor: Colors.tertiary, borderRadius: Radius.md, padding: Spacing.md, alignItems: 'center' },
   approveBtnText: { ...Typography.label, color: Colors.textInverse },
