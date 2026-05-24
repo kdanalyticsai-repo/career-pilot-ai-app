@@ -158,17 +158,24 @@ async def sync_all_sources(
 
     # Each service gets its own session — safe for concurrent execution
     async def run(service_cls):
-        async with AsyncSessionLocal() as session:
-            return await service_cls().sync_jobs_to_db(session)
+        try:
+            async with AsyncSessionLocal() as session:
+                return await service_cls().sync_jobs_to_db(session)
+        except Exception:
+            return 0
 
-    adzuna, remotive, jobicy, serpapi, jooble, themuse = await asyncio.gather(
+    results = await asyncio.gather(
         run(AdzunaService),
         run(RemotiveService),
         run(JobicyService),
         run(SerpApiService),
         run(JoobleService),
         run(TheMuseService),
+        return_exceptions=True,
     )
+    adzuna, remotive, jobicy, serpapi, jooble, themuse = [
+        r if isinstance(r, int) else 0 for r in results
+    ]
     total = adzuna + remotive + jobicy + serpapi + jooble + themuse
 
     if total > 0:
