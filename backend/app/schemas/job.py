@@ -36,6 +36,7 @@ class JobListResponse(BaseModel):
 class JobFilter(BaseModel):
     q: str | None = None
     location: str | None = None
+    skills: str | None = None
     job_type: str | None = None
     experience_level: str | None = None
     remote_type: str | None = None

@@ -14,6 +14,7 @@ router = APIRouter(prefix="/jobs", tags=["jobs"])
 async def list_jobs(
     q: str | None = Query(None),
     location: str | None = Query(None),
+    skills: str | None = Query(None),
     job_type: str | None = Query(None),
     experience_level: str | None = Query(None),
     remote_type: str | None = Query(None),
@@ -25,6 +26,7 @@ async def list_jobs(
     filters = JobFilter(
         q=q,
         location=location,
+        skills=skills,
         job_type=job_type,
         experience_level=experience_level,
         remote_type=remote_type,

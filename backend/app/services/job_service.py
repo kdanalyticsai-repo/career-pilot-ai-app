@@ -138,6 +138,10 @@ class JobService:
                 continue
             if filters.saved_only and job_id_str not in saved_ids:
                 continue
+            if filters.skills:
+                skill_q = filters.skills.lower()
+                if not any(skill_q in s.lower() for s in job.skills_required):
+                    continue
             if filters.q:
                 q = filters.q.lower()
                 if q not in job.title.lower() and q not in job.company.lower() and q not in job.description.lower():
