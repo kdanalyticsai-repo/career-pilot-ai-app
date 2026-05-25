@@ -61,6 +61,9 @@ class Settings(BaseSettings):
     # Jooble — 140K+ job board aggregator (jooble.org)
     JOOBLE_API_KEY: str = ""
 
+    # RapidAPI key — used by jsearch (Indeed/LinkedIn/Glassdoor/ZipRecruiter)
+    RAPIDAPI_KEY: str = ""
+
     # Fast2SMS for phone OTP delivery
     FAST2SMS_API_KEY: str = ""
     ADMIN_EMAIL: str = ""   # single admin email for the dedicated admin login flow

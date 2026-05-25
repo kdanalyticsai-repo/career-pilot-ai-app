@@ -143,6 +143,16 @@ async def sync_from_himalayas(
     return {"synced": count, "source": "himalayas"}
 
 
+@router.post("/sync-jsearch", response_model=dict)
+async def sync_from_jsearch(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    from app.services.jsearch_service import JSearchService
+    count = await JSearchService().sync_jobs_to_db(db)
+    return {"synced": count, "source": "jsearch"}
+
+
 @router.post("/sync-serpapi", response_model=dict)
 async def sync_from_serpapi(
     current_user: User = Depends(get_current_user),
@@ -191,6 +201,7 @@ async def sync_all_sources(
     from app.services.careerjet_service import CareerjetService
     from app.services.arbeitnow_service import ArbeitnowService
     from app.services.himalayas_service import HimalayasService
+    from app.services.jsearch_service import JSearchService
     from app.services.notification_service import get_user_push_tokens, send_push_notifications
 
     # Each service gets its own session — safe for concurrent execution
@@ -211,12 +222,13 @@ async def sync_all_sources(
         run(CareerjetService),
         run(ArbeitnowService),
         run(HimalayasService),
+        run(JSearchService),
         return_exceptions=True,
     )
-    adzuna, remotive, jobicy, serpapi, jooble, themuse, careerjet, arbeitnow, himalayas = [
+    adzuna, remotive, jobicy, serpapi, jooble, themuse, careerjet, arbeitnow, himalayas, jsearch = [
         r if isinstance(r, int) else 0 for r in results
     ]
-    total = adzuna + remotive + jobicy + serpapi + jooble + themuse + careerjet + arbeitnow + himalayas
+    total = adzuna + remotive + jobicy + serpapi + jooble + themuse + careerjet + arbeitnow + himalayas + jsearch
 
     total_in_db_result = await db.execute(
         sqlfunc.count(JobModel.id).select().where(JobModel.is_active == True)
@@ -246,5 +258,6 @@ async def sync_all_sources(
             "careerjet": careerjet,
             "arbeitnow": arbeitnow,
             "himalayas": himalayas,
+            "jsearch": jsearch,
         },
     }
