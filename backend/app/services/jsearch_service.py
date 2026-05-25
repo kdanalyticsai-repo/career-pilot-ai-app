@@ -6,7 +6,7 @@ from sqlalchemy import select
 from app.config import settings
 from app.models.job import Job
 
-JSEARCH_URL = "https://jsearch.p.rapidapi.com/search"
+JSEARCH_URL = "https://jsearch.p.rapidapi.com/search-v2"
 
 JSEARCH_QUERIES = [
     "software engineer India",
