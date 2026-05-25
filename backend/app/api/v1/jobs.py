@@ -111,6 +111,36 @@ async def sync_from_jobicy(
     return {"synced": count, "source": "jobicy"}
 
 
+@router.post("/sync-careerjet", response_model=dict)
+async def sync_from_careerjet(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    from app.services.careerjet_service import CareerjetService
+    count = await CareerjetService().sync_jobs_to_db(db)
+    return {"synced": count, "source": "careerjet"}
+
+
+@router.post("/sync-arbeitnow", response_model=dict)
+async def sync_from_arbeitnow(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    from app.services.arbeitnow_service import ArbeitnowService
+    count = await ArbeitnowService().sync_jobs_to_db(db)
+    return {"synced": count, "source": "arbeitnow"}
+
+
+@router.post("/sync-himalayas", response_model=dict)
+async def sync_from_himalayas(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    from app.services.himalayas_service import HimalayasService
+    count = await HimalayasService().sync_jobs_to_db(db)
+    return {"synced": count, "source": "himalayas"}
+
+
 @router.post("/sync-serpapi", response_model=dict)
 async def sync_from_serpapi(
     current_user: User = Depends(get_current_user),
@@ -156,6 +186,9 @@ async def sync_all_sources(
     from app.services.serpapi_service import SerpApiService
     from app.services.jooble_service import JoobleService
     from app.services.themuse_service import TheMuseService
+    from app.services.careerjet_service import CareerjetService
+    from app.services.arbeitnow_service import ArbeitnowService
+    from app.services.himalayas_service import HimalayasService
     from app.services.notification_service import get_user_push_tokens, send_push_notifications
 
     # Each service gets its own session — safe for concurrent execution
@@ -173,12 +206,15 @@ async def sync_all_sources(
         run(SerpApiService),
         run(JoobleService),
         run(TheMuseService),
+        run(CareerjetService),
+        run(ArbeitnowService),
+        run(HimalayasService),
         return_exceptions=True,
     )
-    adzuna, remotive, jobicy, serpapi, jooble, themuse = [
+    adzuna, remotive, jobicy, serpapi, jooble, themuse, careerjet, arbeitnow, himalayas = [
         r if isinstance(r, int) else 0 for r in results
     ]
-    total = adzuna + remotive + jobicy + serpapi + jooble + themuse
+    total = adzuna + remotive + jobicy + serpapi + jooble + themuse + careerjet + arbeitnow + himalayas
 
     total_in_db_result = await db.execute(
         sqlfunc.count(JobModel.id).select().where(JobModel.is_active == True)
@@ -205,5 +241,8 @@ async def sync_all_sources(
             "serpapi": serpapi,
             "jooble": jooble,
             "themuse": themuse,
+            "careerjet": careerjet,
+            "arbeitnow": arbeitnow,
+            "himalayas": himalayas,
         },
     }
