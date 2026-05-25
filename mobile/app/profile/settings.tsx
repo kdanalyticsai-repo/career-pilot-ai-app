@@ -141,7 +141,7 @@ export default function SettingsScreen() {
           label: 'Terms of Service',
           icon: '📄',
           sub: 'Usage terms and conditions',
-          onPress: () => router.push('/terms' as any),
+          onPress: () => Linking.openURL('https://kdaanalytics.com/proaicv/terms/'),
         },
         {
           label: 'About ProAICV',
