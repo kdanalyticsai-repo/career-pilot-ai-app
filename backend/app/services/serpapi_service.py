@@ -10,20 +10,10 @@ SERPAPI_URL = "https://serpapi.com/search"
 
 SERPAPI_QUERIES = [
     "software engineer",
-    "python developer",
-    "react developer",
     "data scientist",
     "full stack developer",
-    "devops engineer",
     "android developer",
-    "ios developer",
-    "machine learning engineer",
-    "backend developer",
-    "frontend developer",
     "product manager",
-    "java developer",
-    "cloud engineer",
-    "ui ux designer",
 ]
 
 TECH_KEYWORDS = [
