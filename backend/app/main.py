@@ -1,7 +1,13 @@
+import asyncio
+from collections import defaultdict
 from contextlib import asynccontextmanager
-from fastapi import FastAPI
+from time import time as _time
+
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from sqlalchemy import text
+from starlette.middleware.base import BaseHTTPMiddleware
 try:
     import sentry_sdk
     _has_sentry = True
@@ -12,6 +18,46 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 
 from app.config import settings
+
+
+class RateLimitMiddleware(BaseHTTPMiddleware):
+    """Per-IP sliding-window rate limiter (in-memory, single process)."""
+
+    _AUTH_LIMIT = 15    # /auth/* — brute-force protection
+    _AI_LIMIT   = 20    # /ai/*   — prevent runaway AI costs
+    _GENERAL_LIMIT = 60 # everything else
+
+    def __init__(self, app) -> None:
+        super().__init__(app)
+        self._lock = asyncio.Lock()
+        self._windows: dict[str, dict[str, list[float]]] = defaultdict(lambda: defaultdict(list))
+
+    def _bucket(self, path: str) -> tuple[str, int]:
+        if path.startswith("/api/v1/auth/"):
+            return "auth", self._AUTH_LIMIT
+        if path.startswith("/api/v1/ai/"):
+            return "ai", self._AI_LIMIT
+        return "general", self._GENERAL_LIMIT
+
+    async def dispatch(self, request: Request, call_next):
+        ip = request.client.host if request.client else "unknown"
+        bucket, limit = self._bucket(request.url.path)
+        now = _time()
+
+        async with self._lock:
+            ts = self._windows[ip][bucket]
+            self._windows[ip][bucket] = ts = [t for t in ts if now - t < 60]
+            if len(ts) >= limit:
+                return JSONResponse(
+                    {"detail": "Too many requests. Please try again in a minute."},
+                    status_code=429,
+                    headers={"Retry-After": "60"},
+                )
+            ts.append(now)
+
+        return await call_next(request)
+
+
 from app.database import async_engine, Base
 from app.api.v1 import auth, users, resumes, jobs, applications, ai, analytics, notifications, subscriptions, admin, provider
 from app.jobs.renewal_reminder import send_pro_renewal_reminders
@@ -137,6 +183,7 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+app.add_middleware(RateLimitMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins,
