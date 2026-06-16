@@ -14,10 +14,14 @@ depends_on = None
 
 
 def upgrade():
-    op.add_column(
-        "jobs",
-        sa.Column("applicants_access", sa.String(20), nullable=True),
-    )
+    bind = op.get_bind()
+    if bind.dialect.name == "postgresql":
+        op.execute("ALTER TABLE jobs ADD COLUMN IF NOT EXISTS applicants_access VARCHAR(20)")
+    else:
+        op.add_column(
+            "jobs",
+            sa.Column("applicants_access", sa.String(20), nullable=True),
+        )
 
 
 def downgrade():

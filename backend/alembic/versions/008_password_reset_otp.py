@@ -14,8 +14,13 @@ depends_on = None
 
 
 def upgrade() -> None:
-    op.add_column("users", sa.Column("reset_otp", sa.String(6), nullable=True))
-    op.add_column("users", sa.Column("reset_otp_expires_at", sa.DateTime(timezone=True), nullable=True))
+    bind = op.get_bind()
+    if bind.dialect.name == "postgresql":
+        op.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_otp VARCHAR(6)")
+        op.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_otp_expires_at TIMESTAMP WITH TIME ZONE")
+    else:
+        op.add_column("users", sa.Column("reset_otp", sa.String(6), nullable=True))
+        op.add_column("users", sa.Column("reset_otp_expires_at", sa.DateTime(timezone=True), nullable=True))
 
 
 def downgrade() -> None:
