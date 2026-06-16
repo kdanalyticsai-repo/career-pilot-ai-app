@@ -19,7 +19,7 @@ router = APIRouter(prefix="/subscriptions", tags=["subscriptions"])
 PLAN_CONFIG = {
     "monthly":   {"amount": 19900,  "days": 30,  "label": "₹199/month"},
     "quarterly": {"amount": 49900,  "days": 90,  "label": "₹499/quarter"},
-    "yearly":    {"amount": 149900, "days": 365, "label": "₹1,499/year"},
+    "yearly":    {"amount": 99900,  "days": 365, "label": "₹999/year"},
 }
 
 

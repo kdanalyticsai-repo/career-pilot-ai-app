@@ -14,6 +14,8 @@ SERPAPI_QUERIES = [
     "full stack developer",
     "android developer",
     "product manager",
+    "electrical engineer",
+    "production engineer",
 ]
 
 TECH_KEYWORDS = [

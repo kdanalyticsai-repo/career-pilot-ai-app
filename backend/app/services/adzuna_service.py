@@ -15,6 +15,9 @@ TECH_QUERIES = [
     "product manager", "project manager", "business analyst",
     "ui ux designer", "data scientist", "cloud engineer",
     "cybersecurity engineer", "qa engineer",
+    "electrical engineer", "production engineer", "quality engineer",
+    "graduate engineer trainee", "power plant engineer", "cable engineer",
+    "Havells", "Tata Power", "KEC International",
 ]
 
 

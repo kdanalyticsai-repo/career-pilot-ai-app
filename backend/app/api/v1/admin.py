@@ -64,7 +64,7 @@ async def get_stats(
     total_resumes = resume_result.scalar() or 0
 
     # Revenue by plan type
-    PLAN_PRICES = {"monthly": 199, "quarterly": 499, "yearly": 1499}
+    PLAN_PRICES = {"monthly": 199, "quarterly": 499, "yearly": 999}
     plan_rev_result = await db.execute(
         select(User.pro_plan_type, func.count(User.id))
         .where(User.subscription == "pro")

@@ -24,6 +24,15 @@ JOOBLE_QUERIES = [
     ("frontend developer", "India"),
     ("business analyst", "India"),
     ("cybersecurity engineer", "India"),
+    ("electrical engineer", "India"),
+    ("production engineer", "India"),
+    ("quality engineer", "India"),
+    ("graduate engineer trainee", "India"),
+    ("power plant engineer", "India"),
+    ("cable engineer", "India"),
+    ("Havells", "India"),
+    ("Tata Power", "India"),
+    ("KEC International", "India"),
 ]
 
 TECH_KEYWORDS = [
