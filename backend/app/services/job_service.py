@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, delete
 from fastapi import HTTPException, status
@@ -113,6 +113,9 @@ class JobService:
             query = query.where(Job.experience_level == filters.experience_level)
         if filters.remote_type:
             query = query.where(Job.remote_type == filters.remote_type)
+        if filters.posted_within_days:
+            cutoff = datetime.now(timezone.utc) - timedelta(days=filters.posted_within_days)
+            query = query.where(Job.posted_at >= cutoff)
 
         query = query.order_by(Job.posted_at.desc())
         result = await self.db.execute(query)
@@ -145,6 +148,10 @@ class JobService:
             if filters.q:
                 q = filters.q.lower()
                 if q not in job.title.lower() and q not in job.company.lower() and q not in job.description.lower():
+                    continue
+            if filters.min_salary:
+                disclosed = job.salary_max or job.salary_min
+                if not disclosed or disclosed < filters.min_salary:
                     continue
 
             enriched.append(self._enrich(job, score, details, job_id_str in saved_ids))

@@ -1,13 +1,42 @@
 import uuid
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.dependencies import get_db, get_current_user
+from app.models.job import Job, SavedSearch
 from app.models.user import User
-from app.schemas.job import JobResponse, JobListResponse, JobFilter
+from app.schemas.job import (
+    JobResponse, JobListResponse, JobFilter,
+    SavedSearchCreate, SavedSearchResponse, SavedSearchListResponse,
+)
 from app.services.job_service import JobService
 
 router = APIRouter(prefix="/jobs", tags=["jobs"])
+
+
+def _job_matches_saved_search(job: Job, search: SavedSearch) -> bool:
+    if search.location and search.location.lower() not in job.location.lower():
+        return False
+    if search.job_type and search.job_type != job.job_type:
+        return False
+    if search.experience_level and search.experience_level != job.experience_level:
+        return False
+    if search.remote_type and search.remote_type != job.remote_type:
+        return False
+    if search.skills:
+        skill_q = search.skills.lower()
+        if not any(skill_q in s.lower() for s in job.skills_required):
+            return False
+    if search.min_salary:
+        disclosed = job.salary_max or job.salary_min
+        if not disclosed or disclosed < search.min_salary:
+            return False
+    if search.q:
+        q = search.q.lower()
+        if q not in job.title.lower() and q not in job.company.lower() and q not in job.description.lower():
+            return False
+    return True
 
 
 @router.get("", response_model=JobListResponse)
@@ -20,6 +49,8 @@ async def list_jobs(
     remote_type: str | None = Query(None),
     min_match_score: int | None = Query(None),
     saved_only: bool = Query(False),
+    min_salary: int | None = Query(None),
+    posted_within_days: int | None = Query(None),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -32,10 +63,52 @@ async def list_jobs(
         remote_type=remote_type,
         min_match_score=min_match_score,
         saved_only=saved_only,
+        min_salary=min_salary,
+        posted_within_days=posted_within_days,
     )
     svc = JobService(db)
     jobs = await svc.list_jobs(current_user.id, filters)
     return JobListResponse(jobs=jobs, total=len(jobs))
+
+
+@router.post("/saved-searches", response_model=SavedSearchResponse, status_code=201)
+async def create_saved_search(
+    data: SavedSearchCreate,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    saved_search = SavedSearch(user_id=current_user.id, **data.model_dump())
+    db.add(saved_search)
+    await db.commit()
+    await db.refresh(saved_search)
+    return saved_search
+
+
+@router.get("/saved-searches", response_model=SavedSearchListResponse)
+async def list_saved_searches(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(
+        select(SavedSearch).where(SavedSearch.user_id == current_user.id).order_by(SavedSearch.created_at.desc())
+    )
+    return SavedSearchListResponse(saved_searches=result.scalars().all())
+
+
+@router.delete("/saved-searches/{saved_search_id}", status_code=204)
+async def delete_saved_search(
+    saved_search_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(
+        select(SavedSearch).where(SavedSearch.id == saved_search_id, SavedSearch.user_id == current_user.id)
+    )
+    saved_search = result.scalar_one_or_none()
+    if not saved_search:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Saved search not found")
+    await db.delete(saved_search)
+    await db.commit()
 
 
 @router.get("/{job_id}", response_model=JobResponse)
@@ -189,6 +262,7 @@ async def sync_all_sources(
     db: AsyncSession = Depends(get_db),
 ):
     import asyncio
+    from datetime import datetime, timezone
     from sqlalchemy import func as sqlfunc
     from app.database import AsyncSessionLocal
     from app.models.job import Job as JobModel
@@ -203,6 +277,8 @@ async def sync_all_sources(
     from app.services.himalayas_service import HimalayasService
     from app.services.jsearch_service import JSearchService
     from app.services.notification_service import get_user_push_tokens, send_push_notifications
+
+    sync_start = datetime.now(timezone.utc)
 
     # Each service gets its own session — safe for concurrent execution
     async def run(service_cls):
@@ -244,6 +320,30 @@ async def sync_all_sources(
                 body=f"{total} new job{'s' if total != 1 else ''} added. {total_in_db} live jobs available!",
                 data={"type": "new_jobs", "count": total},
             )
+
+        # Saved search alerts — notify users whose saved searches match any newly added job
+        new_jobs_result = await db.execute(
+            select(JobModel).where(JobModel.created_at >= sync_start, JobModel.is_active == True)
+        )
+        new_jobs = new_jobs_result.scalars().all()
+        if new_jobs:
+            searches_result = await db.execute(select(SavedSearch))
+            searches = searches_result.scalars().all()
+            for search in searches:
+                matches = [j for j in new_jobs if _job_matches_saved_search(j, search)]
+                if not matches:
+                    continue
+                search_tokens = await get_user_push_tokens(db, search.user_id)
+                if not search_tokens:
+                    continue
+                lead = matches[0]
+                extra = f" and {len(matches) - 1} more" if len(matches) > 1 else ""
+                await send_push_notifications(
+                    search_tokens,
+                    title=f"New match: {search.name}",
+                    body=f"{lead.title} at {lead.company}{extra}",
+                    data={"type": "saved_search_match", "saved_search_id": str(search.id)},
+                )
 
     return {
         "synced": total,

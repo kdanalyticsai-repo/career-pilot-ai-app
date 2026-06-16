@@ -42,6 +42,8 @@ class JobFilter(BaseModel):
     remote_type: str | None = None
     min_match_score: int | None = None
     saved_only: bool = False
+    min_salary: int | None = None
+    posted_within_days: int | None = None
 
 
 class ApplicationCreate(BaseModel):
@@ -96,3 +98,33 @@ class ApplicationResponse(BaseModel):
 class ApplicationListResponse(BaseModel):
     applications: list[ApplicationResponse]
     total: int
+
+
+class SavedSearchCreate(BaseModel):
+    name: str
+    q: str | None = None
+    location: str | None = None
+    skills: str | None = None
+    job_type: str | None = None
+    experience_level: str | None = None
+    remote_type: str | None = None
+    min_salary: int | None = None
+
+
+class SavedSearchResponse(BaseModel):
+    id: uuid.UUID
+    name: str
+    q: str | None = None
+    location: str | None = None
+    skills: str | None = None
+    job_type: str | None = None
+    experience_level: str | None = None
+    remote_type: str | None = None
+    min_salary: int | None = None
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class SavedSearchListResponse(BaseModel):
+    saved_searches: list[SavedSearchResponse]

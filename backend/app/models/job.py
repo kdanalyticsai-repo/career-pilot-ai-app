@@ -89,6 +89,22 @@ class SavedJob(Base):
     __table_args__ = (UniqueConstraint("user_id", "job_id", name="uq_saved_job"),)
 
 
+class SavedSearch(Base):
+    __tablename__ = "saved_searches"
+
+    id: Mapped[uuid.UUID] = mapped_column(GUID(), primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(GUID(), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    q: Mapped[str | None] = mapped_column(String(255))
+    location: Mapped[str | None] = mapped_column(String(255))
+    skills: Mapped[str | None] = mapped_column(String(255))
+    job_type: Mapped[str | None] = mapped_column(String(30))
+    experience_level: Mapped[str | None] = mapped_column(String(20))
+    remote_type: Mapped[str | None] = mapped_column(String(20))
+    min_salary: Mapped[int | None] = mapped_column(Integer)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
 class Application(Base):
     __tablename__ = "applications"
 
