@@ -45,11 +45,17 @@ class JobFilter(BaseModel):
 
 
 class ApplicationCreate(BaseModel):
-    job_id: uuid.UUID
+    job_id: uuid.UUID | None = None
     resume_id: uuid.UUID | None = None
     notes: str | None = None
     next_action: str | None = None
     next_action_date: datetime | None = None
+    # Used to log an application for a job found outside the app (e.g. via Google/DuckDuckGo
+    # search) when job_id is not provided — creates a lightweight manual Job record.
+    job_title: str | None = None
+    company: str | None = None
+    location: str | None = None
+    external_url: str | None = None
 
 
 class ApplicationUpdate(BaseModel):
@@ -65,6 +71,8 @@ class ApplicationJobInfo(BaseModel):
     company: str
     location: str
     job_type: str
+    external_url: str | None = None
+    source: str | None = None
 
     model_config = {"from_attributes": True}
 

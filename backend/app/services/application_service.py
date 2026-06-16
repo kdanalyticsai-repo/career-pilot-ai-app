@@ -25,15 +25,34 @@ class ApplicationService:
         self.db = db
 
     async def create(self, user_id: uuid.UUID, data: ApplicationCreate) -> ApplicationResponse:
-        result = await self.db.execute(select(Job).where(Job.id == data.job_id))
-        job = result.scalar_one_or_none()
-        if not job:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found")
+        if data.job_id:
+            result = await self.db.execute(select(Job).where(Job.id == data.job_id))
+            job = result.scalar_one_or_none()
+            if not job:
+                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found")
+        else:
+            if not data.job_title or not data.company:
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    detail="job_title and company are required when job_id is not provided",
+                )
+            job = Job(
+                title=data.job_title,
+                company=data.company,
+                location=data.location or "Not specified",
+                description="",
+                source="manual",
+                external_url=data.external_url,
+                posted_by=user_id,
+                is_active=False,
+            )
+            self.db.add(job)
+            await self.db.flush()
 
         existing = await self.db.execute(
             select(Application).where(
                 Application.user_id == user_id,
-                Application.job_id == data.job_id,
+                Application.job_id == job.id,
             )
         )
         if existing.scalar_one_or_none():
@@ -44,7 +63,7 @@ class ApplicationService:
 
         app = Application(
             user_id=user_id,
-            job_id=data.job_id,
+            job_id=job.id,
             resume_id=data.resume_id,
             status="applied",
             notes=data.notes,
@@ -160,6 +179,8 @@ class ApplicationService:
                 company=job.company,
                 location=job.location,
                 job_type=job.job_type,
+                external_url=job.external_url,
+                source=job.source,
             )
         return ApplicationResponse(
             id=app.id,
