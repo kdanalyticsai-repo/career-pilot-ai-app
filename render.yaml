@@ -4,7 +4,7 @@ services:
     env: docker
     dockerfilePath: ./backend/Dockerfile
     dockerContext: ./backend
-    plan: free
+    plan: starter
     healthCheckPath: /health
     envVars:
       - key: APP_NAME
@@ -32,4 +32,4 @@ services:
 
 databases:
   - name: cvpilot-db
-    plan: free
+    plan: basic-256mb
