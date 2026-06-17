@@ -58,6 +58,9 @@ class ApplicationCreate(BaseModel):
     company: str | None = None
     location: str | None = None
     external_url: str | None = None
+    # Where an externally-found job was discovered, e.g. "google" / "duckduckgo".
+    # Defaults to "manual" for jobs logged by hand.
+    source: str | None = None
 
 
 class ApplicationUpdate(BaseModel):

@@ -41,7 +41,7 @@ class ApplicationService:
                 company=data.company,
                 location=data.location or "Not specified",
                 description="",
-                source="manual",
+                source=data.source or "manual",
                 external_url=data.external_url,
                 posted_by=user_id,
                 is_active=False,

@@ -1,12 +1,13 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TextInput, TouchableOpacity,
-  ActivityIndicator, RefreshControl, Modal, ScrollView, Alert,
+  ActivityIndicator, RefreshControl, Modal, ScrollView, Alert, Linking, AppState,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { router } from 'expo-router';
 import { api } from '@/services/api';
+import { useAuthStore } from '@/stores/authStore';
 import { Colors, Typography, Spacing, Radius, Shadow } from '@/constants/theme';
 
 type Job = {
@@ -26,9 +27,35 @@ type Job = {
   posted_at: string;
 };
 
+type SavedSearch = {
+  id: string;
+  name: string;
+  q: string | null;
+  location: string | null;
+  skills: string | null;
+  job_type: string | null;
+  experience_level: string | null;
+  remote_type: string | null;
+  min_salary: number | null;
+};
+
 const JOB_TYPES = ['full_time', 'part_time', 'contract', 'internship'];
 const EXP_LEVELS = ['entry', 'mid', 'senior', 'lead'];
 const REMOTE_TYPES = ['onsite', 'remote', 'hybrid'];
+const SALARY_OPTIONS: { label: string; value: number | null }[] = [
+  { label: 'Any', value: null },
+  { label: '5L+', value: 500000 },
+  { label: '10L+', value: 1000000 },
+  { label: '15L+', value: 1500000 },
+  { label: '20L+', value: 2000000 },
+];
+const POSTED_OPTIONS: { label: string; value: number | null }[] = [
+  { label: 'Any time', value: null },
+  { label: 'Last 24h', value: 1 },
+  { label: 'Last 7 days', value: 7 },
+  { label: 'Last 30 days', value: 30 },
+];
+const QUICK_COMPANIES = ['TCS', 'HCL', 'IBM', 'Havells', 'Tata Power'];
 
 const LABEL: Record<string, string> = {
   full_time: 'Full-time', part_time: 'Part-time', contract: 'Contract', internship: 'Intern',
@@ -65,14 +92,26 @@ export default function JobsTab() {
   const [expLevel, setExpLevel] = useState<string | null>(null);
   const [remoteType, setRemoteType] = useState<string | null>(null);
   const [savedOnly, setSavedOnly] = useState(false);
+  const [locationFilter, setLocationFilter] = useState('');
+  const [skillsFilter, setSkillsFilter] = useState('');
+  const [minSalary, setMinSalary] = useState<number | null>(null);
+  const [postedWithinDays, setPostedWithinDays] = useState<number | null>(null);
+  const [showSaveSearchModal, setShowSaveSearchModal] = useState(false);
+  const [saveSearchName, setSaveSearchName] = useState('');
   const queryClient = useQueryClient();
+  const user = useAuthStore((s) => s.user);
+  const isAdmin = !!user?.email && user.email === process.env.EXPO_PUBLIC_ADMIN_EMAIL;
 
   const params = new URLSearchParams();
   if (search.trim()) params.set('q', search.trim());
+  if (locationFilter.trim()) params.set('location', locationFilter.trim());
+  if (skillsFilter.trim()) params.set('skills', skillsFilter.trim());
   if (jobType) params.set('job_type', jobType);
   if (expLevel) params.set('experience_level', expLevel);
   if (remoteType) params.set('remote_type', remoteType);
   if (savedOnly) params.set('saved_only', 'true');
+  if (minSalary) params.set('min_salary', String(minSalary));
+  if (postedWithinDays) params.set('posted_within_days', String(postedWithinDays));
 
   const { data, isLoading, isRefetching, refetch, isError, error } = useQuery({
     queryKey: ['jobs', params.toString()],
@@ -95,8 +134,17 @@ export default function JobsTab() {
 
   const { mutate: syncAll, isPending: isSyncing } = useMutation({
     mutationFn: () => api.post('/jobs/sync-all'),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['jobs'] }),
-    onError: () => {},
+    onSuccess: (res) => {
+      queryClient.invalidateQueries({ queryKey: ['jobs'] });
+      const added = res.data?.synced ?? 0;
+      const totalInDb = res.data?.total_in_db ?? 0;
+      if (added > 0) {
+        Alert.alert('Sync Complete', `${added} new job${added !== 1 ? 's' : ''} added from live sources.\n\n${totalInDb.toLocaleString()} live jobs available.`);
+      } else {
+        Alert.alert('Up to Date', `No new jobs found — you already have the latest listings.\n\n${totalInDb.toLocaleString()} live jobs available.`);
+      }
+    },
+    onError: () => Alert.alert('Sync Failed', 'Could not fetch live jobs. Please try again.'),
   });
 
   const { mutate: computeMatches, isPending: isComputing } = useMutation({
@@ -104,6 +152,60 @@ export default function JobsTab() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['jobs'] }),
     onError: () => {},
   });
+
+  const { data: savedSearchesData } = useQuery({
+    queryKey: ['saved-searches'],
+    queryFn: () => api.get('/jobs/saved-searches').then((r) => r.data.saved_searches),
+    staleTime: 60_000,
+  });
+  const savedSearches: SavedSearch[] = savedSearchesData ?? [];
+
+  const { mutate: saveSearch, isPending: isSavingSearch } = useMutation({
+    mutationFn: () => api.post('/jobs/saved-searches', {
+      name: saveSearchName.trim(),
+      q: search.trim() || undefined,
+      location: locationFilter.trim() || undefined,
+      skills: skillsFilter.trim() || undefined,
+      job_type: jobType || undefined,
+      experience_level: expLevel || undefined,
+      remote_type: remoteType || undefined,
+      min_salary: minSalary || undefined,
+    }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['saved-searches'] });
+      setShowSaveSearchModal(false);
+      setSaveSearchName('');
+      Alert.alert('Saved', 'You\'ll get a notification when a new job matches this search.');
+    },
+    onError: () => Alert.alert('Could Not Save', 'Please try again.'),
+  });
+
+  const { mutate: deleteSavedSearch } = useMutation({
+    mutationFn: (id: string) => api.delete(`/jobs/saved-searches/${id}`),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['saved-searches'] }),
+  });
+
+  const applySavedSearch = (s: SavedSearch) => {
+    setSearch(s.q ?? '');
+    setLocationFilter(s.location ?? '');
+    setSkillsFilter(s.skills ?? '');
+    setJobType(s.job_type ?? null);
+    setExpLevel(s.experience_level ?? null);
+    setRemoteType(s.remote_type ?? null);
+    setMinSalary(s.min_salary ?? null);
+  };
+
+  const confirmDeleteSavedSearch = (s: SavedSearch) => {
+    Alert.alert('Delete Alert', `Stop watching "${s.name}"?`, [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Delete', style: 'destructive', onPress: () => deleteSavedSearch(s.id) },
+    ]);
+  };
+
+  const openSaveSearchModal = () => {
+    setSaveSearchName([search.trim(), locationFilter.trim()].filter(Boolean).join(' in ') || 'My job alert');
+    setShowSaveSearchModal(true);
+  };
 
   function handleRecompute() {
     if (!hasResume) {
@@ -124,7 +226,73 @@ export default function JobsTab() {
   });
 
   const jobs: Job[] = data?.jobs ?? [];
-  const activeFilters = [jobType, expLevel, remoteType, savedOnly ? 'saved' : null].filter(Boolean).length;
+  const activeFilters = [jobType, expLevel, remoteType, savedOnly ? 'saved' : null, locationFilter.trim() || null, skillsFilter.trim() || null, minSalary, postedWithinDays].filter(Boolean).length;
+
+  const buildSearchQuery = () => {
+    const terms = [search.trim(), locationFilter.trim()].filter(Boolean).join(' ');
+    return terms ? `${terms} jobs` : 'jobs in India';
+  };
+
+  // ── Web search → prefilled "log on return" flow ───────────────────────────
+  const awaitingSearchReturn = useRef(false);
+  const [showSearchLog, setShowSearchLog] = useState(false);
+  const [slTitle, setSlTitle] = useState('');
+  const [slCompany, setSlCompany] = useState('');
+  const [slLocation, setSlLocation] = useState('');
+  const [slUrl, setSlUrl] = useState('');
+  const [slSource, setSlSource] = useState<'google' | 'duckduckgo'>('google');
+
+  const startWebSearch = (engine: 'google' | 'duckduckgo') => {
+    const url = engine === 'google'
+      ? `https://www.google.com/search?q=${encodeURIComponent(buildSearchQuery())}`
+      : `https://duckduckgo.com/?q=${encodeURIComponent(buildSearchQuery())}`;
+    // Pre-fill what we already know so the form is ready when they return.
+    setSlSource(engine);
+    setSlTitle(search.trim());
+    setSlLocation(locationFilter.trim());
+    setSlCompany('');
+    setSlUrl('');
+    awaitingSearchReturn.current = true;
+    Linking.openURL(url).catch(() => { awaitingSearchReturn.current = false; });
+  };
+
+  const openGoogleSearch = () => startWebSearch('google');
+  const openDuckDuckGoSearch = () => startWebSearch('duckduckgo');
+
+  // When the user comes back to the app after a web search, offer to log it.
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active' && awaitingSearchReturn.current) {
+        awaitingSearchReturn.current = false;
+        setShowSearchLog(true);
+      }
+    });
+    return () => sub.remove();
+  }, []);
+
+  const { mutate: logSearchApplication, isPending: isLoggingSearch } = useMutation({
+    mutationFn: () => api.post('/applications', {
+      job_title: slTitle.trim(),
+      company: slCompany.trim(),
+      location: slLocation.trim() || undefined,
+      external_url: slUrl.trim() || undefined,
+      source: slSource,
+    }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['applications'] });
+      setShowSearchLog(false);
+      Alert.alert('Logged', 'Saved to the Apply tab — track its status there.');
+    },
+    onError: () => Alert.alert('Could Not Save', 'Please check the details and try again.'),
+  });
+
+  const handleSearchLogSubmit = () => {
+    if (!slTitle.trim() || !slCompany.trim()) {
+      Alert.alert('Missing Details', 'Job title and company are required to track an application.');
+      return;
+    }
+    logSearchApplication();
+  };
 
   const renderJob = useCallback(({ item }: { item: Job }) => {
     const salary = formatSalary(item.salary_min, item.salary_max, item.currency);
@@ -211,6 +379,36 @@ export default function JobsTab() {
           </TouchableOpacity>
         </View>
 
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.companyChipRow} contentContainerStyle={styles.companyChipRowContent}>
+          {QUICK_COMPANIES.map((c) => (
+            <TouchableOpacity
+              key={c}
+              style={[styles.companyChip, search === c && styles.companyChipActive]}
+              onPress={() => setSearch(search === c ? '' : c)}
+            >
+              <Text style={[styles.companyChipText, search === c && styles.companyChipTextActive]}>{c}</Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+
+        {savedSearches.length > 0 && (
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.companyChipRow} contentContainerStyle={styles.companyChipRowContent}>
+            {savedSearches.map((s) => (
+              <TouchableOpacity
+                key={s.id}
+                style={styles.alertChip}
+                onPress={() => applySavedSearch(s)}
+                onLongPress={() => confirmDeleteSavedSearch(s)}
+              >
+                <Text style={styles.alertChipText}>🔔 {s.name}</Text>
+                <TouchableOpacity hitSlop={8} onPress={() => confirmDeleteSavedSearch(s)}>
+                  <Text style={styles.alertChipRemove}>×</Text>
+                </TouchableOpacity>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        )}
+
         {!isLoading && !isError && (
           <View style={styles.actionRow}>
             <TouchableOpacity
@@ -223,7 +421,7 @@ export default function JobsTab() {
                 : <Text style={styles.actionBtnText}>⟳  Sync Live Jobs</Text>
               }
             </TouchableOpacity>
-            {jobs.length === 0 && (
+            {isAdmin && jobs.length === 0 && (
               <TouchableOpacity style={[styles.actionBtn, styles.actionBtnOutline]} onPress={() => seedJobs()}>
                 <Text style={[styles.actionBtnText, { color: Colors.textSecondary }]}>Load Samples</Text>
               </TouchableOpacity>
@@ -283,7 +481,20 @@ export default function JobsTab() {
           ListEmptyComponent={
             <View style={styles.empty}>
               <Text style={styles.emptyTitle}>No jobs found</Text>
-              <Text style={styles.emptySubtitle}>Try adjusting your filters</Text>
+              <Text style={styles.emptySubtitle}>Try adjusting your filters, or search the web for more results</Text>
+              <View style={styles.webSearchRow}>
+                <TouchableOpacity style={styles.googleSearchBtn} onPress={openGoogleSearch}>
+                  <Text style={styles.googleSearchBtnText}>🔍  Google</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.duckSearchBtn} onPress={openDuckDuckGoSearch}>
+                  <Text style={styles.duckSearchBtnText}>🦆  DuckDuckGo</Text>
+                </TouchableOpacity>
+              </View>
+              <Text style={styles.emptyHelp}>
+                Tap <Text style={styles.emptyHelpBold}>Google</Text> or <Text style={styles.emptyHelpBold}>DuckDuckGo</Text> to search the web for jobs.
+                When you come back, we'll help you <Text style={styles.emptyHelpBold}>log the job in one tap</Text> so you can track its
+                status (Applied → Interview → Offer) in the <Text style={styles.emptyHelpBold}>Apply</Text> tab.
+              </Text>
             </View>
           }
         />
@@ -296,12 +507,69 @@ export default function JobsTab() {
           <View style={styles.sheetHeader}>
             <Text style={styles.sheetTitle}>Filter Jobs</Text>
             <TouchableOpacity onPress={() => {
-              setJobType(null); setExpLevel(null); setRemoteType(null); setSavedOnly(false);
+              setJobType(null); setExpLevel(null); setRemoteType(null);
+              setSavedOnly(false); setLocationFilter(''); setSkillsFilter('');
+              setMinSalary(null); setPostedWithinDays(null);
             }}>
               <Text style={styles.clearBtn}>Clear all</Text>
             </TouchableOpacity>
           </View>
-          <ScrollView style={styles.sheetBody}>
+          <ScrollView style={styles.sheetBody} keyboardShouldPersistTaps="handled">
+            <View style={styles.filterSection}>
+              <Text style={styles.filterSectionLabel}>Location</Text>
+              <TextInput
+                style={styles.filterTextInput}
+                placeholder="e.g. Bangalore, Mumbai, Delhi…"
+                placeholderTextColor={Colors.textMuted}
+                value={locationFilter}
+                onChangeText={setLocationFilter}
+                returnKeyType="done"
+              />
+            </View>
+            <View style={styles.filterSection}>
+              <Text style={styles.filterSectionLabel}>Skill</Text>
+              <TextInput
+                style={styles.filterTextInput}
+                placeholder="e.g. python, react, java…"
+                placeholderTextColor={Colors.textMuted}
+                value={skillsFilter}
+                onChangeText={setSkillsFilter}
+                autoCapitalize="none"
+                returnKeyType="done"
+              />
+            </View>
+            <View style={styles.filterSection}>
+              <Text style={styles.filterSectionLabel}>Minimum Salary</Text>
+              <View style={styles.filterOptions}>
+                {SALARY_OPTIONS.map((opt) => (
+                  <TouchableOpacity
+                    key={opt.label}
+                    style={[styles.filterOption, minSalary === opt.value && styles.filterOptionSelected]}
+                    onPress={() => setMinSalary(opt.value)}
+                  >
+                    <Text style={[styles.filterOptionText, minSalary === opt.value && styles.filterOptionTextSelected]}>
+                      {opt.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+            <View style={styles.filterSection}>
+              <Text style={styles.filterSectionLabel}>Posted</Text>
+              <View style={styles.filterOptions}>
+                {POSTED_OPTIONS.map((opt) => (
+                  <TouchableOpacity
+                    key={opt.label}
+                    style={[styles.filterOption, postedWithinDays === opt.value && styles.filterOptionSelected]}
+                    onPress={() => setPostedWithinDays(opt.value)}
+                  >
+                    <Text style={[styles.filterOptionText, postedWithinDays === opt.value && styles.filterOptionTextSelected]}>
+                      {opt.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
             <FilterSection label="Job Type" options={JOB_TYPES} selected={jobType} onSelect={setJobType} />
             <FilterSection label="Experience" options={EXP_LEVELS} selected={expLevel} onSelect={setExpLevel} />
             <FilterSection label="Work Mode" options={REMOTE_TYPES} selected={remoteType} onSelect={setRemoteType} />
@@ -312,10 +580,107 @@ export default function JobsTab() {
               </View>
             </TouchableOpacity>
           </ScrollView>
-          <TouchableOpacity style={styles.applyBtn} onPress={() => setShowFilter(false)}>
-            <Text style={styles.applyBtnText}>Apply Filters</Text>
-          </TouchableOpacity>
+          <View style={styles.sheetFooter}>
+            <TouchableOpacity style={styles.saveSearchBtn} onPress={openSaveSearchModal}>
+              <Text style={styles.saveSearchBtnText}>🔔 Save This Search</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={[styles.applyBtn, styles.applyBtnFlex]} onPress={() => setShowFilter(false)}>
+              <Text style={styles.applyBtnText}>Apply Filters</Text>
+            </TouchableOpacity>
+          </View>
         </SafeAreaView>
+      </Modal>
+
+      {/* Save Search Name Modal */}
+      <Modal visible={showSaveSearchModal} transparent animationType="fade" onRequestClose={() => setShowSaveSearchModal(false)}>
+        <View style={styles.saveSearchOverlay}>
+          <View style={styles.saveSearchCard}>
+            <Text style={styles.saveSearchTitle}>Save This Search</Text>
+            <Text style={styles.saveSearchSub}>We'll notify you when a new job matches these filters.</Text>
+            <TextInput
+              style={styles.fieldInput}
+              placeholder="Name this alert"
+              placeholderTextColor={Colors.textMuted}
+              value={saveSearchName}
+              onChangeText={setSaveSearchName}
+              autoFocus
+            />
+            <View style={styles.saveSearchActions}>
+              <TouchableOpacity onPress={() => setShowSaveSearchModal(false)}>
+                <Text style={styles.saveSearchCancel}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.saveSearchConfirm, isSavingSearch && { opacity: 0.7 }]}
+                onPress={() => {
+                  if (!saveSearchName.trim()) { Alert.alert('Name Required', 'Please give this alert a name.'); return; }
+                  saveSearch();
+                }}
+                disabled={isSavingSearch}
+              >
+                {isSavingSearch
+                  ? <ActivityIndicator color={Colors.textInverse} size="small" />
+                  : <Text style={styles.saveSearchConfirmText}>Save</Text>}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Prefilled "log on return" after a web search */}
+      <Modal visible={showSearchLog} transparent animationType="fade" onRequestClose={() => setShowSearchLog(false)}>
+        <View style={styles.saveSearchOverlay}>
+          <View style={styles.saveSearchCard}>
+            <Text style={styles.saveSearchTitle}>Found a job? Log it</Text>
+            <Text style={styles.saveSearchSub}>
+              Save the job you found via {slSource === 'google' ? 'Google' : 'DuckDuckGo'} so you can track its status in the Apply tab.
+            </Text>
+            <TextInput
+              style={styles.fieldInput}
+              placeholder="Job title *"
+              placeholderTextColor={Colors.textMuted}
+              value={slTitle}
+              onChangeText={setSlTitle}
+            />
+            <TextInput
+              style={[styles.fieldInput, { marginTop: Spacing.sm }]}
+              placeholder="Company *"
+              placeholderTextColor={Colors.textMuted}
+              value={slCompany}
+              onChangeText={setSlCompany}
+              autoFocus
+            />
+            <TextInput
+              style={[styles.fieldInput, { marginTop: Spacing.sm }]}
+              placeholder="Location (optional)"
+              placeholderTextColor={Colors.textMuted}
+              value={slLocation}
+              onChangeText={setSlLocation}
+            />
+            <TextInput
+              style={[styles.fieldInput, { marginTop: Spacing.sm }]}
+              placeholder="Job posting URL (optional)"
+              placeholderTextColor={Colors.textMuted}
+              value={slUrl}
+              onChangeText={setSlUrl}
+              autoCapitalize="none"
+              keyboardType="url"
+            />
+            <View style={styles.saveSearchActions}>
+              <TouchableOpacity onPress={() => setShowSearchLog(false)}>
+                <Text style={styles.saveSearchCancel}>Not now</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.saveSearchConfirm, isLoggingSearch && { opacity: 0.7 }]}
+                onPress={handleSearchLogSubmit}
+                disabled={isLoggingSearch}
+              >
+                {isLoggingSearch
+                  ? <ActivityIndicator color={Colors.textInverse} size="small" />
+                  : <Text style={styles.saveSearchConfirmText}>Save</Text>}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
       </Modal>
     </SafeAreaView>
   );
@@ -374,6 +739,24 @@ const styles = StyleSheet.create({
   },
   filterBtnActive: { backgroundColor: Colors.primaryLight + '60', borderColor: Colors.primary },
   filterBtnText: { ...Typography.label, color: Colors.textSecondary },
+
+  companyChipRow: { marginTop: Spacing.sm },
+  companyChipRowContent: { gap: 8, paddingRight: Spacing.sm },
+  companyChip: {
+    borderWidth: 1, borderColor: Colors.border, borderRadius: Radius.full,
+    paddingHorizontal: Spacing.sm, paddingVertical: 6, backgroundColor: Colors.surfaceLow,
+  },
+  companyChipActive: { borderColor: Colors.primary, backgroundColor: Colors.primaryLight },
+  companyChipText: { ...Typography.caption, color: Colors.textSecondary, fontWeight: '600' },
+  companyChipTextActive: { color: Colors.primaryDark, fontWeight: '700' },
+
+  alertChip: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    borderWidth: 1, borderColor: Colors.primary + '40', borderRadius: Radius.full,
+    paddingHorizontal: Spacing.sm, paddingVertical: 6, backgroundColor: Colors.primaryLight + '40',
+  },
+  alertChipText: { ...Typography.caption, color: Colors.primaryDark, fontWeight: '600' },
+  alertChipRemove: { fontSize: 15, color: Colors.primaryDark, fontWeight: '700', paddingHorizontal: 2 },
 
   actionRow: { flexDirection: 'row', gap: Spacing.sm, marginTop: Spacing.sm },
   statusBanner: {
@@ -435,9 +818,22 @@ const styles = StyleSheet.create({
   skillText: { ...Typography.caption, color: Colors.primary },
   moreSkills: { ...Typography.caption, color: Colors.textMuted, paddingVertical: 3 },
 
-  empty: { alignItems: 'center', paddingTop: Spacing.xxl },
+  empty: { alignItems: 'center', paddingTop: Spacing.xxl, paddingHorizontal: Spacing.lg },
   emptyTitle: { ...Typography.h4, color: Colors.text, marginBottom: Spacing.sm },
   emptySubtitle: { ...Typography.body, color: Colors.textSecondary, textAlign: 'center' },
+  webSearchRow: { flexDirection: 'row', gap: Spacing.sm, marginTop: Spacing.lg },
+  emptyHelp: { ...Typography.caption, fontWeight: '400', color: Colors.textSecondary, textAlign: 'center', marginTop: Spacing.lg, lineHeight: 19, paddingHorizontal: Spacing.md },
+  emptyHelpBold: { color: Colors.text, fontWeight: '700' },
+  googleSearchBtn: {
+    backgroundColor: Colors.primary,
+    borderRadius: Radius.full, paddingVertical: 12, paddingHorizontal: Spacing.lg,
+  },
+  googleSearchBtnText: { ...Typography.label, color: Colors.textInverse, fontWeight: '700' },
+  duckSearchBtn: {
+    backgroundColor: Colors.surfaceSecondary, borderWidth: 1, borderColor: Colors.border,
+    borderRadius: Radius.full, paddingVertical: 12, paddingHorizontal: Spacing.lg,
+  },
+  duckSearchBtnText: { ...Typography.label, color: Colors.textSecondary, fontWeight: '700' },
   retryBtn: {
     marginTop: Spacing.md, backgroundColor: Colors.primary,
     borderRadius: Radius.full, paddingVertical: 10, paddingHorizontal: Spacing.lg,
@@ -464,6 +860,11 @@ const styles = StyleSheet.create({
     ...Typography.caption, color: Colors.textMuted,
     textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: Spacing.sm,
   },
+  filterTextInput: {
+    borderWidth: 1.5, borderColor: Colors.border, borderRadius: Radius.md,
+    paddingHorizontal: Spacing.md, paddingVertical: 11,
+    ...Typography.body, color: Colors.text, backgroundColor: Colors.surfaceLow,
+  },
   filterOptions: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm },
   filterOption: {
     borderRadius: Radius.full, paddingHorizontal: Spacing.md, paddingVertical: 8,
@@ -487,4 +888,25 @@ const styles = StyleSheet.create({
     borderRadius: Radius.lg, padding: Spacing.md, alignItems: 'center', ...Shadow.md,
   },
   applyBtnText: { ...Typography.label, color: Colors.textInverse, fontWeight: '700' },
+  applyBtnFlex: { flex: 1, margin: 0 },
+
+  sheetFooter: { flexDirection: 'row', gap: Spacing.sm, padding: Spacing.md },
+  saveSearchBtn: {
+    borderWidth: 1.5, borderColor: Colors.primary, borderRadius: Radius.lg,
+    paddingHorizontal: Spacing.md, alignItems: 'center', justifyContent: 'center',
+  },
+  saveSearchBtnText: { ...Typography.label, color: Colors.primary, fontWeight: '700' },
+
+  saveSearchOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'center', padding: Spacing.lg },
+  saveSearchCard: { backgroundColor: Colors.surface, borderRadius: Radius.xl, padding: Spacing.lg, gap: Spacing.sm },
+  saveSearchTitle: { ...Typography.h4, color: Colors.text },
+  saveSearchSub: { ...Typography.bodySmall, color: Colors.textMuted, lineHeight: 18, marginBottom: Spacing.xs },
+  fieldInput: {
+    backgroundColor: Colors.surfaceSecondary, borderRadius: Radius.md, borderWidth: 1, borderColor: Colors.border,
+    paddingHorizontal: Spacing.md, paddingVertical: 12, ...Typography.body, color: Colors.text,
+  },
+  saveSearchActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: Spacing.md, marginTop: Spacing.sm },
+  saveSearchCancel: { ...Typography.label, color: Colors.textSecondary, paddingVertical: 10, paddingHorizontal: 4 },
+  saveSearchConfirm: { backgroundColor: Colors.primary, borderRadius: Radius.md, paddingHorizontal: Spacing.lg, paddingVertical: 10, minWidth: 70, alignItems: 'center' },
+  saveSearchConfirmText: { ...Typography.label, color: Colors.textInverse, fontWeight: '700' },
 });
