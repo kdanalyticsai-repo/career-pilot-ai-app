@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert, ScrollView, Linking } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
+import { useQuery } from '@tanstack/react-query';
+import { api } from '@/services/api';
 import { useAuthStore } from '@/stores/authStore';
 import { Colors, Typography, Spacing, Radius, Shadow, HeroColors } from '@/constants/theme';
 
@@ -56,7 +58,36 @@ function FaqItem({ q, a }: { q: string; a: string }) {
 }
 
 export default function ProviderProfileScreen() {
-  const { logout } = useAuthStore();
+  const { user, logout } = useAuthStore();
+
+  const { data: providerProfile } = useQuery({
+    queryKey: ['provider-profile'],
+    queryFn: () => api.get('/users/me/provider-profile').then((r) => r.data),
+    staleTime: 60_000,
+  });
+
+  const { data: jobsData } = useQuery({
+    queryKey: ['provider-jobs-stats'],
+    queryFn: () => api.get('/provider/jobs').then((r) => r.data),
+    staleTime: 30_000,
+  });
+
+  const jobs: { is_active: boolean; applicant_count: number }[] = jobsData?.jobs ?? jobsData ?? [];
+  const liveJobs = jobs.filter((j) => j.is_active).length;
+  const totalApplicants = jobs.reduce((sum, j) => sum + (j.applicant_count ?? 0), 0);
+
+  const initials = (user?.name || user?.email || '?')
+    .split(' ')
+    .map((p) => p[0])
+    .slice(0, 2)
+    .join('')
+    .toUpperCase();
+
+  const verificationBadge = user?.pan_verified
+    ? { label: '✓ PAN Verified', color: Colors.matchHigh, bg: Colors.matchHigh + '18' }
+    : user?.company_pan
+    ? { label: '⏳ Verification Pending', color: Colors.warning, bg: Colors.warning + '18' }
+    : null;
 
   const handleLogout = () => {
     Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
@@ -97,6 +128,54 @@ export default function ProviderProfileScreen() {
     <SafeAreaView style={styles.safe} edges={['bottom']}>
       <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
 
+        {/* Company Header */}
+        <View style={[styles.companyCard, Shadow.sm]}>
+          <View style={styles.companyTop}>
+            <View style={styles.avatar}>
+              <Text style={styles.avatarText}>{initials}</Text>
+            </View>
+            <View style={styles.companyInfo}>
+              <Text style={styles.hrName}>{user?.name || 'Hiring Manager'}</Text>
+              <View style={styles.contactRow}>
+                {user?.phone ? <Text style={styles.contactText}>📞 {user.phone}</Text> : null}
+                {user?.email ? <Text style={styles.contactText} numberOfLines={1}>✉ {user.email}</Text> : null}
+              </View>
+            </View>
+          </View>
+          {providerProfile?.company_name ? (
+            <View style={styles.companyRow}>
+              <Text style={styles.companyIcon}>🏢</Text>
+              <Text style={styles.companyName}>{providerProfile.company_name}</Text>
+            </View>
+          ) : null}
+          {verificationBadge ? (
+            <View style={[styles.verifyBadge, { backgroundColor: verificationBadge.bg }]}>
+              <Text style={[styles.verifyBadgeText, { color: verificationBadge.color }]}>{verificationBadge.label}</Text>
+            </View>
+          ) : null}
+        </View>
+
+        {providerProfile?.industry ? (
+          <View style={styles.hiringForRow}>
+            <Text style={styles.hiringForLabel}>Hiring for</Text>
+            <View style={styles.hiringForChip}>
+              <Text style={styles.hiringForChipText}>{providerProfile.industry}</Text>
+            </View>
+          </View>
+        ) : null}
+
+        {/* Stats */}
+        <View style={styles.statsRow}>
+          <View style={[styles.statCard, Shadow.sm]}>
+            <Text style={styles.statValue}>{liveJobs}</Text>
+            <Text style={styles.statLabel}>Live Jobs</Text>
+          </View>
+          <View style={[styles.statCard, Shadow.sm]}>
+            <Text style={styles.statValue}>{totalApplicants}</Text>
+            <Text style={styles.statLabel}>Applicants</Text>
+          </View>
+        </View>
+
         {menuSection('Account', [
           { icon: '✏️', title: 'Edit Profile', sub: 'Update your information', onPress: () => router.push('/profile/edit' as any) },
           { icon: '🔐', title: 'Account & Security', sub: 'Password, session', onPress: () => router.push('/profile/settings' as any) },
@@ -106,7 +185,7 @@ export default function ProviderProfileScreen() {
           { icon: '📞', title: 'Contact Us', onPress: () => Linking.openURL(`mailto:${SUPPORT_EMAIL}`) },
           { icon: '📋', title: 'Terms & Conditions', onPress: () => Linking.openURL('https://kdaanalytics.com/proaicv/terms/') },
           { icon: '🔒', title: 'Privacy Policy', onPress: () => Linking.openURL('https://kdaanalytics.com/proaicv/privacy/') },
-          { icon: 'ℹ️', title: 'About ProAICV', sub: 'v1.0.0', onPress: () => router.push('/about' as any) },
+          { icon: 'ℹ️', title: 'About ProAICV', sub: 'v1.0.1', onPress: () => router.push('/about' as any) },
         ])}
 
         {/* FAQ */}
@@ -133,6 +212,45 @@ export default function ProviderProfileScreen() {
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: Colors.background },
   container: { paddingBottom: Spacing.xxl, gap: Spacing.md, paddingHorizontal: Spacing.md, paddingTop: Spacing.md },
+
+  companyCard: {
+    backgroundColor: Colors.surface, borderRadius: Radius.lg,
+    borderWidth: 1, borderColor: Colors.borderSubtle, padding: Spacing.md, gap: Spacing.sm,
+  },
+  companyTop: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
+  avatar: {
+    width: 52, height: 52, borderRadius: 26,
+    backgroundColor: Colors.primaryLight, alignItems: 'center', justifyContent: 'center',
+  },
+  avatarText: { fontSize: 20, fontWeight: '700', color: Colors.primaryDark },
+  companyInfo: { flex: 1, gap: 2 },
+  hrName: { ...Typography.h4, color: Colors.text },
+  contactRow: { gap: 1 },
+  contactText: { ...Typography.caption, color: Colors.textMuted },
+  companyRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    paddingTop: Spacing.sm, borderTopWidth: 1, borderTopColor: Colors.borderSubtle,
+  },
+  companyIcon: { fontSize: 14 },
+  companyName: { ...Typography.label, color: Colors.text, fontWeight: '600' },
+  verifyBadge: { alignSelf: 'flex-start', borderRadius: Radius.full, paddingHorizontal: Spacing.sm, paddingVertical: 4 },
+  verifyBadgeText: { ...Typography.caption, fontWeight: '700' },
+
+  hiringForRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, paddingHorizontal: Spacing.xs },
+  hiringForLabel: { ...Typography.caption, color: Colors.textMuted },
+  hiringForChip: {
+    backgroundColor: Colors.primary + '12', borderRadius: Radius.full,
+    paddingHorizontal: Spacing.sm, paddingVertical: 3,
+  },
+  hiringForChipText: { ...Typography.caption, color: Colors.primary, fontWeight: '700' },
+
+  statsRow: { flexDirection: 'row', gap: Spacing.sm },
+  statCard: {
+    flex: 1, backgroundColor: Colors.surface, borderRadius: Radius.lg,
+    borderWidth: 1, borderColor: Colors.borderSubtle, padding: Spacing.md, alignItems: 'center', gap: 2,
+  },
+  statValue: { fontSize: 24, fontWeight: '800', color: Colors.primary },
+  statLabel: { ...Typography.caption, color: Colors.textMuted },
 
   section: { gap: Spacing.xs },
   sectionLabel: {

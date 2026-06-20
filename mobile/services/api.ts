@@ -24,9 +24,12 @@ api.interceptors.response.use(
   async (error: AxiosError) => {
     const original = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
 
-    // Retry once on network error (covers Render cold-start timeout)
+    // Retry once on network error (covers Render cold-start timeout).
+    // The first attempt already waited out the cold start, so the retry
+    // only needs a short timeout — avoids doubling a 90s wait into 180s.
     if (!error.response && !original._retry) {
       original._retry = true;
+      original.timeout = 20_000;
       return api(original);
     }
 

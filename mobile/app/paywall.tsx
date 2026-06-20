@@ -24,7 +24,7 @@ const PLANS: {
 }[] = [
   { id: 'monthly',   label: 'Monthly',   price: '₹199',   per: '/month',   savings: null,        badge: null           },
   { id: 'quarterly', label: 'Quarterly', price: '₹499',   per: '/quarter', savings: 'Save ₹98',  badge: 'MOST POPULAR' },
-  { id: 'yearly',    label: 'Yearly',    price: '₹1,499', per: '/year',    savings: 'Save ₹889', badge: 'BEST VALUE'   },
+  { id: 'yearly',    label: 'Yearly',    price: '₹999',   per: '/year',    savings: 'Save ₹1,389', badge: 'BEST VALUE'   },
 ];
 
 const PRO_FEATURES = [

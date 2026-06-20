@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, ActivityIndicator, Linking,
 } from 'react-native';
@@ -69,6 +69,15 @@ export default function SettingsScreen() {
 
   const isProvider = user?.role === 'job_provider';
 
+  const lastTapRef = useRef<number>(0);
+  const handleVersionTap = () => {
+    const now = Date.now();
+    if (now - lastTapRef.current < 600 && user?.email === process.env.EXPO_PUBLIC_ADMIN_EMAIL) {
+      router.push('/(auth)/admin-login' as any);
+    }
+    lastTapRef.current = now;
+  };
+
   const sections: {
     title: string;
     rows: { label: string; icon: string; sub?: string; onPress: () => void }[];
@@ -111,17 +120,6 @@ export default function SettingsScreen() {
         },
       ],
     }] : []),
-    {
-      title: 'Preferences',
-      rows: [
-        {
-          label: 'Notification Settings',
-          icon: '🔔',
-          sub: 'Push and email alerts',
-          onPress: () => router.push('/profile/notifications'),
-        },
-      ],
-    },
     {
       title: 'Privacy & Data',
       rows: [
@@ -202,10 +200,10 @@ export default function SettingsScreen() {
           }
         </TouchableOpacity>
 
-        <View style={styles.appInfo}>
-          <Text style={styles.appInfoText}>ProAICV v1.0.0</Text>
+        <TouchableOpacity style={styles.appInfo} onPress={handleVersionTap} activeOpacity={1}>
+          <Text style={styles.appInfoText}>ProAICV v1.0.1</Text>
           <Text style={styles.appInfoText}>© 2026 ProAICV. All rights reserved.</Text>
-        </View>
+        </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>
   );
