@@ -1,3 +1,5 @@
+from datetime import datetime, timezone, timedelta
+
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
@@ -59,6 +61,56 @@ async def get_dashboard(
     )
     match_count = match_count_result.scalar() or 0
 
+    # ── Applications trend: last 30 days vs the prior 30 days (applied_at) ──
+    now = datetime.now(timezone.utc)
+    d30, d60 = now - timedelta(days=30), now - timedelta(days=60)
+    cur_result = await db.execute(
+        select(func.count(Application.id)).where(
+            Application.user_id == user_id, Application.applied_at >= d30
+        )
+    )
+    cur_apps = cur_result.scalar() or 0
+    prev_result = await db.execute(
+        select(func.count(Application.id)).where(
+            Application.user_id == user_id,
+            Application.applied_at >= d60, Application.applied_at < d30,
+        )
+    )
+    prev_apps = prev_result.scalar() or 0
+    if prev_apps > 0:
+        trend_pct = round((cur_apps - prev_apps) / prev_apps * 100)
+    else:
+        trend_pct = 100 if cur_apps > 0 else 0
+
+    # ── Career readiness: weighted composite of signals we already store ──
+    profile_filled = sum(1 for v in (current_user.name, current_user.phone) if v)
+    career_readiness = round(
+        0.35 * (ats_score or 0)
+        + 0.25 * (completeness or 0)
+        + 0.20 * response_rate
+        + 0.10 * (min(total_apps, 10) / 10 * 100)
+        + 0.10 * (profile_filled / 2 * 100)
+    )
+
+    # ── Market competitiveness: percentile of this user's ATS vs the pool ──
+    market_percentile = None
+    if ats_score is not None:
+        pool_total = await db.execute(
+            select(func.count(Resume.id)).where(
+                Resume.is_primary == True, Resume.ats_score.isnot(None)
+            )
+        )
+        pool_n = pool_total.scalar() or 0
+        if pool_n > 1:
+            below = await db.execute(
+                select(func.count(Resume.id)).where(
+                    Resume.is_primary == True,
+                    Resume.ats_score.isnot(None),
+                    Resume.ats_score < ats_score,
+                )
+            )
+            market_percentile = round((below.scalar() or 0) / pool_n * 100)
+
     return {
         "applications": {
             "total": total_apps,
@@ -71,6 +123,7 @@ async def get_dashboard(
                 "withdrawn": by_status.get("withdrawn", 0),
             },
             "response_rate": response_rate,
+            "trend_pct": trend_pct,
         },
         "resume": {
             "ats_score": ats_score,
@@ -81,4 +134,6 @@ async def get_dashboard(
             "match_count": match_count,
             "top_match_score": top_match,
         },
+        "career_readiness": career_readiness,
+        "market_percentile": market_percentile,
     }
