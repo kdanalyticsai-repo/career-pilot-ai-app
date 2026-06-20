@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert, ScrollView, Linking } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useFocusEffect } from 'expo-router';
@@ -51,6 +51,15 @@ export default function ProfileTab() {
     queryFn: () => api.get('/subscriptions/my-usage').then((r) => r.data),
     staleTime: 60_000,
   });
+
+  const lastVersionTapRef = useRef<number>(0);
+  const handleVersionTap = () => {
+    const now = Date.now();
+    if (now - lastVersionTapRef.current < 600 && user?.email === process.env.EXPO_PUBLIC_ADMIN_EMAIL) {
+      router.push('/(auth)/admin-login' as any);
+    }
+    lastVersionTapRef.current = now;
+  };
 
   const handleLogout = () => {
     Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
@@ -156,7 +165,7 @@ export default function ProfileTab() {
               <Text style={styles.proBannerSub}>
                 {usageData?.pro_plan_type === 'monthly' ? '₹199/month plan' :
                  usageData?.pro_plan_type === 'quarterly' ? '₹499/quarter plan' :
-                 usageData?.pro_plan_type === 'yearly' ? '₹1,499/year plan' :
+                 usageData?.pro_plan_type === 'yearly' ? '₹999/year plan' :
                  'Pro plan'}
               </Text>
               {usageData?.pro_expires_at ? (
@@ -210,17 +219,17 @@ export default function ProfileTab() {
         </View>
 
         {/* App Info */}
-        <View style={[styles.menuCard, Shadow.sm]}>
+        <TouchableOpacity style={[styles.menuCard, Shadow.sm]} onPress={handleVersionTap} activeOpacity={1}>
           <View style={[styles.menuRow, { borderBottomWidth: 0 }]}>
             <View style={styles.menuIconWrap}>
               <Text style={styles.menuIcon}>ℹ️</Text>
             </View>
             <View style={styles.menuLabelWrap}>
               <Text style={styles.menuLabel}>App Version</Text>
-              <Text style={styles.menuSub}>ProAICV v1.0.0</Text>
+              <Text style={styles.menuSub}>ProAICV v1.0.1</Text>
             </View>
           </View>
-        </View>
+        </TouchableOpacity>
 
         <TouchableOpacity style={[styles.logoutBtn, Shadow.sm]} onPress={handleLogout} activeOpacity={0.8}>
           <Text style={styles.logoutText}>Sign Out</Text>

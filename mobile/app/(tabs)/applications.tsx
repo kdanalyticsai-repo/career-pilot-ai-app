@@ -1,6 +1,10 @@
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, RefreshControl } from 'react-native';
+import { useState } from 'react';
+import {
+  View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator,
+  RefreshControl, Modal, TextInput, ScrollView, Alert, Linking,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { router } from 'expo-router';
 import { api } from '@/services/api';
 import { Colors, Typography, Spacing, Radius, Shadow } from '@/constants/theme';
@@ -43,11 +47,60 @@ function formatDate(iso: string) {
 }
 
 export default function ApplicationsTab() {
+  const queryClient = useQueryClient();
+  const [showLogModal, setShowLogModal] = useState(false);
+  const [logTitle, setLogTitle] = useState('');
+  const [logCompany, setLogCompany] = useState('');
+  const [logLocation, setLogLocation] = useState('');
+  const [logUrl, setLogUrl] = useState('');
+  const [logNotes, setLogNotes] = useState('');
+
   const { data, isLoading, isRefetching, refetch } = useQuery({
     queryKey: ['applications'],
     queryFn: () => api.get('/applications').then((r) => r.data),
     staleTime: 30_000,
   });
+
+  const resetLogForm = () => {
+    setLogTitle(''); setLogCompany(''); setLogLocation(''); setLogUrl(''); setLogNotes('');
+  };
+
+  const { mutate: logApplication, isPending: isLogging } = useMutation({
+    mutationFn: () => api.post('/applications', {
+      job_title: logTitle.trim(),
+      company: logCompany.trim(),
+      location: logLocation.trim() || undefined,
+      external_url: logUrl.trim() || undefined,
+      notes: logNotes.trim() || undefined,
+    }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['applications'] });
+      setShowLogModal(false);
+      resetLogForm();
+    },
+    onError: () => Alert.alert('Could Not Save', 'Please check the details and try again.'),
+  });
+
+  const handleLogSubmit = () => {
+    if (!logTitle.trim() || !logCompany.trim()) {
+      Alert.alert('Missing Details', 'Job title and company are required.');
+      return;
+    }
+    logApplication();
+  };
+
+  const buildLogSearchQuery = () => {
+    const terms = [logTitle.trim(), logCompany.trim()].filter(Boolean).join(' ');
+    return terms ? `${terms} jobs` : 'jobs in India';
+  };
+
+  const searchLogOnGoogle = () => {
+    Linking.openURL(`https://www.google.com/search?q=${encodeURIComponent(buildLogSearchQuery())}`).catch(() => {});
+  };
+
+  const searchLogOnDuckDuckGo = () => {
+    Linking.openURL(`https://duckduckgo.com/?q=${encodeURIComponent(buildLogSearchQuery())}`).catch(() => {});
+  };
 
   const apps: Application[] = data?.applications ?? [];
   const grouped = apps.reduce<Record<string, Application[]>>((acc, app) => {
@@ -75,6 +128,14 @@ export default function ApplicationsTab() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['bottom']}>
+      {/* Header */}
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>Applications</Text>
+        <TouchableOpacity style={styles.logBtn} onPress={() => setShowLogModal(true)}>
+          <Text style={styles.logBtnText}>+ Log</Text>
+        </TouchableOpacity>
+      </View>
+
       {/* Summary Row */}
       {apps.length > 0 && (
         <View style={styles.summaryRow}>
@@ -144,6 +205,89 @@ export default function ApplicationsTab() {
           </View>
         }
       />
+
+      {/* Log External Application */}
+      <Modal visible={showLogModal} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setShowLogModal(false)}>
+        <SafeAreaView style={styles.sheet}>
+          <View style={styles.sheetHeader}>
+            <Text style={styles.sheetTitle}>Log Application</Text>
+            <TouchableOpacity onPress={() => { setShowLogModal(false); resetLogForm(); }}>
+              <Text style={styles.sheetClose}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+          <ScrollView style={styles.sheetBody} keyboardShouldPersistTaps="handled">
+            <Text style={styles.sheetHint}>
+              Found a job on Google, DuckDuckGo, or elsewhere outside the app? Log it here to track its status alongside everything else.
+            </Text>
+            <Text style={styles.fieldLabel}>Job Title *</Text>
+            <TextInput
+              style={styles.fieldInput}
+              placeholder="e.g. Electrical Engineer"
+              placeholderTextColor={Colors.textMuted}
+              value={logTitle}
+              onChangeText={setLogTitle}
+            />
+            <Text style={styles.fieldLabel}>Company *</Text>
+            <TextInput
+              style={styles.fieldInput}
+              placeholder="e.g. Havells India"
+              placeholderTextColor={Colors.textMuted}
+              value={logCompany}
+              onChangeText={setLogCompany}
+            />
+            <Text style={styles.fieldLabel}>Location</Text>
+            <TextInput
+              style={styles.fieldInput}
+              placeholder="e.g. Noida, Uttar Pradesh"
+              placeholderTextColor={Colors.textMuted}
+              value={logLocation}
+              onChangeText={setLogLocation}
+            />
+            <View style={styles.fieldLabelRow}>
+              <Text style={styles.fieldLabel}>Job Posting URL</Text>
+              {(logTitle.trim() || logCompany.trim()) ? (
+                <View style={styles.findLinkRow}>
+                  <Text style={styles.findLinkHint}>Find it:</Text>
+                  <TouchableOpacity onPress={searchLogOnGoogle}>
+                    <Text style={styles.findLinkBtn}>🔍 Google</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={searchLogOnDuckDuckGo}>
+                    <Text style={styles.findLinkBtn}>🦆 DuckDuckGo</Text>
+                  </TouchableOpacity>
+                </View>
+              ) : null}
+            </View>
+            <TextInput
+              style={styles.fieldInput}
+              placeholder="Paste the link to the listing"
+              placeholderTextColor={Colors.textMuted}
+              value={logUrl}
+              onChangeText={setLogUrl}
+              autoCapitalize="none"
+              keyboardType="url"
+            />
+            <Text style={styles.fieldLabel}>Notes</Text>
+            <TextInput
+              style={[styles.fieldInput, styles.fieldInputMultiline]}
+              placeholder="Anything you want to remember about this application…"
+              placeholderTextColor={Colors.textMuted}
+              value={logNotes}
+              onChangeText={setLogNotes}
+              multiline
+              textAlignVertical="top"
+            />
+          </ScrollView>
+          <TouchableOpacity
+            style={[styles.saveLogBtn, isLogging && { opacity: 0.7 }]}
+            onPress={handleLogSubmit}
+            disabled={isLogging}
+          >
+            {isLogging
+              ? <ActivityIndicator color={Colors.textInverse} />
+              : <Text style={styles.saveLogBtnText}>Save Application</Text>}
+          </TouchableOpacity>
+        </SafeAreaView>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -151,6 +295,43 @@ export default function ApplicationsTab() {
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: Colors.background },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+
+  header: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm,
+    backgroundColor: Colors.surface, borderBottomWidth: 1, borderBottomColor: Colors.border,
+  },
+  headerTitle: { ...Typography.h3, color: Colors.text },
+  logBtn: {
+    backgroundColor: Colors.primary, borderRadius: Radius.full,
+    paddingHorizontal: Spacing.md, paddingVertical: 7,
+  },
+  logBtnText: { ...Typography.label, color: Colors.textInverse, fontWeight: '700' },
+
+  sheet: { flex: 1, backgroundColor: Colors.background },
+  sheetHeader: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    padding: Spacing.lg, borderBottomWidth: 1, borderBottomColor: Colors.border,
+  },
+  sheetTitle: { ...Typography.h3, color: Colors.text },
+  sheetClose: { ...Typography.label, color: Colors.textSecondary },
+  sheetBody: { flex: 1, padding: Spacing.lg },
+  sheetHint: { ...Typography.bodySmall, color: Colors.textMuted, lineHeight: 19, marginBottom: Spacing.lg },
+  fieldLabel: { ...Typography.label, color: Colors.textSecondary, fontWeight: '600', marginBottom: 6, marginTop: Spacing.sm },
+  fieldLabelRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  findLinkRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  findLinkHint: { ...Typography.caption, color: Colors.textMuted },
+  findLinkBtn: { ...Typography.caption, color: Colors.primary, fontWeight: '700' },
+  fieldInput: {
+    backgroundColor: Colors.surfaceSecondary, borderRadius: Radius.md, borderWidth: 1, borderColor: Colors.border,
+    paddingHorizontal: Spacing.md, paddingVertical: 12, ...Typography.body, color: Colors.text,
+  },
+  fieldInputMultiline: { height: 90 },
+  saveLogBtn: {
+    backgroundColor: Colors.primary, borderRadius: Radius.md, padding: Spacing.md,
+    alignItems: 'center', margin: Spacing.lg,
+  },
+  saveLogBtnText: { ...Typography.label, color: Colors.textInverse, fontWeight: '700' },
 
   summaryRow: {
     flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.xs,

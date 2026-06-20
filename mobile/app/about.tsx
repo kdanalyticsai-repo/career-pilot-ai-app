@@ -1,6 +1,6 @@
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Linking, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Stack } from 'expo-router';
+import { Stack, router } from 'expo-router';
 import { Colors, Typography, Spacing, Radius, Shadow, HeroColors } from '@/constants/theme';
 
 const SUPPORT_EMAIL = 'info@kdaanalytics.com';
@@ -22,11 +22,16 @@ export default function AboutScreen() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['bottom']}>
-      <Stack.Screen options={{ title: 'About ProAICV', headerBackTitle: 'Back' }} />
+      <Stack.Screen options={{ headerShown: false }} />
       <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
 
         {/* Hero */}
         <View style={styles.hero}>
+          <SafeAreaView edges={['top']} style={styles.heroTop}>
+            <TouchableOpacity onPress={() => router.back()} style={styles.backBtn} activeOpacity={0.7}>
+              <Text style={styles.backBtnText}>← Back</Text>
+            </TouchableOpacity>
+          </SafeAreaView>
           <View style={styles.heroOrb} />
           <View style={styles.logoWrap}>
             <Text style={styles.logoText}>✦</Text>
@@ -34,7 +39,7 @@ export default function AboutScreen() {
           <Text style={styles.appName}>ProAICV</Text>
           <Text style={styles.tagline}>Your AI-powered career companion</Text>
           <View style={styles.versionBadge}>
-            <Text style={styles.versionText}>Version 1.0.0</Text>
+            <Text style={styles.versionText}>Version 1.0.1</Text>
           </View>
         </View>
 
@@ -102,11 +107,13 @@ const styles = StyleSheet.create({
   hero: {
     backgroundColor: HeroColors.base,
     alignItems: 'center',
-    paddingTop: Spacing.xl,
     paddingBottom: Spacing.xl,
     overflow: 'hidden',
     marginBottom: Spacing.xs,
   },
+  heroTop: { width: '100%' },
+  backBtn: { paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm },
+  backBtnText: { ...Typography.body, color: 'rgba(255,255,255,0.85)', fontWeight: '600' },
   heroOrb: {
     position: 'absolute', width: 200, height: 200, borderRadius: 100,
     backgroundColor: Colors.primary, opacity: 0.25, top: -60, right: -40,

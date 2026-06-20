@@ -495,7 +495,7 @@ export default function AdminScreen() {
                 <View style={[styles.planChip, user.subscription === 'pro' && styles.planChipPro]}>
                   <Text style={[styles.planChipText, user.subscription === 'pro' && styles.planChipTextPro]}>
                     {user.subscription === 'pro'
-                      ? `PRO${user.pro_plan_type === 'monthly' ? ' ₹199' : user.pro_plan_type === 'quarterly' ? ' ₹499' : user.pro_plan_type === 'yearly' ? ' ₹1,499' : ''}`
+                      ? `PRO${user.pro_plan_type === 'monthly' ? ' ₹199' : user.pro_plan_type === 'quarterly' ? ' ₹499' : user.pro_plan_type === 'yearly' ? ' ₹999' : ''}`
                       : 'FREE'}
                   </Text>
                 </View>
@@ -689,7 +689,7 @@ export default function AdminScreen() {
                     <Text style={[styles.detailValue, { color: selectedUser.pro_plan_type ? Colors.primary : Colors.textMuted, fontWeight: '600' }]}>
                       {selectedUser.pro_plan_type === 'monthly' ? 'Monthly (₹199/mo)' :
                        selectedUser.pro_plan_type === 'quarterly' ? 'Quarterly (₹499/qtr)' :
-                       selectedUser.pro_plan_type === 'yearly' ? 'Yearly (₹1,499/yr)' :
+                       selectedUser.pro_plan_type === 'yearly' ? 'Yearly (₹999/yr)' :
                        'Unknown — set below'}
                     </Text>
                   </View>
@@ -712,7 +712,7 @@ export default function AdminScreen() {
                           activeOpacity={0.75}
                         >
                           <Text style={[styles.planTypeBtnText, selectedUser.pro_plan_type === pt && styles.planTypeBtnTextActive]}>
-                            {pt === 'monthly' ? '₹199\nMonthly' : pt === 'quarterly' ? '₹499\nQuarterly' : '₹1499\nYearly'}
+                            {pt === 'monthly' ? '₹199\nMonthly' : pt === 'quarterly' ? '₹499\nQuarterly' : '₹999\nYearly'}
                           </Text>
                         </TouchableOpacity>
                       ))}

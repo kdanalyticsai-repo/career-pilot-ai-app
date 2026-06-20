@@ -63,17 +63,6 @@ export default function RoleSelectScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.adminTopRow}>
-          {process.env.EXPO_PUBLIC_ADMIN_EMAIL ? (
-            <TouchableOpacity
-              onPress={() => router.push('/(auth)/admin-login' as any)}
-              activeOpacity={0.7}
-            >
-              <Text style={styles.adminTopLink}>🔐 Admin</Text>
-            </TouchableOpacity>
-          ) : null}
-        </View>
-
         <Text style={styles.sectionHeading}>How would you like to get started?</Text>
 
         {/* Job Seeker Card */}
@@ -180,9 +169,6 @@ const styles = StyleSheet.create({
     position: 'absolute', width: 100, height: 100, borderRadius: 50,
     backgroundColor: Colors.secondary, opacity: 0.15, top: 40, left: 20,
   },
-
-  adminTopRow: { alignItems: 'flex-end', marginBottom: -Spacing.sm },
-  adminTopLink: { ...Typography.caption, color: Colors.textMuted, paddingVertical: 4, paddingHorizontal: 2 },
 
   logoMark: {
     width: 68, height: 68, borderRadius: 22,

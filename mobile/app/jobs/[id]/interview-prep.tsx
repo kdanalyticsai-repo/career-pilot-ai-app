@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useMutation, useQuery } from '@tanstack/react-query';
@@ -39,8 +39,11 @@ export default function InterviewPrepScreen() {
     onSuccess: (res) => { setErrorMsg(''); setPrep(res.data); },
     onError: (err: any) => {
       const status = err?.response?.status;
-      const detail = err?.response?.data?.detail ?? '';
-      if (status === 404 || detail.toLowerCase().includes('no resume')) {
+      const detailRaw = err?.response?.data?.detail;
+      const detail = typeof detailRaw === 'string' ? detailRaw : '';
+      if (status === 403) {
+        Alert.alert('Upgrade Required', 'Interview prep generation is a Pro feature. Upgrade to continue.', [{ text: 'OK' }]);
+      } else if (status === 404 || detail.toLowerCase().includes('no resume')) {
         setErrorMsg('no_resume');
       } else if (status === 400 && detail.toLowerCase().includes('processing')) {
         setErrorMsg('processing');

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, ActivityIndicator, Modal } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, ActivityIndicator, Modal, Linking } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -79,6 +79,11 @@ export default function ApplicationDetailScreen() {
           <Text style={styles.company}>{app.job?.company ?? ''}</Text>
           <Text style={styles.meta}>{app.job?.location} · {app.job?.job_type?.replace('_', ' ')}</Text>
           <Text style={styles.appliedDate}>Applied {formatDate(app.applied_at)}</Text>
+          {app.job?.external_url && (
+            <TouchableOpacity onPress={() => Linking.openURL(app.job.external_url).catch(() => {})}>
+              <Text style={styles.openPostingLink}>🔗  Open Original Posting</Text>
+            </TouchableOpacity>
+          )}
         </View>
 
         {/* Status */}
@@ -214,6 +219,7 @@ const styles = StyleSheet.create({
   company: { ...Typography.label, color: Colors.textSecondary, marginBottom: 2 },
   meta: { ...Typography.bodySmall, color: Colors.textMuted, marginBottom: 4 },
   appliedDate: { ...Typography.caption, color: Colors.textMuted },
+  openPostingLink: { ...Typography.bodySmall, color: Colors.primary, fontWeight: '600', marginTop: Spacing.sm },
 
   statusRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderRadius: Radius.md, padding: Spacing.md },
   statusText: { ...Typography.label, fontWeight: '700' },

@@ -144,6 +144,12 @@ export default function LoginScreen() {
                   : <Text style={styles.buttonText}>Sign In</Text>}
               </TouchableOpacity>
 
+              {isLoading && (
+                <Text style={styles.loadingHint}>
+                  This can take up to a minute if our server is waking up — please wait…
+                </Text>
+              )}
+
               <Link href="/(auth)/forgot-password" style={styles.forgotWrap}>
                 <Text style={styles.forgotText}>Forgot password?</Text>
               </Link>
@@ -237,6 +243,7 @@ const styles = StyleSheet.create({
   },
   buttonDisabled: { opacity: 0.6 },
   buttonText: { ...Typography.label, color: Colors.textInverse, fontSize: 16, fontWeight: '700' },
+  loadingHint: { ...Typography.caption, color: Colors.textMuted, textAlign: 'center', marginTop: Spacing.sm },
 
   forgotWrap: { alignSelf: 'center', marginTop: Spacing.md },
   forgotText: { ...Typography.body, color: Colors.primary, fontWeight: '500' },
