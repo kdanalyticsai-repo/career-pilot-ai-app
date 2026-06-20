@@ -9,6 +9,7 @@ interface DashboardData {
     total: number;
     by_status: Record<string, number>;
     response_rate: number;
+    trend_pct?: number;
   };
   resume: {
     ats_score: number | null;
@@ -19,6 +20,8 @@ interface DashboardData {
     match_count: number;
     top_match_score: number;
   };
+  career_readiness?: number;
+  market_percentile?: number | null;
 }
 
 const STATUS_CONFIG = [
@@ -90,6 +93,21 @@ export default function InsightsTab() {
     <SafeAreaView style={styles.safe} edges={['bottom']}>
       <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
 
+        {/* Career Readiness */}
+        {data?.career_readiness != null && (
+          <View style={[styles.readinessCard, Shadow.md]}>
+            <Text style={styles.readinessLabel}>CAREER READINESS</Text>
+            <View style={styles.readinessValueRow}>
+              <Text style={styles.readinessValue}>{data.career_readiness}</Text>
+              <Text style={styles.readinessPct}>%</Text>
+            </View>
+            <View style={styles.readinessTrack}>
+              <View style={[styles.readinessFill, { width: `${data.career_readiness}%` }]} />
+            </View>
+            <Text style={styles.readinessDesc}>Blends your resume score, completeness, response rate & activity.</Text>
+          </View>
+        )}
+
         {/* Application Funnel */}
         <View style={[styles.card, Shadow.sm]}>
           <View style={styles.cardHeader}>
@@ -98,7 +116,12 @@ export default function InsightsTab() {
             </View>
             <View style={styles.cardHeaderText}>
               <Text style={styles.cardTitle}>Application Funnel</Text>
-              <Text style={styles.cardSub}>{total} total applications</Text>
+              <Text style={styles.cardSub}>
+                {total} total applications
+                {apps?.trend_pct != null && apps.trend_pct !== 0
+                  ? `  ·  ${apps.trend_pct > 0 ? '▲' : '▼'} ${apps.trend_pct > 0 ? '+' : ''}${apps.trend_pct}% vs last month`
+                  : ''}
+              </Text>
             </View>
           </View>
           {total === 0 ? (
@@ -178,6 +201,24 @@ export default function InsightsTab() {
           </View>
         </View>
 
+        {/* Market Competitiveness */}
+        <View style={[styles.card, Shadow.sm]}>
+          <View style={styles.cardHeader}>
+            <View style={styles.cardIconWrap}>
+              <Text style={styles.cardIcon}>🚀</Text>
+            </View>
+            <Text style={styles.cardTitle}>Market Competitiveness</Text>
+          </View>
+          {data?.market_percentile != null ? (
+            <>
+              <Text style={styles.marketValue}>Top {Math.max(1, 100 - data.market_percentile)}%</Text>
+              <Text style={styles.rateDetail}>You score above {data.market_percentile}% of candidates.</Text>
+            </>
+          ) : (
+            <Text style={styles.emptyText}>Upload a resume to see how you rank vs the pool.</Text>
+          )}
+        </View>
+
         {/* Job Activity */}
         <View style={[styles.card, Shadow.sm]}>
           <View style={styles.cardHeader}>
@@ -255,6 +296,19 @@ const styles = StyleSheet.create({
   },
   barFill: { height: '100%', borderRadius: Radius.full, minWidth: 4 },
   barCount: { ...Typography.label, width: 28, textAlign: 'right', fontWeight: '800' },
+
+  readinessCard: {
+    backgroundColor: HeroColors.base, borderRadius: Radius.lg, padding: Spacing.md,
+    borderWidth: 1, borderColor: 'rgba(91,46,255,0.4)',
+  },
+  readinessLabel: { ...Typography.caption, color: 'rgba(255,255,255,0.7)', letterSpacing: 1, fontWeight: '700' },
+  readinessValueRow: { flexDirection: 'row', alignItems: 'baseline', gap: 3, marginTop: 4 },
+  readinessValue: { fontSize: 42, fontWeight: '800', color: '#fff', letterSpacing: -1, lineHeight: 46 },
+  readinessPct: { fontSize: 20, fontWeight: '700', color: 'rgba(255,255,255,0.7)' },
+  readinessTrack: { height: 8, borderRadius: Radius.full, backgroundColor: 'rgba(255,255,255,0.18)', overflow: 'hidden', marginTop: 12 },
+  readinessFill: { height: '100%', borderRadius: Radius.full, backgroundColor: Colors.tertiaryBright },
+  readinessDesc: { ...Typography.bodySmall, color: 'rgba(255,255,255,0.78)', marginTop: 12 },
+  marketValue: { fontSize: 34, fontWeight: '800', color: Colors.primary, letterSpacing: -0.5, marginTop: 4, marginBottom: 4 },
 
   rateRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, marginTop: Spacing.sm },
   rateCircle: {
