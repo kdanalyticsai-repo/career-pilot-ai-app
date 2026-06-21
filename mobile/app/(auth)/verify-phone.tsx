@@ -129,7 +129,7 @@ export default function VerifyPhoneScreen() {
               {phase === 'phone' ? (
                 <>
                   <Text style={styles.title}>Enter your mobile number</Text>
-                  <Text style={styles.subtitle}>We'll send a 6-digit code to verify your number</Text>
+                  <Text style={styles.subtitle}>We'll send a 6-digit code to your email and mobile SMS — either one works</Text>
 
                   {errorMsg ? (
                     <View style={styles.errorBox}>
