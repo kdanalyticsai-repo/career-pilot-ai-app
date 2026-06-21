@@ -21,7 +21,7 @@ export default function ResetPasswordScreen() {
   const [showConfirm, setShowConfirm] = useState(false);
 
   const handleReset = async () => {
-    if (!otp.trim() || otp.length !== 6) { setError('Enter the 6-digit code from your email.'); return; }
+    if (!otp.trim() || otp.length !== 6) { setError('Enter the 6-digit code from your email or SMS.'); return; }
     if (password.length < 8) { setError('Password must be at least 8 characters.'); return; }
     if (password !== confirm) { setError('Passwords do not match.'); return; }
     setError('');
@@ -38,7 +38,7 @@ export default function ResetPasswordScreen() {
       if (typeof detail === 'string' && detail.toLowerCase().includes('expired')) {
         setError('This code has expired. Please request a new one.');
       } else if (typeof detail === 'string' && detail.toLowerCase().includes('invalid')) {
-        setError('Incorrect code. Please check your email and try again.');
+        setError('Incorrect code. Please check your email or SMS and try again.');
       } else {
         setError('Could not reset password. Please try again.');
       }

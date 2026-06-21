@@ -33,7 +33,7 @@ export default function ForgotPasswordScreen() {
       <SafeAreaView style={styles.safe}>
         <View style={styles.center}>
           <Text style={styles.icon}>📧</Text>
-          <Text style={styles.sentTitle}>Check your email</Text>
+          <Text style={styles.sentTitle}>Check your email or SMS</Text>
           <Text style={styles.sentBody}>
             We sent a 6-digit reset code to{'\n'}
             <Text style={{ fontWeight: '700' }}>{email}</Text>
