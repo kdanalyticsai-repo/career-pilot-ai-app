@@ -1,5 +1,6 @@
 import uuid
 from fastapi import APIRouter, Depends
+from fastapi.responses import StreamingResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -53,6 +54,25 @@ async def chat(
     db: AsyncSession = Depends(get_db),
 ):
     return await AIService(db).chat(current_user.id, data.message, data.session_id)
+
+
+@router.post("/chat/stream")
+async def chat_stream(
+    data: ChatRequest,
+    current_user: User = Depends(require_feature("chat")),
+    db: AsyncSession = Depends(get_db),
+):
+    """Stream the coach reply as Server-Sent Events (token-by-token)."""
+    generator = AIService(db).chat_stream(current_user.id, data.message, data.session_id)
+    return StreamingResponse(
+        generator,
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )
 
 
 @router.get("/chat/sessions", response_model=list[ChatSessionOut])
