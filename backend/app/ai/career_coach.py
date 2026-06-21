@@ -39,3 +39,35 @@ def chat_with_coach(messages: list[dict], user_context: str | None = None) -> st
     except Exception as e:
         logger.error(f"Career coach API error: {e}")
         return "I'm having trouble connecting right now. Please try again in a moment."
+
+
+def stream_with_coach(messages: list[dict], user_context: str | None = None):
+    """Yield reply text chunks from the coach as they arrive (sync generator)."""
+    if not settings.has_anthropic_key:
+        yield "AI coach is not configured. Please contact support."
+        return
+
+    system = CAREER_COACH_SYSTEM
+    if user_context:
+        system += f"\n\nUser context:\n{user_context}"
+
+    try:
+        client = get_client()
+        stream = client.chat.completions.create(
+            model="gpt-4o-mini",
+            max_tokens=350,
+            temperature=0.7,
+            timeout=30,
+            stream=True,
+            messages=[{"role": "system", "content": system}] + messages,
+        )
+        for chunk in stream:
+            choices = getattr(chunk, "choices", None)
+            if not choices:
+                continue
+            delta = getattr(choices[0].delta, "content", None)
+            if delta:
+                yield delta
+    except Exception as e:
+        logger.error(f"Career coach stream error: {e}")
+        yield "I'm having trouble connecting right now. Please try again in a moment."

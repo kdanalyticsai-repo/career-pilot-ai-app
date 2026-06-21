@@ -1,7 +1,9 @@
+import json
 import uuid
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from fastapi import HTTPException, status
+from starlette.concurrency import iterate_in_threadpool
 
 from app.models.resume import Resume
 from app.models.user import User
@@ -14,7 +16,11 @@ from app.schemas.ai_features import (
 from app.ai.resume_tailor import tailor_resume
 from app.ai.interview_coach import generate_interview_prep
 from app.ai.cover_letter import generate_cover_letter
-from app.ai.career_coach import chat_with_coach
+from app.ai.career_coach import chat_with_coach, stream_with_coach
+
+
+def _sse(event: str, data: dict) -> str:
+    return f"event: {event}\ndata: {json.dumps(data)}\n\n"
 
 
 class AIService:
@@ -240,6 +246,88 @@ class AIService:
             reply=reply,
             messages=[ChatMessageOut.model_validate(m) for m in all_msgs],
         )
+
+    async def _build_chat_context(self, user_id: uuid.UUID) -> str | None:
+        try:
+            user_result = await self.db.execute(select(User).where(User.id == user_id))
+            user_obj = user_result.scalar_one_or_none()
+            user_name = (user_obj.name or "").strip() if user_obj else ""
+
+            resumes_result = await self.db.execute(
+                select(Resume)
+                .where(Resume.user_id == user_id, Resume.status == "ready")
+                .order_by(Resume.created_at.desc())
+            )
+            all_resumes = list(resumes_result.scalars().all())
+
+            lines = [f"User's name: {user_name or 'Unknown'}"]
+            if all_resumes:
+                primary = all_resumes[0]
+                data = primary.structured_data or {}
+                skills = data.get("skills", {}) or {}
+                exp = (data.get("experience") or [{}])[0]
+                lines += [
+                    f"Number of resumes uploaded: {len(all_resumes)}",
+                    f"Latest resume ATS score: {primary.ats_score}/100",
+                    f"Technical skills: {', '.join((skills.get('technical') or [])[:10])}",
+                    f"Most recent job title: {exp.get('title', 'Unknown')} at {exp.get('company', '')}",
+                ]
+                if len(all_resumes) > 1:
+                    lines.append(f"Other resumes on file: {len(all_resumes) - 1} more")
+            else:
+                lines.append("No resume uploaded yet.")
+            return "\n".join(lines)
+        except Exception:
+            return None
+
+    async def chat_stream(self, user_id: uuid.UUID, message: str, session_id: uuid.UUID | None):
+        """Server-Sent-Events generator: streams the coach reply token-by-token,
+        persisting both messages around the stream."""
+        # Get or create session
+        session = None
+        if session_id:
+            result = await self.db.execute(
+                select(ChatSession).where(ChatSession.id == session_id, ChatSession.user_id == user_id)
+            )
+            session = result.scalar_one_or_none()
+        if not session:
+            session = ChatSession(user_id=user_id, title=message[:60])
+            self.db.add(session)
+            await self.db.flush()
+        sess_id = session.id
+
+        # Load context (last 20 messages) BEFORE committing, to avoid ORM expiry issues
+        msgs_result = await self.db.execute(
+            select(ChatMessage)
+            .where(ChatMessage.session_id == sess_id)
+            .order_by(ChatMessage.created_at.desc())
+            .limit(20)
+        )
+        existing_msgs = list(reversed(msgs_result.scalars().all()))
+        coach_messages = [{"role": m.role, "content": m.content} for m in existing_msgs]
+        coach_messages.append({"role": "user", "content": message})
+        is_first = len(existing_msgs) == 0
+
+        user_context = await self._build_chat_context(user_id)
+
+        # Persist the user message + title up front so it survives a dropped stream
+        self.db.add(ChatMessage(session_id=sess_id, role="user", content=message))
+        title_val = message[:60] if is_first else session.title
+        if is_first:
+            session.title = message[:60]
+        await self.db.commit()
+
+        yield _sse("meta", {"session_id": str(sess_id), "session_title": title_val})
+
+        parts: list[str] = []
+        async for delta in iterate_in_threadpool(stream_with_coach(coach_messages, user_context)):
+            parts.append(delta)
+            yield _sse("token", {"text": delta})
+
+        reply = "".join(parts).strip() or "I'm having trouble responding right now. Please try again."
+        self.db.add(ChatMessage(session_id=sess_id, role="assistant", content=reply))
+        await self.db.commit()
+        yield _sse("done", {"reply": reply})
 
     async def list_sessions(self, user_id: uuid.UUID) -> list[ChatSession]:
         result = await self.db.execute(
